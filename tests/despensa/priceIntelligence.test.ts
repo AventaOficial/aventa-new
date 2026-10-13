@@ -4,8 +4,12 @@ import { engineHistory, loadDespensaOffers } from '@/lib/despensa/despensaFeed';
 import type { FeedOffer } from '@/lib/offers/feedService';
 import {
   aggregateDailyObservations,
-  createAmazonCaptureAdapter,
+  anchorKey,
+  classifyMlFailure,
   createMercadoLibreCaptureAdapter,
+  ML_CAPTURE_LIMITS,
+  readProductObservations,
+  resolveCaptureItem,
   evaluatePriceHistory,
   identityKey,
   observationIdempotencyKey,
@@ -22,7 +26,6 @@ import {
   type StoredObservationRow,
 } from '@/lib/offers/priceObservations';
 import type { MercadoLibrePriceResolution } from '@/lib/offers/resolveMercadoLibrePrice';
-import type { PaapiItem } from '@/lib/bots/ingest/amazonPaapi';
 import { createMemoryDb, memorySupabase, type MemoryDb } from '../helpers/memorySupabase';
 
 const NOW = new Date('2026-10-12T16:00:00.000Z');
@@ -46,6 +49,8 @@ function row(daysAgo: number, price: number, o: Partial<StoredObservationRow> = 
     currency: 'MXN',
     validation_status: 'valid',
     validation_reasons: [],
+    source_id: 'mercadolibre_mx',
+    external_item_id: 'MLM123456789',
     identity_key: ID_ML,
     presentation_key: ARROZ.presentationKey,
     scope_kind: 'online',
@@ -260,10 +265,10 @@ describe('20 escenarios obligatorios', () => {
     expect(second.inserted.valid).toBe(0);
     expect(captureRows(env.db)).toHaveLength(2);
 
-    // Con la pre-comprobación normal ni siquiera llama a la fuente.
+    // Con la pre-comprobación normal ni siquiera llama a la fuente (2 llamadas por corrida previa).
     const third = await runPriceCaptureCycle(env.deps());
     expect(third.skipped.captured_recently).toBe(2);
-    expect(env.mlCalls()).toBe(2);
+    expect(env.mlCalls()).toBe(4);
   });
 
   it('14. dos corridas simultáneas: el lock deja una; si el lock falla abierto, el índice evita duplicados', async () => {
@@ -282,14 +287,23 @@ describe('20 escenarios obligatorios', () => {
     expect(c.inserted.valid + d.inserted.valid).toBe(2);
   });
 
-  it('15. una tienda falla: se registra el motivo y las demás siguen', async () => {
+  it('15. una fuente falla: se registra el motivo, cada item queda aislado y la corrida termina', async () => {
+    // Falla un item (500 dos veces: se reintenta una sola vez); los demás se capturan.
+    const partial = captureEnv({ extraMlOffers: 2, mlFailItems: { MLM555000: [500, 500] } });
+    const p = await runPriceCaptureCycle(partial.deps());
+    expect(p.status).toBe('completed');
+    expect(p.skipped.source_error).toBe(1);
+    expect(p.inserted.valid).toBe(3);
+    expect(partial.callsFor('MLM555000')).toBe(2);
+
+    // Toda la fuente falla: tras 3 items fallidos seguidos se cierra solo en esta corrida.
     const env = captureEnv({ extraMlOffers: 4, mlFails: true });
     const r = await runPriceCaptureCycle(env.deps());
     expect(r.status).toBe('completed');
     expect(r.skipped.source_error).toBe(3);
-    expect(r.skipped.source_circuit_open).toBe(2);
-    expect(r.perSource.amazon_mx).toEqual({ selected: 1, inserted: 1, failed: 0 });
-    expect(captureRows(env.db).map((x) => x.source_id)).toEqual(['amazon_mx']);
+    expect(r.skipped.source_circuit_open).toBe(3);
+    expect(r.perSource.mercadolibre_mx).toEqual({ selected: 6, inserted: 0, failed: 6 });
+    expect(captureRows(env.db)).toHaveLength(0);
     expect(r.events.filter((e) => e.sourceId === 'mercadolibre_mx').every((e) => e.outcome === 'skipped')).toBe(true);
   });
 
@@ -299,8 +313,8 @@ describe('20 escenarios obligatorios', () => {
     expect(r.budgetExhausted).toBe(true);
     expect(r.inserted.valid).toBe(2);
     expect(r.skipped.time_budget_exhausted).toBe(2);
-    expect(r.events.filter((e) => e.reason === 'time_budget_exhausted').map((e) => e.sourceId).sort()).toEqual([
-      'amazon_mx',
+    expect(r.events.filter((e) => e.reason === 'time_budget_exhausted').map((e) => e.sourceId)).toEqual([
+      'mercadolibre_mx',
       'mercadolibre_mx',
     ]);
   });
@@ -376,6 +390,26 @@ describe('captura periódica: controles', () => {
     });
   });
 
+  it('respeta el tiempo que le queda a la función que la invoca (cron)', async () => {
+    // Quedan 20 s: tras el margen de 15 s no alcanza para empezar; no toma el lock ni escribe.
+    const tight = captureEnv();
+    const t = await runPriceCaptureCycle({ ...tight.deps(), hostDeadlineMs: tight.now().getTime() + 20_000 });
+    expect(t).toMatchObject({ status: 'skipped_time', detail: 'host_time_insufficient' });
+    expect(tight.db.writes).toEqual([]);
+    expect(tight.mlCalls()).toBe(0);
+
+    // Quedan 45 s: el presupuesto baja de 60 s a 30 s y la corrida termina normal.
+    const some = captureEnv();
+    const s = await runPriceCaptureCycle({ ...some.deps(), hostDeadlineMs: some.now().getTime() + 45_000 });
+    expect(s.status).toBe('completed');
+    expect(s.budgetMs).toBe(30_000);
+    expect(s.inserted.valid).toBe(2);
+
+    // Apagada: ni siquiera calcula el tiempo.
+    const off = captureEnv({ config: null });
+    expect((await runPriceCaptureCycle({ ...off.deps(), hostDeadlineMs: 0 })).status).toBe('disabled');
+  });
+
   it('sin la migración aplicada no escribe nada', async () => {
     const env = captureEnv();
     env.db.missingColumns = { offer_price_snapshots: ['validation_status', 'idempotency_key'] };
@@ -393,23 +427,40 @@ describe('captura periódica: controles', () => {
     expect(env.db.writes!.some((w) => w.op === 'delete')).toBe(false);
   });
 
-  it('fuentes sin API autorizada se omiten con motivo; Amazon respeta sus propios flags', async () => {
-    const env = captureEnv({ amazonEnabled: false });
+  it('fuentes sin API autorizada se omiten con motivo; Amazon PA-API está retirada y no se puede encender', async () => {
+    // Amazon, Soriana y lo que no es despensa ni siquiera se leen: el filtro de fuente va en SQL.
+    const plain = captureEnv();
+    const p = await runPriceCaptureCycle(plain.deps());
+    expect(p.coverage).toMatchObject({ scannedOffers: 2, eligibleProducts: 2, scanComplete: true });
+    expect(p.events.some((e) => ['amz1', 'sor1', 'tech1'].includes(e.offerId))).toBe(false);
+
+    // Si una oferta de otra tienda pasa el filtro (huella «ml:» pegada por error), el chequeo por
+    // URL la sigue frenando con su motivo.
+    const env = captureEnv({
+      offers: [
+        offerRow('ml1', 'Arroz blanco 1 kg', 'https://articulo.mercadolibre.com.mx/MLM-123456789-arroz', 34, 'ml:MLM123456789'),
+        offerRow('amz1', 'Frijol negro 900 g', 'https://www.amazon.com.mx/dp/B000TEST01', 28, 'ml:MLM000000001'),
+        offerRow('sor1', 'Aceite vegetal 1 L', 'https://www.soriana.com/p/1', 45, 'ml:MLM000000002'),
+      ],
+    });
     const r = await runPriceCaptureCycle(env.deps());
     expect(r.skipped.source_not_supported).toBe(1);
-    expect(r.skipped.source_disabled).toBe(1);
+    expect(r.skipped.source_retired).toBe(1);
     expect(r.events).toContainEqual({ offerId: 'sor1', sourceId: 'soriana_mx', outcome: 'skipped', reason: 'source_not_supported' });
-    expect(captureRows(env.db).map((x) => x.source_id)).toEqual(['mercadolibre_mx']);
+    expect(r.events).toContainEqual({ offerId: 'amz1', sourceId: 'amazon_mx', outcome: 'skipped', reason: 'source_retired' });
+    expect(new Set(captureRows(env.db).map((x) => x.source_id))).toEqual(new Set(['mercadolibre_mx']));
+    expect(env.resolveCalls.map((c) => c.itemId)).toEqual(['MLM123456789']);
+    // Ni la configuración puede activarla.
+    expect(parsePriceCaptureConfig({ enabled: true, sources: ['amazon_mx', 'mercadolibre_mx'] }).sources).toEqual(['mercadolibre_mx']);
+    expect(parsePriceCaptureConfig({ enabled: true, sources: ['amazon_mx'] }).sources).toEqual([]);
   });
 
   it('respeta los topes por fuente y por corrida', async () => {
-    // Orden de candidatos (más nuevas primero): ml1, amz1, sor1, tech1, mlx0…mlx4.
-    const bySource = await runPriceCaptureCycle(
-      captureEnv({ extraMlOffers: 5 }).deps({ maxPerSource: { mercadolibre_mx: 2, amazon_mx: 10 }, maxCandidates: 10 }),
-    );
-    expect(bySource.selected).toBe(3);
+    // Candidatos de Mercado Libre (más nuevos primero): ml1, ml2, mlx0…mlx4.
+    const bySource = await runPriceCaptureCycle(captureEnv({ extraMlOffers: 5 }).deps({ maxPerSource: { mercadolibre_mx: 2 }, maxCandidates: 10 }));
+    expect(bySource.selected).toBe(2);
     expect(bySource.perSource.mercadolibre_mx?.selected).toBe(2);
-    expect(bySource.skipped.over_source_cap).toBe(4);
+    expect(bySource.skipped.over_source_cap).toBe(5);
 
     const byRun = await runPriceCaptureCycle(captureEnv({ extraMlOffers: 5 }).deps({ maxCandidates: 1 }));
     expect(byRun.selected).toBe(1);
@@ -419,7 +470,7 @@ describe('captura periódica: controles', () => {
   it('la fila guardada declara procedencia, validación e idempotencia sin datos sensibles', async () => {
     const env = captureEnv();
     await runPriceCaptureCycle(env.deps());
-    const ml = captureRows(env.db).find((x) => x.source_id === 'mercadolibre_mx')!;
+    const ml = captureRows(env.db).find((x) => x.external_item_id === 'MLM123456789')!;
     expect(ml).toMatchObject({
       offer_id: 'ml1',
       price: 34,
@@ -432,22 +483,23 @@ describe('captura periódica: controles', () => {
       availability: 'in_stock',
       capture_method: 'ml_official_api',
       validation_status: 'valid',
-      policy_version: 'price-observation-v1',
+      policy_version: 'price-observation-v2',
       idempotency_key: observationIdempotencyKey({
-        offerId: 'ml1',
         sourceId: 'mercadolibre_mx',
         externalItemId: 'MLM123456789',
         scope: { kind: 'online', label: 'MX' },
         observedAtMs: NOW.getTime(),
       }),
     });
+    expect(ml.idempotency_key).not.toContain('ml1');
+    expect(ml.provenance).toMatchObject({ catalog_product_id: null, anchor_offer_expired: false, offer_price_at_capture: 34 });
     expect(JSON.stringify(ml)).not.toMatch(/token|secret|cookie|authorization/i);
   });
 
   it('una moneda distinta de MXN se guarda como inválida y no cuenta', async () => {
     const env = captureEnv({ mlCurrency: 'USD' });
     const r = await runPriceCaptureCycle(env.deps());
-    expect(r.inserted.invalid).toBe(1);
+    expect(r.inserted.invalid).toBe(2);
     expect(captureRows(env.db).find((x) => x.source_id === 'mercadolibre_mx')).toMatchObject({
       validation_status: 'invalid',
       validation_reasons: ['currency_not_mxn'],
@@ -495,6 +547,342 @@ describe('Despensa usa el motor', () => {
   });
 });
 
+describe('continuidad del producto entre ofertas', () => {
+  const ANCHOR = { sourceId: 'mercadolibre_mx' as const, externalItemId: 'MLM123456789' };
+
+  it('una oferta nueva del mismo producto no reinicia el historial', async () => {
+    const rows = [row(0.1, 34, { offer_id: 'nueva' }), ...PRIOR_40().map((r, i) => ({ ...r, offer_id: `vieja${i % 2}` }))];
+    const supabase = memorySupabase(createMemoryDb({ tables: { offer_price_snapshots: rows } }));
+
+    const product = await readProductObservations(supabase, [ANCHOR], { now: NOW });
+    const h = product.byAnchor.get(anchorKey(ANCHOR));
+    expect(h).toMatchObject({ complete: true });
+    expect(h?.rows).toHaveLength(6);
+    const e = evaluatePriceHistory({ rows: h!.rows, historyComplete: true, currentPrice: 34, originalPrice: null, now: NOW, expect: ARROZ });
+    expect(e.label).toBe('verified_saving');
+
+    // Contraste: por oferta, la nueva solo tiene su propia captura.
+    const byOffer = await readOfferObservations(supabase, ['nueva'], { now: NOW, onlyCapture: true });
+    expect(evaluate(byOffer.byOffer.get('nueva')!.rows).reasons).toEqual(['single_observation']);
+  });
+
+  it('caducidad sin pérdida: 22 días con ofertas de 7 días llegan a ahorro verificado', async () => {
+    const START = Date.parse('2026-09-01T16:00:00.000Z');
+    const URL = 'https://articulo.mercadolibre.com.mx/MLM-123456789-arroz';
+    const at = (d: number) => new Date(START + d * DAY).toISOString();
+    const publish: Record<number, ReturnType<typeof offerRow>> = {
+      0: { ...offerRow('o1', 'Arroz blanco 1 kg', URL, 40), created_at: at(0), expires_at: at(7) },
+      7: { ...offerRow('o2', 'Arroz blanco 1 kg', URL, 40), created_at: at(7), expires_at: at(14) },
+      14: { ...offerRow('o3', 'Arroz blanco 1 kg', URL, 40), created_at: at(14), expires_at: at(21) },
+      18: { ...offerRow('o4', 'Arroz blanco 1 kg', URL, 34), created_at: at(18), expires_at: at(25) },
+    };
+    const env = captureEnv({ offers: [], startMs: START, mlPriceAt: (_id, ms) => (ms >= START + 18 * DAY ? 34 : 40) });
+    const anchoredTo: string[] = [];
+    for (let d = 0; d <= 21; d += 1) {
+      if (publish[d]) env.db.tables.offers.push(publish[d]);
+      const r = await runPriceCaptureCycle(env.deps());
+      expect(r.inserted.valid).toBe(1);
+      anchoredTo.push(captureRows(env.db).at(-1)!.offer_id as string);
+      if (d < 21) env.advance(DAY);
+    }
+    expect(anchoredTo).toEqual([...Array(7).fill('o1'), ...Array(7).fill('o2'), ...Array(4).fill('o3'), ...Array(4).fill('o4')]);
+    // Las ofertas no se tocaron.
+    expect(env.db.tables.offers.map((o) => o.price)).toEqual([40, 40, 40, 34]);
+
+    const supabase = memorySupabase(env.db);
+    const now = env.now();
+    const h = (await readProductObservations(supabase, [ANCHOR], { now })).byAnchor.get(anchorKey(ANCHOR))!;
+    expect(h.rows).toHaveLength(22);
+    const e = evaluatePriceHistory({ rows: h.rows, historyComplete: h.complete, currentPrice: 34, originalPrice: null, now, expect: ARROZ });
+    expect(e).toMatchObject({ label: 'verified_saving', savingAmount: 6, reference: { kind: 'own_history_median', price: 40 } });
+
+    // Sin continuidad (solo la oferta vigente) no habría evidencia suficiente.
+    const only = (await readOfferObservations(supabase, ['o4'], { now, onlyCapture: true })).byOffer.get('o4')!;
+    const e4 = evaluatePriceHistory({ rows: only.rows, historyComplete: true, currentPrice: 34, originalPrice: null, now, expect: ARROZ });
+    expect(e4.label).not.toBe('verified_saving');
+    expect(e4.reasons).toEqual(['insufficient_history']);
+  });
+
+  it('una oferta caducada se sigue capturando 45 días; después, no', async () => {
+    const URL = 'https://articulo.mercadolibre.com.mx/MLM-123456789-arroz';
+    const recent = captureEnv({ offers: [{ ...offerRow('vieja', 'Arroz blanco 1 kg', URL, 34), expires_at: iso(10) }] });
+    const r = await runPriceCaptureCycle(recent.deps());
+    expect(r.trackedAfterExpiry).toBe(1);
+    expect(r.inserted.valid).toBe(1);
+    expect(captureRows(recent.db)[0].provenance).toMatchObject({ anchor_offer_expired: true });
+
+    const old = captureEnv({ offers: [{ ...offerRow('vieja', 'Arroz blanco 1 kg', URL, 34), expires_at: iso(50) }] });
+    const o = await runPriceCaptureCycle(old.deps());
+    // La ventana se aplica en SQL: la oferta ni se lee.
+    expect(o.coverage).toMatchObject({ scannedOffers: 0, eligibleProducts: 0, scanComplete: true });
+    expect(o.detail).toBe('no_candidates');
+    expect(old.mlCalls()).toBe(0);
+    expect(captureRows(old.db)).toHaveLength(0);
+  });
+
+  it('dos ofertas del mismo producto: una sola captura por día, anclada a la vigente más nueva', async () => {
+    const URL = 'https://articulo.mercadolibre.com.mx/MLM-123456789-arroz';
+    const env = captureEnv({
+      offers: [
+        { ...offerRow('caducada-nueva', 'Arroz blanco 1 kg', URL, 34), created_at: iso(1), expires_at: iso(0.5) },
+        { ...offerRow('vigente', 'Arroz blanco 1 kg', URL, 34), created_at: iso(3) },
+        { ...offerRow('vigente-vieja', 'Arroz blanco 1 kg', `${URL}?ref=x`, 34), created_at: iso(5) },
+      ],
+    });
+    const r = await runPriceCaptureCycle(env.deps());
+    expect(r.selected).toBe(1);
+    expect(r.skipped.same_product_other_offer).toBe(2);
+    expect(env.mlCalls()).toBe(1);
+    expect(captureRows(env.db).map((x) => x.offer_id)).toEqual(['vigente']);
+  });
+});
+
+describe('separación e integridad de la serie', () => {
+  const ARROZ_500 = readProduct('Arroz blanco 500 g');
+  const ID_500 = identityKey({ sourceId: 'mercadolibre_mx', externalItemId: 'MLM123456789', ...ARROZ_500 });
+  const as500 = (r: StoredObservationRow) => ({ ...r, identity_key: ID_500, presentation_key: ARROZ_500.presentationKey });
+
+  it('otra presentación del mismo item no se mezcla con la serie de la oferta', () => {
+    const rows = [row(0.1, 34), ...PRIOR_40(), ...[11, 16, 21, 26].map((d) => as500(row(d, 20)))];
+    const e = evaluatePriceHistory({ rows, historyComplete: true, currentPrice: 34, originalPrice: null, now: NOW, expect: ARROZ });
+    expect(e.excluded.different_identity).toBe(4);
+    expect(e.reference?.price).toBe(40);
+
+    const only500 = [as500(row(0.1, 18)), ...[10, 15, 20, 25].map((d) => as500(row(d, 20)))];
+    const m = evaluatePriceHistory({ rows: only500, historyComplete: true, currentPrice: 34, originalPrice: null, now: NOW, expect: ARROZ });
+    expect(m.reasons).toEqual(['offer_identity_mismatch']);
+    expect(verified(m)).toBe(false);
+  });
+
+  it('presentación de la oferta desconocida: puede mostrar precio, nunca ahorro verificado', () => {
+    const e = evaluatePriceHistory({
+      rows: [row(0.1, 34), ...PRIOR_40()],
+      historyComplete: true,
+      currentPrice: 34,
+      originalPrice: null,
+      now: NOW,
+      expect: { ...ARROZ, presentationKey: null },
+    });
+    expect(e.reasons).toEqual(['offer_presentation_unknown']);
+    expect(verified(e)).toBe(false);
+  });
+
+  it('historial con huecos: cuenta días reales, no rellena', () => {
+    // Cuatro días seguidos: abarcan 3 días, no 14.
+    expect(evaluate([row(0.1, 34), row(20, 40), row(21, 40), row(22, 40), row(23, 40)]).reasons).toEqual(['insufficient_history']);
+    // Tres días previos con un hueco grande: faltan observaciones.
+    expect(evaluate([row(0.1, 34), row(15, 40), row(40, 40), row(41, 40)]).reasons).toEqual(['insufficient_history']);
+    // Varias capturas el mismo día cuentan como una.
+    expect(evaluate([row(0.1, 34), row(20, 40), row(20.1, 40), row(20.2, 40), row(35, 40)]).reasons).toEqual(['insufficient_history']);
+    // Cuatro días distintos que abarcan ≥14 días: sí.
+    expect(evaluate([row(0.1, 34), row(15, 40), row(16, 40), row(30, 40), row(31, 40)]).label).toBe('verified_saving');
+  });
+
+  it('lectura de producto incompleta: no se afirma nada', async () => {
+    const db = createMemoryDb({ tables: { offer_price_snapshots: [row(0.1, 34), ...PRIOR_40()] } });
+    db.failOn.offer_price_snapshots = { op: 'select', error: { code: '57014', message: 'timeout' } };
+    const anchor = { sourceId: 'mercadolibre_mx' as const, externalItemId: 'MLM123456789' };
+    const res = await readProductObservations(memorySupabase(db), [anchor], { now: NOW });
+    expect(res.failedChunks).toBe(1);
+    const h = res.byAnchor.get(anchorKey(anchor));
+    expect(h?.complete ?? false).toBe(false);
+    const e = evaluatePriceHistory({ rows: h?.rows ?? [], historyComplete: h?.complete ?? false, currentPrice: 34, originalPrice: null, now: NOW, expect: ARROZ });
+    expect(e.reasons).toEqual(['history_incomplete']);
+  });
+
+  it('disponibilidad: desconocida no verifica, limitada sí, agotada no es precio vigente', () => {
+    const unknown = evaluate([row(0.1, 34, { availability: 'unknown' }), ...PRIOR_40()]);
+    expect(unknown.reasons).toEqual(['availability_unconfirmed']);
+    expect(unknown.label).toBe('observed_price');
+    expect(verified(unknown)).toBe(false);
+
+    expect(evaluate([row(0.1, 34, { availability: 'limited' }), ...PRIOR_40()]).label).toBe('verified_saving');
+    expect(verified(evaluate([row(0.1, 34, { availability: 'out_of_stock' }), ...PRIOR_40()]))).toBe(false);
+  });
+
+  it('observaciones inválidas o en cuarentena no son vigentes ni referencia', () => {
+    const invalidNow = evaluate([row(0.1, 34, { validation_status: 'invalid', validation_reasons: ['presentation_mismatch'] }), ...PRIOR_40()]);
+    expect(verified(invalidNow)).toBe(false);
+    const quarantined = evaluate([row(0.1, 34), ...PRIOR_40().map((r) => ({ ...r, validation_status: 'quarantined' }))]);
+    expect(verified(quarantined)).toBe(false);
+  });
+});
+
+describe('precio publicado frente al observado', () => {
+  it('la tienda muestra un precio menor: se informa, no se calcula ahorro y la oferta no cambia', async () => {
+    const e = evaluate([row(0.1, 30), ...PRIOR_40()], 34);
+    expect(e).toMatchObject({ label: 'price_differs', priceRelation: 'observed_lower', current: { price: 30 } });
+    expect(e.reasons).toEqual(['current_price_mismatch']);
+    const ev = savingEvidence({ price: 34, history: engineHistory(e) });
+    expect(ev).toMatchObject({ status: 'price_differs', observedPrice: 30 });
+
+    const now = new Date();
+    const offers = [{ id: 'o1', source_currency: 'MXN', price: 34, product_fingerprint: 'ml:MLM123456789' }];
+    const db = createMemoryDb({ tables: { offers, offer_price_snapshots: [row(0.05, 30, {}, now), ...[10, 15, 20, 25, 30].map((d) => row(d, 40, {}, now))] } });
+    const out = await loadDespensaOffers(memorySupabase(db), [feedOffer({ id: 'o1', title: 'Arroz blanco 1 kg', price: 34 })]);
+    expect(out.offers[0].priceHistory?.engine).toMatchObject({ label: 'price_differs', priceRelation: 'observed_lower' });
+    expect(db.tables.offers).toEqual([{ id: 'o1', source_currency: 'MXN', price: 34, product_fingerprint: 'ml:MLM123456789' }]);
+  });
+
+  it('la promoción terminó (precio observado mayor): sin ahorro', () => {
+    const e = evaluate([row(0.1, 40), ...PRIOR_40()], 34);
+    expect(e).toMatchObject({ label: 'price_differs', priceRelation: 'observed_higher' });
+    expect(verified(e)).toBe(false);
+  });
+
+  it('observación vieja: no se compara con el precio publicado', () => {
+    const e = evaluate([row(3, 34), ...PRIOR_40()], 34);
+    expect(e.reasons).toEqual(['current_stale']);
+    expect(e.priceRelation).toBeNull();
+    expect(verified(e)).toBe(false);
+  });
+
+  it('diferencia de centavos por redondeo: coincide', () => {
+    const e = evaluate([row(0.1, 34.004), ...PRIOR_40()], 34);
+    expect(e.priceRelation).toBe('matches');
+  });
+});
+
+describe('Mercado Libre: catálogo y autorización', () => {
+  it('resuelve el item exacto y propaga el producto de catálogo; sin item no adivina', async () => {
+    expect(resolveCaptureItem('mercadolibre_mx', { offerUrl: 'https://articulo.mercadolibre.com.mx/MLM-123456789-arroz', productFingerprint: null })).toMatchObject({
+      ok: true,
+      externalItemId: 'MLM123456789',
+      catalogProductId: null,
+    });
+    expect(resolveCaptureItem('mercadolibre_mx', { offerUrl: 'https://www.mercadolibre.com.mx/arroz/p/MLM111222333?wid=MLM444555666', productFingerprint: null })).toMatchObject({
+      ok: true,
+      externalItemId: 'MLM444555666',
+      catalogProductId: 'MLM111222333',
+    });
+    expect(resolveCaptureItem('mercadolibre_mx', { offerUrl: 'https://www.mercadolibre.com.mx/arroz/p/MLM111222333', productFingerprint: 'ml:MLM111222333' })).toEqual({
+      ok: false,
+      reason: 'catalog_without_item',
+    });
+
+    const env = captureEnv({
+      offers: [
+        offerRow('cat', 'Arroz blanco 1 kg', 'https://www.mercadolibre.com.mx/arroz/p/MLM111222333?wid=MLM444555666', 34),
+        offerRow('item', 'Frijol negro 900 g', 'https://articulo.mercadolibre.com.mx/MLM-987654321-frijol', 28),
+        offerRow('solo-cat', 'Arroz blanco 1 kg', 'https://www.mercadolibre.com.mx/arroz/p/MLM777888999', 34),
+      ],
+    });
+    const r = await runPriceCaptureCycle(env.deps());
+    expect(r.skipped.catalog_without_item).toBe(1);
+    expect(env.resolveCalls).toHaveLength(2);
+    expect(env.resolveCalls).toEqual(
+      expect.arrayContaining([
+        { itemId: 'MLM444555666', catalogProductId: 'MLM111222333' },
+        { itemId: 'MLM987654321', catalogProductId: null },
+      ]),
+    );
+    const cat = captureRows(env.db).find((x) => x.offer_id === 'cat');
+    expect(cat).toMatchObject({ external_item_id: 'MLM444555666' });
+    expect(cat?.provenance).toMatchObject({ catalog_product_id: 'MLM111222333' });
+  });
+
+  it('clasifica las fallas por código HTTP', () => {
+    const c = (status: MercadoLibrePriceResolution['status'], http: number | null) => classifyMlFailure({ status, httpStatus: http });
+    expect(c('unavailable', 401)).toBe('source_unauthorized');
+    expect(c('unauthorized', 403)).toBe('source_unauthorized');
+    expect(c('unavailable', 429)).toBe('source_rate_limited');
+    expect(c('unavailable', 404)).toBe('item_not_found');
+    expect(c('unavailable', 503)).toBe('source_error');
+    expect(c('unavailable', 0)).toBe('source_error');
+    expect(c('error', null)).toBe('source_error');
+    expect(c('unavailable', 200)).toBe('price_unavailable');
+    expect(ML_CAPTURE_LIMITS).toEqual({ unauthorizedInARow: 3, errorsInARow: 3, transientRetries: 1 });
+  });
+
+  it('401/403: sin reintento, se cierra en la corrida y vuelve a intentarse en la siguiente', async () => {
+    // Todos los items responden 401/403 la primera vez (el orden de captura es por prioridad).
+    const env = captureEnv({
+      extraMlOffers: 3,
+      mlFailItems: { MLM123456789: [403], MLM987654321: [401], MLM555000: [403], MLM555001: [401], MLM555002: [403] },
+    });
+    const first = await runPriceCaptureCycle(env.deps());
+    expect(first.skipped.source_unauthorized).toBe(3);
+    expect(first.skipped.source_circuit_open).toBe(2);
+    expect(env.mlCalls()).toBe(3);
+    expect(captureRows(env.db)).toHaveLength(0);
+
+    // Al día siguiente se reintenta todo: los 3 ya fallidos responden bien; los 2 que no se
+    // llegaron a intentar dan su 401/403 (dos seguidos no cierran la fuente).
+    env.advance(DAY);
+    const second = await runPriceCaptureCycle(env.deps());
+    expect(second.inserted.valid).toBe(3);
+    expect(second.skipped.source_unauthorized).toBe(2);
+    expect(second.skipped.source_circuit_open ?? 0).toBe(0);
+    expect(env.mlCalls()).toBe(3 + 5);
+
+    env.advance(DAY);
+    const third = await runPriceCaptureCycle(env.deps());
+    expect(third.skipped.source_unauthorized ?? 0).toBe(0);
+    expect(third.inserted.valid).toBe(5);
+    expect(new Set(captureRows(env.db).map((x) => x.external_item_id)).size).toBe(5);
+  });
+
+  it('un 403 aislado no cierra la fuente', async () => {
+    const env = captureEnv({ extraMlOffers: 2, mlFailItems: { MLM987654321: [403] } });
+    const r = await runPriceCaptureCycle(env.deps());
+    expect(r.skipped.source_unauthorized).toBe(1);
+    expect(r.skipped.source_circuit_open ?? 0).toBe(0);
+    expect(r.inserted.valid).toBe(3);
+  });
+
+  it('429: cierra la fuente de inmediato y sin reintentos', async () => {
+    const env = captureEnv({
+      extraMlOffers: 2,
+      mlFailItems: { MLM123456789: [429], MLM987654321: [429], MLM555000: [429], MLM555001: [429] },
+    });
+    const r = await runPriceCaptureCycle(env.deps());
+    expect(r.skipped.source_rate_limited).toBe(1);
+    expect(r.skipped.source_circuit_open).toBe(3);
+    expect(env.mlCalls()).toBe(1);
+  });
+
+  it('404 y 200 incompleto quedan aislados en su item', async () => {
+    const env = captureEnv({ extraMlOffers: 1, mlFailItems: { MLM123456789: [404] }, mlIncomplete: ['MLM987654321'] });
+    const r = await runPriceCaptureCycle(env.deps());
+    expect(r.skipped.item_not_found).toBe(1);
+    expect(r.skipped.price_unavailable).toBe(1);
+    expect(r.inserted.valid).toBe(1);
+    expect(env.callsFor('MLM123456789')).toBe(1);
+  });
+
+  it('respuesta sin moneda legible: se guarda inválida, nunca rompe el CHECK de la base', async () => {
+    const env = captureEnv({ mlCurrency: 'pesos' });
+    const r = await runPriceCaptureCycle(env.deps());
+    expect(r.inserted.invalid).toBe(2);
+    for (const x of captureRows(env.db)) {
+      expect(x.currency).toBeNull();
+      expect(x.validation_reasons).toContain('currency_unconfirmed');
+    }
+  });
+});
+
+describe('compatibilidad con Price Memory y Canasta Básica', () => {
+  it('la captura no escribe en Price Memory ni en ofertas', async () => {
+    const env = captureEnv({ extraMlOffers: 1 });
+    env.db.tables.product_price_snapshots = [{ id: 'pm1', marketplace: 'mercadolibre', item_id: 'MLM123456789', last_price: 50 }];
+    const before = JSON.stringify(env.db.tables.offers);
+    await runPriceCaptureCycle(env.deps());
+    expect(env.db.tables.product_price_snapshots).toEqual([{ id: 'pm1', marketplace: 'mercadolibre', item_id: 'MLM123456789', last_price: 50 }]);
+    expect(JSON.stringify(env.db.tables.offers)).toBe(before);
+  });
+
+  it('Despensa con ofertas sin item externo no depende de la lectura de historial', async () => {
+    const feed = [feedOffer({ id: 's1', title: 'Arroz blanco 1 kg', price: 30, offer_url: 'https://www.soriana.com/p/1', store: 'Soriana' })];
+    const ok = createMemoryDb({ tables: { offers: [{ id: 's1', source_currency: 'MXN' }], offer_price_snapshots: [] } });
+    const broken = createMemoryDb({ tables: { offers: [{ id: 's1', source_currency: 'MXN' }], offer_price_snapshots: [] } });
+    broken.failOn.offer_price_snapshots = { op: 'select', error: { code: '57014', message: 'timeout' } };
+    const a = await loadDespensaOffers(memorySupabase(ok), feed);
+    const b = await loadDespensaOffers(memorySupabase(broken), feed);
+    expect(b.offers[0].priceHistory).toEqual(a.offers[0].priceHistory);
+    expect(a.offers[0].priceHistory?.engine?.label).not.toBe('verified_saving');
+  });
+});
+
 // ── Arnés ───────────────────────────────────────────────────────────────
 
 function captured(o: Partial<CapturedObservation> = {}): CapturedObservation {
@@ -525,32 +913,93 @@ function offerRow(id: string, title: string, url: string, price: number, fingerp
     source_currency: 'MXN',
     status: 'approved',
     deleted_at: null,
-    expires_at: null,
+    expires_at: null as string | null,
     created_at: '2026-10-10T00:00:00.000Z',
   };
 }
 
+type MlReply = number | 'resolved';
+
 type EnvOpts = {
   config?: Record<string, unknown> | null;
-  amazonEnabled?: boolean;
   extraMlOffers?: number;
   mlFails?: boolean;
+  /** Respuestas HTTP por item, en orden de llamada; después de agotarlas, responde bien. */
+  mlFailItems?: Record<string, MlReply[]>;
   mlCostMs?: number;
   mlCurrency?: string;
+  /** Precio que devuelve la tienda por item (por defecto, el de su oferta). */
+  mlPrices?: Record<string, number>;
+  /** Precio en función del reloj simulado (para series de varias semanas). */
+  mlPriceAt?: (itemId: string, nowMs: number) => number;
+  /** Respuesta 200 sin precio legible. */
+  mlIncomplete?: string[];
+  offers?: ReturnType<typeof offerRow>[];
+  startMs?: number;
+  /** false: la función `price_capture_product_stats` no existe (migración sin aplicar). */
+  statsRpc?: boolean;
 };
 
+/** Réplica en memoria de `price_capture_product_stats` (misma semántica que el SQL). */
+function productStatsRpc(args: Record<string, unknown>, db: MemoryDb) {
+  const items = new Set(args.p_item_ids as string[]);
+  const since = String(args.p_since);
+  const out = new Map<string, { external_item_id: string; last_recorded_at: string; days: Set<string>; first_valid_at: string | null; last_valid_at: string | null }>();
+  for (const r of db.tables.offer_price_snapshots ?? []) {
+    if (r.source !== 'capture' || r.source_id !== args.p_source_id || !items.has(String(r.external_item_id))) continue;
+    const at = String(r.recorded_at);
+    if (at < since) continue;
+    const id = String(r.external_item_id);
+    const s = out.get(id) ?? { external_item_id: id, last_recorded_at: at, days: new Set<string>(), first_valid_at: null, last_valid_at: null };
+    if (at > s.last_recorded_at) s.last_recorded_at = at;
+    if (r.validation_status === 'valid' && r.availability !== 'out_of_stock') {
+      s.days.add(at.slice(0, 10));
+      if (!s.first_valid_at || at < s.first_valid_at) s.first_valid_at = at;
+      if (!s.last_valid_at || at > s.last_valid_at) s.last_valid_at = at;
+    }
+    out.set(id, s);
+  }
+  return {
+    data: [...out.values()].map(({ days, ...s }) => ({ ...s, valid_days: days.size })),
+    error: null,
+  };
+}
+
+const ML_TITLES: Record<string, string> = { MLM123456789: 'Arroz blanco 1 kg', MLM987654321: 'Frijol negro 900 g' };
+const ML_PRICES: Record<string, number> = { MLM123456789: 34, MLM987654321: 28 };
+
+function mlResolution(status: MercadoLibrePriceResolution['status'], httpStatus: number | null, price: number | null = null, currency: string | null = null): MercadoLibrePriceResolution {
+  return {
+    status,
+    price,
+    originalPrice: null,
+    regularPrice: null,
+    promotionPrice: null,
+    currency,
+    source: price != null ? 'items_prices' : 'none',
+    confidence: price != null ? 'high' : 'low',
+    resolvedBy: price != null ? 'items_prices' : null,
+    httpStatus,
+  };
+}
+
 function captureEnv(opts: EnvOpts = {}) {
-  let t = NOW.getTime();
+  let t = opts.startMs ?? NOW.getTime();
   let mlCalls = 0;
-  const offers = [
-    offerRow('ml1', 'Arroz blanco 1 kg', 'https://articulo.mercadolibre.com.mx/MLM-123456789-arroz', 34, 'ml:MLM123456789'),
-    offerRow('amz1', 'Frijol negro 900 g', 'https://www.amazon.com.mx/dp/B000TEST01', 28),
-    offerRow('sor1', 'Aceite vegetal 1 L', 'https://www.soriana.com/p/1', 45),
-    offerRow('tech1', 'Audífonos bluetooth', 'https://www.amazon.com.mx/dp/B000TEST02', 300),
-    ...Array.from({ length: opts.extraMlOffers ?? 0 }, (_, i) =>
-      offerRow(`mlx${i}`, 'Arroz blanco 1 kg', `https://articulo.mercadolibre.com.mx/MLM-55500${i}-arroz`, 34, `ml:MLM55500${i}`),
-    ),
-  ].map((o, i) => ({ ...o, created_at: new Date(Date.parse('2026-10-10T00:00:00.000Z') - i * 60_000).toISOString() }));
+  const calls = new Map<string, number>();
+  const resolveCalls: { itemId: string; catalogProductId: string | null }[] = [];
+  const offers =
+    opts.offers ??
+    [
+      offerRow('ml1', 'Arroz blanco 1 kg', 'https://articulo.mercadolibre.com.mx/MLM-123456789-arroz', 34, 'ml:MLM123456789'),
+      offerRow('ml2', 'Frijol negro 900 g', 'https://articulo.mercadolibre.com.mx/MLM-987654321-frijol', 28, 'ml:MLM987654321'),
+      offerRow('amz1', 'Frijol negro 900 g', 'https://www.amazon.com.mx/dp/B000TEST01', 28),
+      offerRow('sor1', 'Aceite vegetal 1 L', 'https://www.soriana.com/p/1', 45),
+      offerRow('tech1', 'Audífonos bluetooth', 'https://www.amazon.com.mx/dp/B000TEST02', 300),
+      ...Array.from({ length: opts.extraMlOffers ?? 0 }, (_, i) =>
+        offerRow(`mlx${i}`, 'Arroz blanco 1 kg', `https://articulo.mercadolibre.com.mx/MLM-55500${i}-arroz`, 34, `ml:MLM55500${i}`),
+      ),
+    ].map((o, i) => ({ ...o, created_at: new Date(Date.parse('2026-10-10T00:00:00.000Z') - i * 60_000).toISOString() }));
   const db = createMemoryDb({
     tables: {
       app_config: opts.config === null ? [] : [{ key: PRICE_CAPTURE_CONFIG_KEY, value: opts.config ?? { enabled: true } }],
@@ -563,49 +1012,38 @@ function captureEnv(opts: EnvOpts = {}) {
       ingest_cycle_locks: [{ columns: ['lock_key'] }],
     },
   });
+  if (opts.statsRpc !== false) db.rpcHandlers = { price_capture_product_stats: productStatsRpc };
 
   const ml = createMercadoLibreCaptureAdapter({
     fetchItems: async (ids) =>
-      new Map(ids.map((id) => [id, { id, title: 'Arroz blanco 1 kg', status: 'active', available_quantity: 50 }])),
-    resolvePrice: async ({ itemId }): Promise<MercadoLibrePriceResolution> => {
+      new Map(ids.map((id) => [id, { id, title: ML_TITLES[id] ?? 'Arroz blanco 1 kg', status: 'active', available_quantity: 50 }])),
+    resolvePrice: async ({ itemId, catalogProductId }): Promise<MercadoLibrePriceResolution> => {
       mlCalls += 1;
+      const n = calls.get(itemId) ?? 0;
+      calls.set(itemId, n + 1);
+      resolveCalls.push({ itemId, catalogProductId: catalogProductId ?? null });
       t += opts.mlCostMs ?? 0;
-      if (opts.mlFails) {
-        return { status: 'error', price: null, originalPrice: null, regularPrice: null, promotionPrice: null, currency: null, source: 'none', confidence: 'low', resolvedBy: null, httpStatus: 500 };
+      if (opts.mlFails) return mlResolution('error', 500);
+      const scripted = opts.mlFailItems?.[itemId]?.[n];
+      if (typeof scripted === 'number') {
+        return mlResolution(scripted === 401 || scripted === 403 ? 'unauthorized' : 'unavailable', scripted);
       }
-      void itemId;
-      return { status: 'resolved', price: 34, originalPrice: null, regularPrice: null, promotionPrice: null, currency: opts.mlCurrency ?? 'MXN', source: 'items_prices', confidence: 'high', resolvedBy: 'items_prices', httpStatus: 200 };
+      if (opts.mlIncomplete?.includes(itemId)) return mlResolution('unavailable', 200);
+      const price = opts.mlPriceAt?.(itemId, t) ?? opts.mlPrices?.[itemId] ?? ML_PRICES[itemId] ?? 34;
+      return mlResolution('resolved', 200, price, opts.mlCurrency ?? 'MXN');
     },
   });
-  const amazon = createAmazonCaptureAdapter({
-    loadConfig: () => ({
-      amazonPaapiEnabled: opts.amazonEnabled ?? true,
-      amazonSource: 'paapi',
-      amazonPaapiAccessKey: 'AKIA_TEST_ONLY',
-      amazonPaapiSecretKey: 'secret-test-only',
-      amazonPaapiPartnerTag: 'partner-test-only',
-      amazonPaapiHost: 'webservices.amazon.com.mx',
-      amazonPaapiRegion: 'us-east-1',
-    }),
-    fetchItems: async (_cfg, asins) => ({
-      ok: true,
-      items: asins.map(
-        (asin): PaapiItem => ({
-          ASIN: asin,
-          ItemInfo: { Title: { DisplayValue: 'Frijol negro 900 g' } },
-          Offers: { Listings: [{ Price: { Amount: 28, Currency: 'MXN' }, Availability: { Type: 'Now' } }] },
-        }),
-      ),
-    }),
-  });
-  const adapters: PriceCaptureAdapter[] = [ml, amazon];
+  const adapters: PriceCaptureAdapter[] = [ml];
   const supabase = memorySupabase(db);
   return {
     db,
     advance: (ms: number) => {
       t += ms;
     },
+    now: () => new Date(t),
     mlCalls: () => mlCalls,
+    callsFor: (itemId: string) => calls.get(itemId) ?? 0,
+    resolveCalls,
     deps: (override: Partial<ReturnType<typeof parsePriceCaptureConfig>> = {}) => {
       const base = parsePriceCaptureConfig(opts.config === null ? null : (opts.config ?? { enabled: true }));
       return {

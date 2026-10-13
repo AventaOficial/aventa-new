@@ -25,7 +25,8 @@ import { parsePresentation, unitPriceFor, type UnitPrice } from '@/lib/despensa/
  *    misma variante, misma unidad): igual o por debajo de la mediana, sin pares, o sin dato,
  * 4. respaldo del ahorro (`savingEvidence`): verificado por el historial propio de Aventa,
  *    luego sin referencia o con precio de lista sin confirmar (empatan: la etiqueta no suma),
- *    y al final el precio de lista que el historial contradice. El tamaño del descuento
+ *    y al final el precio de lista que el historial contradice o el precio publicado que la
+ *    última lectura de la tienda no confirma (`price_differs`). El tamaño del descuento
  *    nominal no entra en ninguna clave. Sin `priceHistory` (el feed) esta clave empata siempre,
  * 5. ajuste al presupuesto declarado (solo desempata; nunca oculta una oferta),
  * 6. frescura de la evidencia,
@@ -35,7 +36,7 @@ import { parsePresentation, unitPriceFor, type UnitPrice } from '@/lib/despensa/
  * Después se reparte: tope de ofertas seguidas por necesidad y por tienda. No se borra nada.
  */
 export const DESPENSA_RANK_RULES = {
-  version: 'despensa-rank-v3',
+  version: 'despensa-rank-v4',
   /** Evidencia más vieja que esto deja de competir. Coincide con la ventana semanal del feed. */
   maxEvidenceAgeDays: 7,
   /** Máximo de ofertas seguidas de la misma necesidad antes de ceder el lugar. */
@@ -51,6 +52,7 @@ const SAVING_RANK: Record<SavingEvidence['status'], number> = {
   none: 1,
   list_unconfirmed: 1,
   list_contradicted: 2,
+  price_differs: 2,
 };
 
 export type DespensaRankable = {

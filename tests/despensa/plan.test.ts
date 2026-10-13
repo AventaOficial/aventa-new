@@ -148,12 +148,35 @@ describe('presupuestos', () => {
 });
 
 describe('evidencia del precio', () => {
-  it('producto esencial sin descuento: precio observado, sin hablar de ahorro', () => {
+  it('producto esencial sin descuento ni lectura de Aventa: precio publicado, sin hablar de ahorro', () => {
     const plan = buildDespensaPlan([offer({ id: 'f', title: 'Frijol negro 900 g', discountPrice: 38 })], { now: NOW });
     const [p] = picksOf(plan, 'alimentos.frijol');
-    expect(p.status).toBe('observed_price');
+    expect(p.status).toBe('published_price');
     expect(p.saving).toEqual({ status: 'none' });
-    expect(html(p)).not.toMatch(/ahorr|menos que/i);
+    expect(html(p)).toContain('Precio publicado');
+    expect(html(p)).not.toMatch(/ahorr|menos que|Precio observado/i);
+  });
+
+  it('«Precio observado» solo cuando el motor confirmó el precio con una lectura reciente', () => {
+    const engine = (label: 'observed_price' | 'insufficient') => ({
+      verdict: 'insufficient' as const,
+      min90d: 38,
+      max90d: 38,
+      samples90d: 1,
+      engine: { label, reference: null, savingAmount: null, savingPct: null, availabilityConfirmed: true, policyVersion: 'price-observation-v2' },
+    });
+    const plan = buildDespensaPlan(
+      [
+        offer({ id: 'leido', title: 'Frijol negro 900 g', discountPrice: 38, priceHistory: engine('observed_price') }),
+        offer({ id: 'sin-lectura', title: 'Frijol negro 900 g', discountPrice: 38, priceHistory: engine('insufficient') }),
+      ],
+      { now: NOW },
+    );
+    const byId = Object.fromEntries(picksOf(plan, 'alimentos.frijol').map((p) => [p.offer.id, p]));
+    expect(byId.leido.status).toBe('observed_price');
+    expect(html(byId.leido)).toContain('Precio observado');
+    expect(byId['sin-lectura'].status).toBe('published_price');
+    for (const p of Object.values(byId)) expect(html(p)).not.toMatch(/ahorr|menos que/i);
   });
 
   it('ahorro verificable: el historial propio lo respalda y sube frente a un igual sin historial', () => {
@@ -184,7 +207,7 @@ describe('evidencia del precio', () => {
     expect(byId.contradicho.saving).toEqual({ status: 'list_contradicted' });
     expect(byId.contradicho.notes).toContain('list_contradicted');
     for (const p of picks) {
-      expect(p.status).toBe('observed_price');
+      expect(p.status).toBe('published_price');
       expect(html(p)).not.toMatch(/\$270|90%|ahorr/i);
     }
   });
@@ -335,14 +358,44 @@ describe('presentaciones y categorías', () => {
   });
 });
 
-describe('ranking v3 (feed sin historial)', () => {
+describe('ranking v4 (feed sin historial)', () => {
   it('sin historial la clave de ahorro empata: el precio de lista no ayuda', () => {
     const list = [
       { id: 'lista', title: 'Arroz blanco 1 kg', discountPrice: 30, originalPrice: 500, votes: { score: 0 }, createdAt: hoursAgo(1), sourceHost: 'walmart.com.mx' },
       { id: 'votada', title: 'Arroz blanco 1 kg', discountPrice: 30, originalPrice: null, votes: { score: 1 }, createdAt: hoursAgo(1), sourceHost: 'walmart.com.mx' },
     ];
     expect(rankDespensa(list, { now: NOW }).ranked.map((o) => o.id)).toEqual(['votada', 'lista']);
-    expect(DESPENSA_RANK_RULES.version).toBe('despensa-rank-v3');
+    expect(DESPENSA_RANK_RULES.version).toBe('despensa-rank-v4');
+  });
+
+  it('un precio publicado que la tienda ya no confirma baja como la etiqueta contradicha', () => {
+    const differs = {
+      id: 'distinto',
+      title: 'Arroz blanco 1 kg',
+      discountPrice: 30,
+      originalPrice: null,
+      votes: { score: 5 },
+      createdAt: hoursAgo(1),
+      sourceHost: 'mercadolibre.com.mx',
+      priceHistory: {
+        verdict: 'insufficient' as const,
+        min90d: 36,
+        max90d: 36,
+        samples90d: 1,
+        engine: {
+          label: 'price_differs' as const,
+          reference: null,
+          savingAmount: null,
+          savingPct: null,
+          availabilityConfirmed: true,
+          policyVersion: 'price-observation-v2',
+          current: { price: 36, recordedAt: hoursAgo(2) },
+          priceRelation: 'observed_higher' as const,
+        },
+      },
+    };
+    const plain = { id: 'normal', title: 'Arroz blanco 1 kg', discountPrice: 30, originalPrice: null, votes: { score: 0 }, createdAt: hoursAgo(1), sourceHost: 'mercadolibre.com.mx' };
+    expect(rankDespensa([differs, plain], { now: NOW }).ranked.map((o) => o.id)).toEqual(['normal', 'distinto']);
   });
 });
 

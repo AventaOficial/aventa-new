@@ -1,7 +1,7 @@
 import { despensaSourceForUrl } from '@/lib/despensa/sources';
 import { compareWithListPrice, observedDropPercent } from '@/lib/offers/listPriceComparison';
 import type { PriceInsight } from '@/lib/offers/priceHistory';
-import type { VerifiedReference } from '@/lib/offers/priceObservations/evaluate';
+import type { PublishedPriceRelation, VerifiedReference } from '@/lib/offers/priceObservations/evaluate';
 import type { PriceEvidenceLabel } from '@/lib/offers/priceObservations/policy';
 
 /**
@@ -57,6 +57,9 @@ export type DespensaEngineVerdict = {
   savingPct: number | null;
   availabilityConfirmed: boolean;
   policyVersion: string;
+  /** Última observación válida del producto (ausente en veredictos anteriores a v2). */
+  current?: { price: number; recordedAt: string } | null;
+  priceRelation?: PublishedPriceRelation | null;
 };
 
 /**
@@ -74,6 +77,8 @@ export type DespensaPriceHistory = Pick<PriceInsight, 'verdict' | 'max90d' | 'mi
  *   bajo la mediana de ≥4 observaciones comparables en ≥14 días. En la forma legada, el historial
  *   (≥2 registros en 90 días) lo pone en su mínimo y antes se vio más alto. Es la única forma de
  *   mostrar una cantidad ahorrada.
+ * - `price_differs`: la última lectura de la tienda (< 48 h) da otro precio que el publicado;
+ *   no se respalda el publicado ni se habla de ahorro. Lleva el precio observado y su hora.
  * - `list_contradicted`: hay precio de lista, pero el historial dice que el descuento es de etiqueta.
  * - `list_unconfirmed`: hay precio de lista mayor, sin historial que lo respalde.
  * - `none`: no hay referencia; se muestra el precio observado sin hablar de ahorro.
@@ -90,6 +95,7 @@ export type SavingEvidence =
       basis?: 'own_history_median';
       observations?: number;
     }
+  | { status: 'price_differs'; observedPrice: number; observedAt: string }
   | { status: 'list_contradicted' }
   | { status: 'list_unconfirmed' }
   | { status: 'none' };
@@ -113,6 +119,9 @@ export function savingEvidence(input: {
         basis: 'own_history_median',
         observations: engine.reference.observations,
       };
+    }
+    if (engine.label === 'price_differs' && engine.current) {
+      return { status: 'price_differs', observedPrice: engine.current.price, observedAt: engine.current.recordedAt };
     }
     if (engine.label === 'list_contradicted') return { status: 'list_contradicted' };
     return compareWithListPrice(price, input.originalPrice) ? { status: 'list_unconfirmed' } : { status: 'none' };
