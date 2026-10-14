@@ -4,6 +4,7 @@ import { presentAuthor } from '@/lib/product/hunters/identity';
 import { resolveOfferSourceCurrency } from '@/lib/offers/sourceCurrency';
 import { isBotUserId } from '@/lib/bots/ingest/isBotUserId';
 import { loadMachineAuthorIds, machineAuthorNotInList } from '@/lib/offers/machineAuthors';
+import { loadOfferHunterCodes } from '@/lib/offers/offerHunterCodes';
 
 export type FeedOfferAuthor = {
   display_name: string;
@@ -157,6 +158,13 @@ export async function getHomeFeed({
     const rows = data ?? [];
     const hasMore = rows.length > safeLimit;
     const slice = hasMore ? rows.slice(0, safeLimit) : rows;
+    const hunterCodes = await loadOfferHunterCodes(
+      supabase,
+      slice.map((row: Record<string, unknown>) => ({
+        id: String(row.id ?? ''),
+        created_by: row.created_by != null ? String(row.created_by) : null,
+      })),
+    );
 
     const offers: FeedOffer[] = slice.map((row: Record<string, unknown>) => {
       const imageUrl = row.image_url as string | null | undefined;
@@ -223,7 +231,11 @@ export async function getHomeFeed({
         origin: isBotUserId(createdBy) ? 'machine' : 'community',
         author: (() => {
           const displayName = prof?.display_name?.trim() || 'Usuario';
-          const presented = presentAuthor({ userId: createdBy, displayName });
+          const presented = presentAuthor({
+            userId: createdBy,
+            displayName,
+            hunterCode: hunterCodes.get(String(row.id ?? '')) ?? null,
+          });
           if (presented.kind !== 'hunter') {
             return {
               display_name: displayName,

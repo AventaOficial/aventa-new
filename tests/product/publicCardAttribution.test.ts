@@ -18,6 +18,27 @@ describe('atribución pública de tarjetas', () => {
     expect(JSON.stringify(card)).not.toMatch(/Ximena|Verificado|machine_client|avk_/);
   });
 
+  it('cada hunter de suministro presenta la marca de su especialidad', () => {
+    const kai = presentAuthor({ displayName: 'Aventa MCP Supply', hunterCode: 'kai' });
+    const eleonore = presentAuthor({ displayName: 'Aventa MCP Supply', hunterCode: 'eleonore' });
+    expect(kai.kind === 'hunter' && publicCardAttribution({ hunter: kai.hunter })).toEqual({
+      kind: 'brand',
+      label: 'AVENTA TECH',
+      line: 'Top tecnología',
+      hunterCode: 'kai',
+    });
+    expect(eleonore.kind === 'hunter' && publicCardAttribution({ hunter: eleonore.hunter })).toEqual({
+      kind: 'brand',
+      label: 'AVENTA MODA',
+      line: 'Moda, tenis y perfumes',
+      hunterCode: 'eleonore',
+    });
+    expect(publicCardAttribution({ hunter: { code: 'kenji' } })).toMatchObject({
+      label: AVENTA_EDITORIAL_NAME,
+      line: AVENTA_EDITORIAL_LINE,
+    });
+  });
+
   it('un nombre editable no basta para la identidad editorial', () => {
     expect(publicCardAttribution({ username: 'Ximena' })).toEqual({
       kind: 'person',

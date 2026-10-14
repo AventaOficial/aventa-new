@@ -11,7 +11,7 @@ import { extractOfferIdFromPathSegment, buildOfferPublicPath } from '@/lib/offer
 import { parseOfferScopeFromConditions } from '@/lib/offerScope';
 import { formatStoreDisplayName } from '@/lib/formatStoreDisplay';
 import { isBotUserId } from '@/lib/bots/ingest/isBotUserId';
-import { presentAuthor, type HunterPublicIdentity } from '@/lib/product/hunters/identity';
+import { isSupplyHunterCode, presentAuthor, type HunterPublicIdentity } from '@/lib/product/hunters/identity';
 import { loadPublicAuthorCard } from '@/lib/profile/publicAuthorCard';
 import { isOfferExpiredByExpiresAt } from '@/lib/votes/offerVoteEligibility';
 import { presentOfferFreshness } from '@/lib/offers/freshness/present';
@@ -50,6 +50,7 @@ type OfferRow = {
   downvotes_count: number | null;
   ranking_momentum: number | null;
   category: string | null;
+  hunter_code?: string | null;
   profiles?:
     | {
         display_name: string | null;
@@ -88,6 +89,7 @@ async function readOfferDetail(id: string): Promise<OfferDetail | null> {
       id, title, price, original_price, source_currency, image_url, image_urls, msi_months, bank_coupon,
       store, offer_url, description, steps, conditions, coupons, expires_at, deleted_at,
       created_at, created_by, upvotes_count, downvotes_count, ranking_momentum, category,
+      hunter_code:bot_meta->>hunter_code,
       profiles!created_by(display_name, avatar_url, leader_badge, ml_tracking_tag, amazon_tracking_tag, slug)
     `)
     .eq('id', id)
@@ -199,7 +201,11 @@ export default async function OfertaPage({ params }: { params: Promise<{ id: str
 
   const prof = Array.isArray(offer.profiles) ? offer.profiles[0] : offer.profiles;
   const displayName = prof?.display_name?.trim() || 'Usuario';
-  const presented = presentAuthor({ userId: offer.created_by, displayName });
+  const presented = presentAuthor({
+    userId: offer.created_by,
+    displayName,
+    hunterCode: isBotUserId(offer.created_by) && isSupplyHunterCode(offer.hunter_code) ? offer.hunter_code : null,
+  });
   const hunterAuthor: HunterPublicIdentity | null = presented.kind === 'hunter' ? presented.hunter : null;
   const botAuthor = hunterAuthor != null || isBotUserId(offer.created_by);
   const author = {

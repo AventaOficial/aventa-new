@@ -13,6 +13,16 @@ const TEAM_FUNCTION: Record<string, { functionLabel: string; editorial: string }
     editorial:
       'Encontramos productos útiles para el hogar, la despensa, la higiene, las mascotas y las necesidades de todos los días.',
   },
+  kai: {
+    functionLabel: 'Top tecnología',
+    editorial:
+      'Seleccionamos descuentos fuertes en laptops, celulares, audio, gaming y gadgets de tiendas confiables.',
+  },
+  eleonore: {
+    functionLabel: 'Moda, tenis y perfumes',
+    editorial:
+      'Seleccionamos moda, tenis, perfumes y belleza con buen precio en tiendas oficiales y confiables.',
+  },
 };
 
 export type OfferAuthorCardModel = {

@@ -7,6 +7,7 @@ import CategoriaOfferList from '@/app/categoria/[slug]/CategoriaOfferList';
 import { findSubgroupBySlug } from '@/lib/categories/subgroups';
 import { slugifyTag } from '@/lib/offers/tagSlug';
 import { mapOfferToCard, type RankedOfferSource } from '@/lib/offers/transform';
+import { withOfferHunterCodes } from '@/lib/offers/offerHunterCodes';
 import { brandedTitle } from '@/lib/seo/brandedTitle';
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://aventaofertas.com';
@@ -63,7 +64,7 @@ export default async function TagPage({ params }: { params: Promise<{ slug: stri
 
   // Un 404 se cachearía con la página; un error no, y ISR sigue sirviendo la versión anterior.
   if (error) throw new Error(`tag offers unavailable: ${error.message}`);
-  const offers = (rows ?? []).map((r) => mapOfferToCard(r as RankedOfferSource));
+  const offers = (await withOfferHunterCodes(supabase, (rows ?? []) as RankedOfferSource[])).map((r) => mapOfferToCard(r));
 
   return (
     <AppShell>

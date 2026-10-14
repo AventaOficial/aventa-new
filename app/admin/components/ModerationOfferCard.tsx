@@ -17,7 +17,7 @@ import {
 } from '@/lib/moderation/galleryNavigation';
 import { profileSlugFromDisplayName } from '@/lib/profileSlug';
 import { BOT_AUTHOR_DISPLAY_NAME, isBotUserId } from '@/lib/bots/ingest/isBotUserId';
-import { presentAuthor } from '@/lib/product/hunters/identity';
+import { hunterCodeFromBotMeta, presentAuthor } from '@/lib/product/hunters/identity';
 
 type ModerationOffer = {
   id: string;
@@ -38,6 +38,7 @@ type ModerationOffer = {
   created_by: string | null;
   risk_score?: number | null;
   moderator_comment?: string | null;
+  bot_meta?: unknown;
   profiles?: { display_name: string | null; avatar_url: string | null } | null;
 };
 
@@ -139,7 +140,11 @@ export default function ModerationOfferCard({
     isBotUserId(offer.created_by) ||
     (offer.moderator_comment ?? '').toLowerCase().includes('[bot-ingest]') ||
     (offer.description ?? '').toLowerCase().includes('ingesta automática (bot)');
-  const presented = presentAuthor({ userId: offer.created_by, displayName: offer.profiles?.display_name });
+  const presented = presentAuthor({
+    userId: offer.created_by,
+    displayName: offer.profiles?.display_name,
+    hunterCode: isBotOffer ? hunterCodeFromBotMeta(offer.bot_meta) : null,
+  });
   const authorName = presented.kind === 'hunter'
     ? presented.hunter.name
     : isBotOffer

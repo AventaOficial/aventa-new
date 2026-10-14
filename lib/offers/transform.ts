@@ -109,6 +109,8 @@ export type RankedOfferSource = {
   ranking_blend?: number | null;
   category?: string | null;
   profiles?: ProfilesJoin;
+  /** `bot_meta.hunter_code` resuelto en servidor; la vista no lo expone. */
+  hunter_code?: string | null;
 };
 
 export type FeedApiItemShape = {
@@ -170,7 +172,11 @@ function asPublicAuthor(author: CardOfferAuthor, hunterCode?: string | null): Ca
   };
 }
 
-function unwrapProfiles(profiles: ProfilesJoin, createdBy: string | null | undefined): CardOfferAuthor {
+function unwrapProfiles(
+  profiles: ProfilesJoin,
+  createdBy: string | null | undefined,
+  hunterCode?: string | null,
+): CardOfferAuthor {
   const prof = Array.isArray(profiles) ? profiles[0] : profiles;
   return asPublicAuthor({
     username: prof?.display_name?.trim() || 'Usuario',
@@ -181,7 +187,7 @@ function unwrapProfiles(profiles: ProfilesJoin, createdBy: string | null | undef
       (prof as { amazon_tracking_tag?: string | null } | undefined)?.amazon_tracking_tag ?? null,
     userId: createdBy ?? null,
     slug: (prof as { slug?: string | null } | undefined)?.slug?.trim() || null,
-  });
+  }, hunterCode);
 }
 
 /**
@@ -229,7 +235,7 @@ function mapRankedToCard(row: RankedOfferSource): CardOffer {
     coupons: row.coupons?.trim() || undefined,
     offerScope: parseOfferScopeFromConditions(row.conditions),
     votes: { up, down, score },
-    author: unwrapProfiles(row.profiles, row.created_by ?? null),
+    author: unwrapProfiles(row.profiles, row.created_by ?? null, row.hunter_code),
     ranking_momentum: Number(row.ranking_momentum) || 0,
     ranking_blend: row.ranking_blend != null ? Number(row.ranking_blend) : undefined,
     createdAt: row.created_at ?? null,

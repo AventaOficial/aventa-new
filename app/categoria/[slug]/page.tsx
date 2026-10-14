@@ -8,6 +8,7 @@ import AppShell from '@/app/AppShell';
 import CategoriaOfferList from './CategoriaOfferList';
 import CategorySubgroupNav from '@/app/components/CategorySubgroupNav';
 import { mapOfferToCard, type RankedOfferSource } from '@/lib/offers/transform';
+import { withOfferHunterCodes } from '@/lib/offers/offerHunterCodes';
 import { brandedTitle } from '@/lib/seo/brandedTitle';
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://aventaofertas.com';
@@ -56,7 +57,7 @@ export default async function CategoriaPage({ params }: { params: Promise<{ slug
 
   // Un fallo de la base no es una categoría vacía ni inexistente: no se guarda en caché.
   if (error) throw new Error(`category offers unavailable: ${error.message}`);
-  const offers = (rows ?? []).map((r) => mapOfferToCard(r as RankedOfferSource));
+  const offers = (await withOfferHunterCodes(supabase, (rows ?? []) as RankedOfferSource[])).map((r) => mapOfferToCard(r));
   const subgroups = getSubgroupsForCategory(slug);
 
   return (

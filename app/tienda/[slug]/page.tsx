@@ -7,6 +7,7 @@ import Link from 'next/link';
 import AppShell from '@/app/AppShell';
 import TiendaOfferList from './TiendaOfferList';
 import { mapOfferToCard, type RankedOfferSource } from '@/lib/offers/transform';
+import { withOfferHunterCodes } from '@/lib/offers/offerHunterCodes';
 import { brandedTitle } from '@/lib/seo/brandedTitle';
 import StoreBrandMark from '@/app/components/StoreBrandMark';
 import { SPONSORED_CAMPAIGNS } from '@/lib/sponsored/campaigns';
@@ -82,7 +83,7 @@ export default async function TiendaPage({ params }: { params: Promise<{ slug: s
     .limit(60);
 
   if (error) throw new Error(`store offers unavailable: ${error.message}`);
-  const offers = (rows ?? []).map((r) => mapOfferToCard(r as RankedOfferSource));
+  const offers = (await withOfferHunterCodes(supabase, (rows ?? []) as RankedOfferSource[])).map((r) => mapOfferToCard(r));
   const editorial = houseEditorialForStore(SPONSORED_CAMPAIGNS, storeName, Date.parse(now));
 
   return (

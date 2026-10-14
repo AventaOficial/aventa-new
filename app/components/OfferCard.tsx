@@ -631,7 +631,7 @@ export default function OfferCard({
             ) : null}
 
             {cardAttribution?.kind === 'brand' ? (
-              <AventaFoundLine />
+              <AventaFoundLine label={cardAttribution.label} line={cardAttribution.line} />
             ) : cardAttribution?.kind === 'person' && author ? (
               <span className="inline-flex items-center gap-1.5 flex-wrap min-w-0">
                 {authorProfileHref ? (
