@@ -236,6 +236,41 @@ export const MX_COMMERCE_REGISTERED_DOMAINS = [
   'priceshoes.com',
   'andrea.com.mx',
 
+  // Deporte / calzado: tiendas oficiales MX
+  'asics.com.mx',
+  'newbalancemexico.com',
+  'underarmour.com.mx',
+  'converse.com.mx',
+  'crocs.com.mx',
+  'hoka.mx',
+  'lululemon.mx',
+  'mx.puma.com',
+  'vans.com.mx',
+  'skechers.com.mx',
+  'marti.mx',
+  'flexi.com.mx',
+  'cuadra.com.mx',
+
+  // Moda: tiendas oficiales MX (hm.com, zara.com, bershka.com y pullandbear.com sirven México bajo ruta /mx o /es_mx)
+  'mx.tommy.com',
+  'calvinklein.mx',
+  'levi.com.mx',
+  'guess.mx',
+  'hm.com',
+  'zara.com',
+  'bershka.com',
+  'pullandbear.com',
+
+  // Belleza / perfumes
+  'sephora.com.mx',
+  'ulta.com.mx',
+  'sallymexico.com',
+  'fragancias.com.mx',
+
+  // Tecnología: tiendas oficiales de marca (samsung.com sirve México bajo /mx)
+  'samsung.com',
+  'store.sony.com.mx',
+
   // Marketplaces adicionales con tráfico MX
   'shopee.com.mx',
   'shopee.mx',

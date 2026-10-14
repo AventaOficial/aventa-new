@@ -2,20 +2,22 @@
 
 Estado: en operación en producción, en piloto controlado (§20). La escritura depende de `MCP_INGEST_ENABLED`; su valor vive en Vercel y no se lee desde el repo, así que el estado se infiere de la actividad registrada.
 
-Verificado el 2026-10-13 (solo lectura, `machine_clients` y `offer_batches` de producción):
+Verificado el 2026-10-14 06:15 UTC (solo lectura, `machine_clients`, `machine_client_calls` y `offer_batches` de producción). Todos tienen los scopes `candidates:submit`, `candidates:read` y `catalog:read`, y cuota diaria 200:
 
-| Cliente | Estado | Scopes | Lotes en 14 días | Último lote |
-|---|---|---|---|---|
-| `aventa-mcp-xai-production` (v1) | `revoked` | `candidates:submit`, `candidates:read`, `catalog:read` | 0 | nunca |
-| `aventa-mcp-xai-production-v2` | `paused` | mismos 3 | 13 | 2026-10-07 11:21 UTC |
-| `aventa-mcp-xai-production-v3` | `active` (cuota 200, vence 2027-01-01) | mismos 3 | 5 | 2026-10-13 20:50 UTC |
+| Cliente | Estado | Hunter (`hunter_code`) | Vence | Lotes en 14 días | Última llamada |
+|---|---|---|---|---|---|
+| `aventa-mcp-xai-production` (v1) | `revoked` | — | 2027-01-03 | 0 | 2026-10-05 17:27 UTC |
+| `aventa-mcp-xai-production-v2` | `paused` | `ximena` | sin vencimiento | 18 | 2026-10-14 04:37 UTC |
+| `aventa-mcp-xai-production-v3` | `active` | `ximena` | 2027-01-01 | 15 | 2026-10-14 05:50 UTC |
+| `v2 kai` | `active` | `kai` | 2027-07-08 | 1 | 2026-10-14 06:14 UTC |
+| `v1 eleonore` | `active` | `eleonore` | 2027-09-30 | 5 | 2026-10-14 06:10 UTC |
 
-Ítems MCP de los últimos 14 días: 193 `APPROVED` (oferta `pending` creada), 4 `PUBLISHED`, 8 `NEEDS_REVIEW` (1 con `IMAGE_NOT_FOUND`). El cupo de aceptados por `runId` (§9) sigue activo (5 entonces; 100 desde el 2026-10-14).
+Hay un cliente activo por hunter (§4.1). El cupo de aceptados por `runId` (§9) es de 100 desde el 2026-10-14.
 
 | Entorno | Migración | Autor bot | Redis (namespace) | Cliente activo |
 |---|---|---|---|---|
-| Staging (`oojshofrpbfwsiypcecr`) | aplicada (`20261005141954`) | pendiente (operador) | `aventa:staging:*` en el Redis compartido | ninguno |
-| Producción (`mkgsrpsuvedwwlzmzmzh`) | aplicada (`20261005161927_machine_clients_mcp`) | sí | `aventa:production:*` en el Redis compartido | v3 |
+| Staging (`oojshofrpbfwsiypcecr`) | aplicada (`20261005141954`); `ingest_cycle_locks` aplicada el 2026-10-14 (`20261014062026`) | pendiente (operador) | `aventa:staging:*` en el Redis compartido | ninguno |
+| Producción (`mkgsrpsuvedwwlzmzmzh`) | aplicada (`20261005161927_machine_clients_mcp`) | sí | `aventa:production:*` en el Redis compartido | v3, `v2 kai`, `v1 eleonore` |
 
 > **Redis compartido (riesgo aceptado).** Staging y Production comparten temporalmente el mismo backend físico de Upstash por restricción presupuestaria. El aislamiento se realiza mediante namespaces y marcadores de entorno independientes. Esto NO equivale a aislamiento físico y deberá migrarse a Redis separado antes de que staging maneje datos sensibles, volumen significativo o pruebas de producción. La migración a Redis separado es una tarea posterior de infraestructura, no un requisito para activar controladamente MCP ahora (ver §14).
 
@@ -101,16 +103,70 @@ Código:
 
 Scopes permitidos (CHECK en base y validación en servidor): `candidates:submit`, `candidates:read`, `catalog:read`. Cualquier otro (`offers:write`, `moderate`, `publish`, `rewards`, `admin`, `cron`, comodines) se rechaza al crear el cliente y se descarta al autenticar.
 
-Exactamente 4 herramientas. No hay resources, prompts ni otras herramientas.
+Exactamente 5 herramientas (`MCP_TOOLS` en `lib/mcp/contract.ts`). No hay resources, prompts ni otras herramientas.
 
 | Herramienta | Scope | Efecto |
 |---|---|---|
 | `submit_deal_candidates` | `candidates:submit` | Crea un lote MCP. Nunca escribe `offers`. |
 | `get_submission_status` | `candidates:read` | Estado de un envío propio. |
 | `check_offer_exists` | `catalog:read` | `{ exists, status, matchedBy, canSubmit, previouslyRejected }` con la misma identidad que el envío (§8). |
-| `get_submission_rules` | `candidates:read` | Contrato público. |
+| `get_submission_rules` | `candidates:read` | Contrato público, incluida la lista `supportedStores`. |
+| `get_price_reference` | `catalog:read` | Sólo lectura: compara `price` y `originalPrice` con lo que Aventa ya vio del mismo producto en 180 días y con la referencia pública de mercado si existe (`lib/mcp/priceReference.ts`). No hace fetch ni crea nada. |
 
 Scope faltante: error de herramienta `FORBIDDEN_SCOPE` (auditado). Herramienta inexistente: error del SDK, sin efectos.
+
+### 4.1 Hunter por cliente
+
+Cada cliente MCP presenta a un hunter de suministro. El vínculo es `machine_clients.hunter_code` (migración `20261005_machine_client_hunter_code.sql`), no el nombre ni el token del cliente: rotar el cliente conserva el hunter.
+
+- Codes admitidos: `ximena` (despensa y uso diario, el predeterminado), `kai` (tecnología) y `eleonore` (moda, tenis, belleza y perfumes). Lista en `SUPPLY_HUNTER_CODES` (`lib/product/hunters/identity.ts`).
+- El Owner elige el hunter al crear o editar el cliente en `/admin/machine-clients`.
+- Al ingerir, `enqueueHunterOffer` estampa el code del cliente en `bot_meta.hunter_code` de la oferta. Un code fuera de la lista no deja rastro y la oferta se presenta con el hunter predeterminado.
+- La tarjeta pública presenta la marca de la especialidad (`AVENTA TECH` para `kai`, `AVENTA MODA` para `eleonore`). Ni Grok ni el cliente MCP aparecen como autor.
+- El feed «Recientes» incluye las ofertas aprobadas con `bot_meta.hunter_code` `kai` o `eleonore`. Las de `ximena` y las ofertas máquina sin sello siguen fuera.
+- Moderación puede reasignar el hunter de una oferta de bot (`POST /api/admin/moderation/offer-hunter`). Sólo cambia `bot_meta.hunter_code` y deja rastro de quién y cuándo; no toca precio, estado, autor ni economía.
+- Las instrucciones de cada tarea de Grok (despensa, tecnología, moda) viven en xAI. El prompt de despensa está en `docs/SYSTEMS/GROK_HUNTER_PROMPT.md`; los de tecnología y moda existen fuera de este repo y no se versionan aquí.
+
+### 4.2 Tiendas admitidas
+
+`get_submission_rules.supportedStores` sale de las mismas listas que el gate de URL (`isAllowedOfferParseHost`): Amazon, Mercado Libre, Walmart, AliExpress, Temu, SHEIN, eBay y `MX_COMMERCE_REGISTERED_DOMAINS` (`lib/offers/commerceHostAllowlist.ts`). Un dominio admite el host exacto y sus subdominios; `zara.com.evil.com` o `evilzara.com` se rechazan con `UNSUPPORTED_HOST`.
+
+Añadidas el 2026-10-14 para los hunters de tecnología y moda (tiendas oficiales verificadas que venden en México):
+
+| Tienda | Dominio | Extracción probada el 2026-10-14 |
+|---|---|---|
+| ASICS | `asics.com.mx` | no probada |
+| New Balance | `newbalancemexico.com` | parcial: imagen, sin título ni precio |
+| Under Armour | `underarmour.com.mx` | falla (sin título, precio ni imagen) |
+| Converse | `converse.com.mx` | completa |
+| Crocs | `crocs.com.mx` | parcial: título e imagen, sin precio |
+| HOKA | `hoka.mx` | completa |
+| lululemon | `lululemon.mx` | no probada (responde 403 a lectores automáticos) |
+| PUMA | `mx.puma.com` | no probada |
+| Vans | `vans.com.mx` | no probada |
+| Skechers | `skechers.com.mx` | no probada |
+| Martí (incluye outlet) | `marti.mx` | completa; en una ficha con descuento tomó el precio de lista como precio actual |
+| Flexi | `flexi.com.mx` | no probada |
+| Cuadra | `cuadra.com.mx` | no probada |
+| Tommy Hilfiger | `mx.tommy.com` | no probada |
+| Calvin Klein | `calvinklein.mx` | completa |
+| Levi's | `levi.com.mx` | no probada |
+| GUESS | `guess.mx` | no probada |
+| H&M | `hm.com` (México en `www2.hm.com/es_mx`) | no probada (responde 403/503 a lectores automáticos) |
+| Zara | `zara.com` (México en `/mx/`) | falla (sin título, precio ni imagen) |
+| Bershka | `bershka.com` (México en `/mx/`) | no probada |
+| Pull&Bear | `pullandbear.com` (México en `/mx/`) | no probada |
+| Sephora | `sephora.com.mx` | parcial: título y precio, sin imagen |
+| Ulta Beauty | `ulta.com.mx` | no probada (responde 403 a lectores automáticos) |
+| Sally Beauty | `sallymexico.com` | completa |
+| Fragancias.com.mx | `fragancias.com.mx` | no probada |
+| Samsung | `samsung.com` (México en `/mx/`) | parcial: título e imagen, sin precio |
+| Sony Store | `store.sony.com.mx` | falla (sin título, precio ni imagen) |
+
+«Completa» = título, precio e imagen; esos candidatos pueden crear la oferta `pending` directamente. Parcial o falla = el ítem queda `NEEDS_REVIEW` (§19) y lo decide un humano. «No probada» no significa que falle.
+
+- On (`on.com`) no se añadió: `on.com/es-mx` redirige a la tienda suiza y no hay tienda oficial de On para México; se vende a través de distribuidores (por ejemplo, El Palacio de Hierro, ya admitida).
+- Los dominios `.mx`/`.com.mx`, `mx.tommy.com`, `mx.puma.com`, `newbalancemexico.com` y `sallymexico.com` confirman MXN (`lib/offers/sourceCurrency.ts`). Los globales con ruta por país (`zara.com`, `hm.com`, `bershka.com`, `pullandbear.com`, `samsung.com`) y `lululemon.mx` (checkout de un tercero que puede cotizar en la moneda del visitante) no la confirman desde el host.
 
 ## 5. Contrato de candidatos
 
@@ -279,7 +335,7 @@ Límite conocido: la clave del lote conserva `www.` y la del writer no. Dos URLs
 - **Cupo agotado**: el envío se registra igual (lote archivado, sin ítems) para que su replay sea estable.
 - **Orden de controles**: la cuota diaria se comprueba antes (sin ocupar slots) y se cobra sólo por los candidatos que pasaron el cupo.
 
-**Mecanismo (sin migración)**: cada aceptado ocupa un slot `n ∈ 1..100`. Un slot es una fila de `ingest_cycle_locks` (PK `lock_key`, `service_role` con ALL; aplicada en producción, **ausente en staging** al 2026-10-12, ver §14) con `lock_key = mcp:run-slot:<clientId>:<n>:<runId>` y `expires_at = 9999-12-31`.
+**Mecanismo (sin migración)**: cada aceptado ocupa un slot `n ∈ 1..100`. Un slot es una fila de `ingest_cycle_locks` (PK `lock_key`, `service_role` con ALL; aplicada en producción y, desde el 2026-10-14, en staging, ver §14) con `lock_key = mcp:run-slot:<clientId>:<n>:<runId>` y `expires_at = 9999-12-31`.
 - **Ocupar**: un INSERT de la PK. Si da 23505, se intenta retomar con un único `UPDATE … WHERE lock_key = … AND expires_at <= now()`.
 - **Liberar** (candidato `ALREADY_IN_REVIEW` o lote fallido): adelantar `expires_at` filtrando por `holder`. Nunca se borra.
 - **Sin choques con la ingesta**: los locks de ingesta usan otras claves (`ingest:ml_worker`) y sólo tocan las suyas.
@@ -403,7 +459,7 @@ Estado al 2026-10-05:
 
 - [x] Migración aplicada en staging con `apply_migration` (Supabase). Verificado: tablas, 4 columnas en `offer_batches`, 9 índices (incluido `offer_batches_mcp_idempotency_uidx`), RLS sin policies, grants exactos, 5 triggers, 0 filas nuevas, 2 lotes previos intactos.
 - [x] Fronteras de base probadas en staging dentro de una transacción revertida: `anon`/`authenticated` sin lectura ni escritura; `service_role` no puede borrar ni truncar, cambiar hash/prefijo/autor, des-revocar, añadir scopes fuera de la lista ni guardar un hash en claro; `machine_client_calls` no se actualiza ni borra (ni como `postgres`); un lote con `machine_client_id` sin llave de idempotencia se rechaza.
-- [ ] `ingest_cycle_locks` en staging (operador): **no existe** (metadatos de staging leídos el 2026-10-12; producción sí la tiene). Sin ella, el cupo por `runId` falla cerrado y todo envío con candidatos válidos devuelve `INTERNAL_ERROR`. Aplicar `docs/supabase-migrations/20260908_ingest_cycle_locks.sql` en staging antes del paso 10.
+- [x] `ingest_cycle_locks` en staging: `docs/supabase-migrations/20260908_ingest_cycle_locks.sql` aplicada el 2026-10-14 con `apply_migration` (versión `20261014062026`). Antes se comprobó en producción (solo lectura) que la tabla tiene la misma definición. Verificado después en staging, igual que en producción: 5 columnas, PK `lock_key`, CHECK `ingest_cycle_locks_ttl_forward`, índice `idx_ingest_cycle_locks_expires_at`, RLS activo sin policies, privilegios solo para `postgres` y `service_role`, 0 filas. Sin ella, el cupo por `runId` fallaba cerrado con `INTERNAL_ERROR`.
 - [ ] Autor bot de staging (operador: el repo no tiene service role de staging).
 - [ ] Marcador `aventa:staging:environment` en el Redis compartido y variables `UPSTASH_*` + `AVENTA_REDIS_ENVIRONMENT=staging` en staging (operador). Hoy staging no tiene `UPSTASH_*`.
 - [ ] `MCP_BOT_AUTHOR_USER_IDS` en el entorno staging de Vercel (operador).
@@ -530,7 +586,7 @@ Salida: `0` = `READY`, `1` = `NOT_READY` (se puede desplegar con MCP apagado; no
    - cuerpo > 64 KB → 413;
    - 11 `tools/call` en un minuto → 429 `RATE_LIMITED`.
 9. Revisar `machine_client_calls`: sólo metadatos.
-10. **Sólo entonces**, con `ingest_cycle_locks` presente, encender `MCP_INGEST_ENABLED=true` en el entorno staging y redeploy. Enviar 1 candidato real (URL limpia de Amazon MX o Mercado Libre) con un `runId` nuevo. En la misma llamada, `enqueueHunterOffer` extrae la página y aplica §19. Verificar en base:
+10. **Sólo entonces** (`ingest_cycle_locks` ya existe en staging), encender `MCP_INGEST_ENABLED=true` en el entorno staging y redeploy. Enviar 1 candidato real (URL limpia de Amazon MX o Mercado Libre) con un `runId` nuevo. En la misma llamada, `enqueueHunterOffer` extrae la página y aplica §19. Verificar en base:
     - `offer_batches`: `machine_client_id`, `mcp_idempotency_key`, `mcp_payload_hash`, `mcp_run_id` = el `runId` enviado, `created_by` = autor bot.
     - Ítem con `hint_*`. Si pasó §19: estado `APPROVED`, `offer_id` relleno y evento `queued_for_moderation`. Si no: `NEEDS_REVIEW`, `REJECTED` o `ERROR` con `error_code` y sin `offer_id`.
     - Si hay `offer_id`: `offers.status = pending`, `created_by` = autor bot, `bot_meta.price_policy` presente y `original_price` solo si la página lo respalda.
@@ -633,7 +689,7 @@ Política de calidad MCP (`mcp-candidate-policy-v2`, `lib/offers/ingestion/machi
 
 1. **Memoria negativa** (`isSuppressedByNegativeMemory`, la misma de bots), antes de extraer la página. Si suprime: ítem `REJECTED` (terminal, no reprocesable como fallo), `error_code: 'NEGATIVE_MEMORY'`, evento `negative_memory_suppressed`, sin oferta. Público: `rejected`.
 2. **Extracción completa** (título, precio, imagen) como antes.
-3. **Identidad**: fuerte (`strongProductFingerprintForUrl`: `amz:`/`ml:`/`liv:`) o, en otras tiendas (Soriana, Walmart…), la URL canónica `url:` de `resolveIngestionIdentity`, que deduplica por el índice único `idx_offers_active_ingestion_identity`. Queda marcada en `bot_meta.price_policy.identity` (`strong` | `url_fingerprint`). La memoria negativa solo evalúa identidades fuertes: con `url:` un producto rechazado antes puede volver a la cola de moderación, donde decide un humano. Sin ninguna identidad (p. ej. shortlinks `meli.la`) el ítem queda `NEEDS_REVIEW` (`NO_STRONG_IDENTITY`), sin oferta. En hosts de Amazon y Mercado Libre (incluidos `amzn.to`, `a.co`, `/sec/`) no hay fallback `url:`: el writer resuelve esos enlaces a `amz:`/`ml:`, la clave persistida no coincidiría con la evaluada y la memoria negativa no se aplicaría; sin ASIN / item id quedan retenidos. `tests/offers/mcpIdentityParity.test.ts` comprueba que la clave admitida es la que persiste `ingestOfferObservation`. La carrera entre solicitudes concurrentes la decide el índice único; `tests/offers/ingestConcurrency.pg.integration.test.ts` la comprueba contra un Supabase local desechable (ver cabecera), pero **todavía no se ha ejecutado contra PostgreSQL real**: hoy la deduplicación concurrente solo está verificada por lectura de código. Hasta `v1` toda identidad no fuerte quedaba retenida; eso obligaba a aprobar en Hunters IA/lotes antes de la moderación (piloto Grok del 2026-10-12, lote `432879fd`).
+3. **Identidad**: fuerte (`strongProductFingerprintForUrl`: `amz:`/`ml:`/`liv:`) o, en otras tiendas (Soriana, Walmart…), la URL canónica `url:` de `resolveIngestionIdentity`, que deduplica por el índice único `idx_offers_active_ingestion_identity`. Queda marcada en `bot_meta.price_policy.identity` (`strong` | `url_fingerprint`). La memoria negativa solo evalúa identidades fuertes: con `url:` un producto rechazado antes puede volver a la cola de moderación, donde decide un humano. Sin ninguna identidad (p. ej. shortlinks `meli.la`) el ítem queda `NEEDS_REVIEW` (`NO_STRONG_IDENTITY`), sin oferta. En hosts de Amazon y Mercado Libre (incluidos `amzn.to`, `a.co`, `/sec/`) no hay fallback `url:`: el writer resuelve esos enlaces a `amz:`/`ml:`, la clave persistida no coincidiría con la evaluada y la memoria negativa no se aplicaría; sin ASIN / item id quedan retenidos. `tests/offers/mcpIdentityParity.test.ts` comprueba que la clave admitida es la que persiste `ingestOfferObservation`. La carrera entre solicitudes concurrentes la decide el índice único; `tests/offers/ingestConcurrency.pg.integration.test.ts` la comprueba contra PostgreSQL real: el workflow `pg-concurrency` levanta un Supabase local desechable en el runner, aplica las migraciones reales de la ruta de ingesta y corre esta prueba junto con `tests/mcp/identityRelease.pg.integration.test.ts`. Pasó el 2026-10-14 en la rama `feat/tiendas-moda-tech` por `workflow_dispatch` ([run 38522004950](https://github.com/AventaOficial/aventa-new/actions/runs/38522004950), commit `cfa98c8`): 2 archivos y 18 tests en verde, ninguno omitido. Ya había pasado en los PR que tocaron la ingesta o `lib/mcp` (por ejemplo, [run 38516354451](https://github.com/AventaOficial/aventa-new/actions/runs/38516354451), también 18 de 18). Hasta `v1` toda identidad no fuerte quedaba retenida; eso obligaba a aprobar en Hunters IA/lotes antes de la moderación (piloto Grok del 2026-10-12, lote `432879fd`).
 4. **Precio actual** con fuente de página (`priceSource` del extractor); si falta, `NEEDS_REVIEW` (`PRICE_SOURCE_UNKNOWN`).
 5. **Título de baja calidad** (`isLowQualityTitle` con `loadBotIngestConfig`): `REJECTED` (`LOW_QUALITY_TITLE`).
 6. **Writer** (`ingestOfferObservation`): si ya existe una oferta activa con la misma identidad (409), el ítem queda `REJECTED` con `duplicate_status: 'duplicate'`, `duplicate_offer_id` y evento `duplicate_linked`; no se crea otra oferta y el contrato lo informa como `duplicate`. Datos rechazados (400): `NEEDS_REVIEW` (`WRITER_REJECTED`). Fallo técnico: `ERROR` (`WRITER_FAILED`).
@@ -643,7 +699,7 @@ Política de calidad MCP (`mcp-candidate-policy-v2`, `lib/offers/ingestion/machi
 De S6.1 no se exigen descuento mínimo, verificador de score ni Price Memory: son reglas de promociones y dejarían fuera la despensa, que compite por precio. Ninguna categoría relaja los controles anteriores. La moderación humana sigue siendo obligatoria.
 Precondiciones de staging (operador, en este orden; §14 tiene el detalle):
 
-0. `ingest_cycle_locks` en staging: aplicar `docs/supabase-migrations/20260908_ingest_cycle_locks.sql` (hoy no existe; sin ella el cupo por `runId` devuelve `INTERNAL_ERROR`).
+0. ~~`ingest_cycle_locks` en staging: aplicar `docs/supabase-migrations/20260908_ingest_cycle_locks.sql`.~~ Hecho el 2026-10-14 (`20261014062026`, ver §14).
 1. Autor bot: `npx tsx scripts/mcp-provision-staging-bot-author.ts` con `.env.staging.local` (no versionado). Guardar el UUID.
 2. Marcador en Upstash: `SET aventa:staging:environment staging`.
 3. Variables de staging en Vercel (scope según la regla 9 de §14): `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`, `AVENTA_REDIS_ENVIRONMENT=staging`, `MCP_BOT_AUTHOR_USER_IDS=<uuid>`, `AVENTA_SUPABASE_TARGET=staging`, `AVENTA_EXPECTED_SUPABASE_REF=oojshofrpbfwsiypcecr`. `MCP_INGEST_ENABLED` sin definir.
@@ -736,7 +792,7 @@ where i.batch_id = '<submissionId>' order by i.position;
 Orden obligatorio. Cada paso necesita evidencia del anterior; si algo falla, se detiene el piloto y no se pasa al siguiente.
 
 1. **Cliente.** Se revisan las filas nuevas de `machine_client_calls` (consultas de arriba): deben ser de `aventa-mcp-xai-production-v3`, y v2 no debe registrar llamadas nuevas.
-2. **Herramientas y permisos.** El conector de xAI debe exponer solo las 4 herramientas de §4. El cliente v3 debe tener solo `candidates:submit`, `candidates:read` y `catalog:read`.
+2. **Herramientas y permisos.** El conector de xAI debe exponer solo las 5 herramientas de §4. El cliente v3 debe tener solo `candidates:submit`, `candidates:read` y `catalog:read`.
 3. **Prompt.** La tarea de xAI tiene el bloque `text` completo de `GROK_HUNTER_PROMPT.md`. Se comprueba con la sincronización descrita en ese documento.
 4. **Lectura segura.** Una corrida que solo llame a `get_submission_rules` y `check_offer_exists`. No debe enviar nada ni crear filas en `offer_batches`.
 5. **Prueba de pausa.** Con `MCP_INGEST_ENABLED` apagado, `get_submission_rules` devuelve `ingestEnabled: false`. El reporte del bot debe terminar sin llamar a `submit_deal_candidates`. Si llega a enviar, el servidor responde `INGEST_PAUSED` y el prompt instalado no es el correcto.
@@ -774,10 +830,10 @@ Cero filas = v2 desactivada. Con cualquier fila, la tarea sigue viva.
 
 **Condiciones previas, todas con evidencia:**
 
-1. La prueba de PostgreSQL de la liberación (`identityRelease.pg.integration.test.ts`, workflow `pg-concurrency`) pasó en el runner y alguien la revisó.
+1. La prueba de PostgreSQL de la liberación (`identityRelease.pg.integration.test.ts`, workflow `pg-concurrency`) pasó en el runner y alguien la revisó. Hecho: [run 38522004950](https://github.com/AventaOficial/aventa-new/actions/runs/38522004950) (2026-10-14, 18 de 18, ver §19).
 2. La tarea v2 está desactivada y la consulta de arriba devuelve cero filas durante al menos 2 h.
 3. En xAI hay una sola tarea activa para Aventa:
-   - el conector usa el token de `aventa-mcp-xai-production-v3` (`active`) y expone solo `get_submission_rules`, `check_offer_exists`, `submit_deal_candidates` y `get_submission_status`;
+   - el conector usa el token de `aventa-mcp-xai-production-v3` (`active`) y expone solo `get_submission_rules`, `check_offer_exists`, `submit_deal_candidates`, `get_submission_status` y `get_price_reference`;
    - las instrucciones son el bloque `text` de `GROK_HUNTER_PROMPT.md`, `core-1.3.0` / `despensa-mx-1.2.0`.
 4. Hay un moderador disponible y el Owner autorizó la ventana de forma explícita.
 5. `MCP_INGEST_ENABLED=false` antes de empezar. Es el estado por defecto y se restaura al terminar.

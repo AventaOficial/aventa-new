@@ -2,6 +2,8 @@
  * Moneda de origen a partir del retailer, no del símbolo "$".
  * Solo hosts cuya página de precio es inequívocamente mexicana.
  * amazon.com, costco.com, mercadolibre.com.ar y acortadores (meli.la, link.amazon) quedan sin moneda.
+ * También los dominios globales con ruta por país (zara.com, hm.com, samsung.com…) y lululemon.mx,
+ * cuyo checkout de terceros puede cotizar en la moneda del visitante.
  */
 
 const MEXICAN_RETAILER_HOSTS = [
@@ -21,6 +23,27 @@ const MEXICAN_RETAILER_HOSTS = [
   'fahorro.com',
   'farmaciasanpablo.com.mx',
   'benavides.com.mx',
+  'asics.com.mx',
+  'newbalancemexico.com',
+  'underarmour.com.mx',
+  'converse.com.mx',
+  'crocs.com.mx',
+  'hoka.mx',
+  'mx.puma.com',
+  'vans.com.mx',
+  'skechers.com.mx',
+  'marti.mx',
+  'flexi.com.mx',
+  'cuadra.com.mx',
+  'mx.tommy.com',
+  'calvinklein.mx',
+  'levi.com.mx',
+  'guess.mx',
+  'sephora.com.mx',
+  'ulta.com.mx',
+  'sallymexico.com',
+  'fragancias.com.mx',
+  'store.sony.com.mx',
 ] as const;
 
 function hostOf(rawUrl: string): string | null {
