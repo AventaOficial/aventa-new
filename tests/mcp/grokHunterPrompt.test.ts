@@ -23,8 +23,8 @@ const PROMPT = (() => {
   const section = DOC.split('## Instrucciones (pegar en xAI)')[1] ?? '';
   return section.split('```text')[1]?.split('```')[0] ?? '';
 })();
-const CORE = 'core-1.1.0';
-const CONFIG = 'despensa-mx-1.0.0';
+const CORE = 'core-1.2.0';
+const CONFIG = 'despensa-mx-1.1.0';
 
 function sectionOf(title: string): string {
   return PROMPT.split(`=== ${title} ===`)[1]?.split('\n=== ')[0] ?? '';
@@ -84,6 +84,32 @@ describe('prompt maestro del Grok Hunter', () => {
     for (const excluded of ['costco.com.mx', 'sams.com.mx', 'cityclub.com.mx', 'chedraui.com.mx', 'mercadolibre.com.mx']) {
       expect(stores, excluded).not.toContain(excluded);
       expect(config.split('Fuera de este bot')[1], excluded).toContain(excluded);
+    }
+  });
+
+  it('la rotación recorre exactamente las tiendas autorizadas y evalúa Liverpool, Elektra y Sears', () => {
+    const config = sectionOf('2. CONFIGURACIÓN DEL BOT');
+    const allowed = config.split('Tiendas autorizadas')[1]?.split('Fuera de este bot')[0] ?? '';
+    const stores = [...allowed.matchAll(/^- ([a-z0-9.-]+\.[a-z]+)/gm)].map((m) => m[1]);
+    const rotation = (config.split('Rotación de tiendas:')[1]?.split('Empieza en')[0] ?? '')
+      .split(',')
+      .map((s) => s.trim().replace(/\.$/, ''))
+      .filter(Boolean);
+    expect(rotation.slice().sort()).toEqual(stores.slice().sort());
+    expect(new Set(rotation).size).toBe(rotation.length);
+    expect(config).toContain(`módulo ${rotation.length}`);
+    for (const store of ['liverpool.com.mx', 'elektra.com.mx', 'sears.com.mx', 'soriana.com']) expect(rotation).toContain(store);
+    expect(config).toMatch(/Como máximo 2 candidatos de la misma tienda[\s\S]*Es un tope, no\s+una meta/);
+  });
+
+  it('una tienda solo cuenta como explorada si se abrió una ficha; el reporte trae las métricas de cobertura', () => {
+    const protocol = sectionOf('5. PROTOCOLO DE EJECUCIÓN');
+    expect(protocol).toMatch(/explorada solo si abriste al menos una ficha de producto/);
+    for (const reason of ['SEARCH_FAILED', 'PAGE_BLOCKED', 'NOT_REACHED']) expect(protocol).toContain(reason);
+    expect(protocol).toContain('No abras dos veces la misma búsqueda, listado o ficha');
+    const report = sectionOf('7. REPORTE FINAL DE CADA CORRIDA');
+    for (const metric of ['tiendas exploradas', 'tiendas no exploradas', 'categorías exploradas', 'productos investigados', 'candidatos válidos', 'descartados: número por motivo']) {
+      expect(report, metric).toContain(metric);
     }
   });
 

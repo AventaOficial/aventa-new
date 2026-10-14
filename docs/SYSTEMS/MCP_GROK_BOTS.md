@@ -690,7 +690,7 @@ Requiere: PR #100 fusionado, despliegue de producción `READY` con ese commit y 
 Ambas cosas viven fuera de este repo, en xAI (Grok):
 
 - **Conector MCP**: URL `https://aventaofertas.com/api/mcp`, con encabezado `Authorization: Bearer <token del cliente aventa-mcp-xai-production-v3>`. El token se toma del gestor de secretos y nunca se pega en tickets, chats ni en este repo. Cada tarea programada que use el conector debe apuntar a ese mismo conector. Un token de un cliente `paused` o `revoked` no envía nada.
-- **Instrucciones de la tarea programada**: el bloque `text` de `docs/SYSTEMS/GROK_HUNTER_PROMPT.md` (núcleo `core-1.1.0`, configuración `despensa-mx-1.0.0`), completo y sin cambios. Ese documento es la única fuente; sustituye a las instrucciones que antes vivían aquí y en §5. Allí está también la comprobación de sincronización con xAI.
+- **Instrucciones de la tarea programada**: el bloque `text` de `docs/SYSTEMS/GROK_HUNTER_PROMPT.md` (núcleo `core-1.2.0`, configuración `despensa-mx-1.1.0`), completo y sin cambios. Ese documento es la única fuente; sustituye a las instrucciones que antes vivían aquí y en §5. Allí está también la comprobación de sincronización con xAI.
 
 ### Estado verificado el 2026-10-13 (20:15 UTC, solo lectura)
 
@@ -748,7 +748,7 @@ Orden obligatorio. Cada paso necesita evidencia del anterior; si algo falla, se 
 
 Requisitos:
 - el conector de xAI con el token del cliente v3 y solo las 4 herramientas;
-- el prompt `core-1.1.0` / `despensa-mx-1.0.0` pegado en la tarea;
+- el prompt `core-1.2.0` / `despensa-mx-1.1.0` pegado en la tarea;
 - el código que lee el tachado de Soriana desplegado en producción, para que el precio de lista del candidato se pueda confirmar;
 - moderación disponible para revisar el candidato;
 - la autorización explícita del Owner.
@@ -756,10 +756,10 @@ Requisitos:
 1. `get_submission_rules`: debe devolver `ingestEnabled: true`, y la fila nueva de `machine_client_calls` debe ser del cliente v3.
 2. Elegir 1 producto de despensa en `soriana.com` que cumpla las reglas de calidad del prompt: ficha limpia, comprable, con imagen, precio visible en MXN y precio tachado mayor, sin condiciones.
 3. `check_offer_exists(url)`: debe devolver `canSubmit: true`. Si es `false`, elegir otro producto.
-4. `submit_deal_candidates` con `runId` `grok-despensa-canary-<AAAAMMDD>-01`, `idempotencyKey` `<runId>:core-1.1.0:01` y un solo candidato. Se espera `accepted: [{ index: 0 }]`.
+4. `submit_deal_candidates` con `runId` `grok-despensa-canary-<AAAAMMDD>-01`, `idempotencyKey` `<runId>:core-1.2.0:01` y un solo candidato. Se espera `accepted: [{ index: 0 }]`.
 5. `get_submission_status(submissionId)`: se espera `accepted`, es decir, oferta `pending` y no publicada.
 6. Verificar en la base con las consultas de arriba:
-   - `offer_batches.mcp_run_id` coincide con el `runId` y `mcp_idempotency_key` contiene `core-1.1.0`;
+   - `offer_batches.mcp_run_id` coincide con el `runId` y `mcp_idempotency_key` contiene `core-1.2.0`;
    - el ítem está `APPROVED` con `offer_id`;
    - `offers.status = 'pending'` y `source_currency = 'MXN'`;
    - `bot_meta.price_policy.kind = 'list_price_comparison'` y `offers.original_price` igual al tachado de la ficha;
