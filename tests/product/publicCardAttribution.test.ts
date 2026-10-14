@@ -61,7 +61,19 @@ describe('atribución pública de tarjetas', () => {
     expect(line).toContain('/icon.svg');
     expect(editorial).toContain("AVENTA DIARIAS");
     expect(editorial).toContain('Selección diaria de Aventa');
-    expect(line).not.toContain('Verificado');
-    expect(source).not.toContain('Verificado');
+    expect(`${line}\n${source}`).not.toMatch(/precio verificado|verificado por la tienda/i);
+  });
+
+  it('la marca editorial lleva el verificado morado y la comunidad no', () => {
+    const source = readFileSync('app/components/OfferCard.tsx', 'utf8');
+    const line = readFileSync('app/components/hunters/HunterIdentity.tsx', 'utf8');
+    const badge = readFileSync('app/components/hunters/VerifiedBadge.tsx', 'utf8');
+    const brandLine = line.slice(line.indexOf('export function AventaFoundLine'), line.indexOf('export function HunterFoundLine'));
+    expect(brandLine).toMatch(/\{label\}\s*<\/span>\s*<VerifiedBadge/);
+    expect(badge).toContain("'Verificado por AVENTA'");
+    expect(badge).toContain('aria-label={AVENTA_VERIFIED_LABEL}');
+    expect(badge).toContain('title={AVENTA_VERIFIED_LABEL}');
+    expect(badge).toMatch(/fill-violet-600/);
+    expect(source).not.toContain('VerifiedBadge');
   });
 });

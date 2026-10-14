@@ -3,7 +3,7 @@ import type { HunterPublicIdentity } from '@/lib/product/hunters/identity';
 /** Nombre editorial de las tarjetas del equipo. No afirma verificación de precio ni de stock. */
 export const AVENTA_EDITORIAL_NAME = 'AVENTA DIARIAS';
 
-/** Una sola línea de apoyo. No se apila con otra insignia de verificación. */
+/** Una sola línea de apoyo. La única insignia junto a la marca es la de autoría AVENTA. */
 export const AVENTA_EDITORIAL_LINE = 'Selección diaria de Aventa';
 
 /** Marca editorial por especialidad del hunter. Un code sin entrada usa la selección diaria. */

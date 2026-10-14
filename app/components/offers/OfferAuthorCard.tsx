@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import type { OfferAuthorCardModel } from '@/lib/product/presentation/teamAuthor';
+import { VerifiedBadge } from '@/app/components/hunters/VerifiedBadge';
 
 function AuthorAvatar({
   name,
@@ -56,7 +57,14 @@ export default function OfferAuthorCard({ author }: { author: OfferAuthorCardMod
       <div className="flex items-center gap-3">
         <AuthorAvatar name={author.name} avatarUrl={author.avatarUrl} accent={author.accent} />
         <div className="min-w-0">
-          {name}
+          {author.kind === 'team' ? (
+            <div className="flex min-w-0 items-center gap-1">
+              {name}
+              <VerifiedBadge size={16} />
+            </div>
+          ) : (
+            name
+          )}
           {author.functionLabel ? (
             <p className="mt-0.5 text-xs text-gray-500 dark:text-zinc-400">{author.functionLabel}</p>
           ) : null}
