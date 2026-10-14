@@ -213,8 +213,14 @@ export function batchAuthorLabel(input: {
   createdBy?: string | null;
   authorName?: string | null;
   machineClientId?: string | null;
+  /** `machine_clients.hunter_code` del cliente que creó el lote. Todos los clientes comparten autor. */
+  hunterCode?: string | null;
 }): string {
-  const author = presentAuthor({ userId: input.createdBy, displayName: input.authorName });
+  const author = presentAuthor({
+    userId: input.createdBy,
+    displayName: input.authorName,
+    hunterCode: input.machineClientId ? input.hunterCode : null,
+  });
   const name = author.kind === 'hunter' ? author.hunter.displayName : input.authorName?.trim() || 'Usuario';
   return input.machineClientId ? `${name} · vía MCP` : name;
 }
