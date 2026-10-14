@@ -777,11 +777,11 @@ export default function OfferCard({
               className="hidden md:flex w-[30%] max-w-[200px] min-w-[132px] shrink-0 flex-col gap-1.5 self-start pt-0.5"
               aria-label="Comentario del cazador"
             >
-              <div className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
+              <div className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-violet-600 dark:text-violet-400">
                 <MessageCircle className="h-3 w-3 shrink-0" aria-hidden />
                 Comentario del cazador
               </div>
-              <p className="text-xs md:text-[13px] leading-snug text-gray-500 dark:text-gray-400 line-clamp-3 wrap-anywhere">
+              <p className="text-xs md:text-[13px] leading-snug text-violet-900/75 dark:text-violet-200/80 line-clamp-3 wrap-anywhere">
                 {shortHunterComment}
                 {hunterCommentOverflow ? '…' : ''}
               </p>
@@ -795,11 +795,11 @@ export default function OfferCard({
           className="md:hidden flex flex-col gap-1 border-l-2 border-violet-500/35 pl-3"
           aria-label="Comentario del cazador"
         >
-          <div className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
+          <div className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-violet-600 dark:text-violet-400">
             <MessageCircle className="h-3 w-3 shrink-0" aria-hidden />
             Comentario del cazador
           </div>
-          <p className="text-xs leading-snug text-gray-500 dark:text-gray-400 line-clamp-3 wrap-anywhere">
+          <p className="text-xs leading-snug text-violet-900/75 dark:text-violet-200/80 line-clamp-3 wrap-anywhere">
             {shortHunterComment}
             {hunterCommentOverflow ? '…' : ''}
           </p>
