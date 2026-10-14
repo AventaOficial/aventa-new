@@ -16,6 +16,8 @@ type ModerationOffer = {
   created_at: string;
   created_by: string | null;
   risk_score?: number | null;
+  category?: string | null;
+  bot_meta?: unknown;
   profiles?: { display_name: string | null; avatar_url: string | null } | null;
 };
 
@@ -27,7 +29,7 @@ type Props = {
 
 const OFFER_SELECT = {
   approved:
-    'id, title, price, original_price, store, image_url, offer_url, created_at, created_by, profiles:public_profiles_view!created_by(display_name, avatar_url)',
+    'id, title, price, original_price, store, category, bot_meta, image_url, offer_url, created_at, created_by, profiles:public_profiles_view!created_by(display_name, avatar_url)',
   rejected:
     'id, title, price, original_price, store, image_url, offer_url, created_at, created_by, profiles!created_by(display_name, avatar_url)',
 } as const;
@@ -64,7 +66,7 @@ export default function ModerationOffersHistoryPanel({
             return;
           }
           setOffers(
-            (data ?? []).map((r: Record<string, unknown>) => ({
+            ((data ?? []) as unknown as Record<string, unknown>[]).map((r) => ({
               ...r,
               profiles: Array.isArray(r.profiles) ? r.profiles[0] : r.profiles,
             })) as ModerationOffer[]

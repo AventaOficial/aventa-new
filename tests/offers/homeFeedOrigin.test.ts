@@ -12,10 +12,12 @@ const state: {
   error: { message: string } | null;
   machineClients: Row[];
   machineClientsError: { code?: string; message: string } | null;
+  laneError: { message: string } | null;
   calls: Call[];
 } = {
   rows: [],
   error: null,
+  laneError: null,
   machineClients: [],
   machineClientsError: null,
   calls: [],
@@ -25,15 +27,33 @@ function parseInList(raw: unknown): string[] {
   return String(raw).replace(/^\(|\)$/g, '').split(',').filter(Boolean);
 }
 
+function hunterCodeOf(row: Row): unknown {
+  return (row.bot_meta as { hunter_code?: unknown } | undefined)?.hunter_code ?? null;
+}
+
 function queryBuilder(table: string) {
   const filters: Array<(row: Row) => boolean> = [];
   const builder: Record<string, (...args: unknown[]) => unknown> = {};
-  for (const method of ['select', 'in', 'or', 'gte', 'eq', 'order', 'is']) {
+  for (const method of ['select', 'or', 'gte', 'eq', 'order', 'is']) {
     builder[method] = (...args: unknown[]) => {
       state.calls.push({ table, method, args });
       return builder;
     };
   }
+  builder.in = (...args: unknown[]) => {
+    state.calls.push({ table, method: 'in', args });
+    const [col, values] = args as [string, string[]];
+    const allowed = new Set(values);
+    if (col === 'id') filters.push((row) => allowed.has(String(row.id)));
+    if (col === 'bot_meta->>hunter_code') filters.push((row) => allowed.has(String(hunterCodeOf(row))));
+    return builder;
+  };
+  builder.then = (resolve: unknown) => {
+    const rows = state.rows.filter((row) => filters.every((f) => f(row)));
+    return Promise.resolve({ data: rows.map((row) => ({ id: row.id, hunter_code: hunterCodeOf(row) })), error: null }).then(
+      resolve as (v: unknown) => unknown,
+    );
+  };
   builder.not = (...args: unknown[]) => {
     state.calls.push({ table, method: 'not', args });
     const [col, op, value] = args as [string, string, unknown];
@@ -56,6 +76,7 @@ function queryBuilder(table: string) {
       return { data: state.machineClientsError ? null : state.machineClients, error: state.machineClientsError };
     }
     if (state.error) return { data: null, error: state.error };
+    if (table === 'offers' && state.laneError) return { data: null, error: state.laneError };
     const n = Number(args[0]);
     return { data: state.rows.filter((row) => filters.every((f) => f(row))).slice(0, n), error: null };
   };
@@ -113,6 +134,7 @@ describe('Recientes: solo publicaciones de la comunidad', () => {
   beforeEach(() => {
     state.rows = [];
     state.error = null;
+    state.laneError = null;
     state.machineClients = [{ author_profile_id: DB_HUNTER }];
     state.machineClientsError = null;
     state.calls = [];
@@ -192,6 +214,43 @@ describe('Recientes: solo publicaciones de la comunidad', () => {
     expect(result.success && result.data.map((o) => o.id)).toEqual(['c1']);
   });
 
+  it('Kai y Éléonore entran a Recientes en orden; Ximena y ofertas sin sello siguen fuera', async () => {
+    state.rows = [
+      row('kai', MCP_AUTHOR, 'Hunter', '2026-10-11T10:00:00Z', { bot_meta: { hunter_code: 'kai' } }),
+      row('xim', MCP_AUTHOR, 'Hunter', '2026-10-11T09:30:00Z', { bot_meta: { hunter_code: 'ximena' } }),
+      row('c1', HUMAN, 'Ana', '2026-10-11T09:00:00Z'),
+      row('sin_sello', BOT, 'Hunter', '2026-10-11T08:30:00Z'),
+      row('ele', MCP_AUTHOR, 'Hunter', '2026-10-11T08:00:00Z', { bot_meta: { hunter_code: 'eleonore' } }),
+      row('c2', HUMAN_2, 'Luis', '2026-10-11T07:00:00Z'),
+    ];
+    const first = await getHomeFeed({ view: 'latest', period: 'week', limit: 2 });
+    expect(first.success).toBe(true);
+    if (!first.success) return;
+    expect(first.data.map((o) => [o.id, o.origin])).toEqual([
+      ['kai', 'machine'],
+      ['c1', 'community'],
+    ]);
+    expect(first.nextCursor).toBe('2026-10-11T09:00:00Z');
+
+    const second = await getHomeFeed({ view: 'latest', period: 'week', limit: 2, cursor: first.nextCursor });
+    expect(second.success && second.data.map((o) => o.id)).toEqual(['ele', 'c2']);
+
+    const cards = [...first.data, ...(second.success ? second.data : [])].map((o) =>
+      mapOfferToCard(o as unknown as FeedApiItemShape),
+    );
+    expect(processHomeFeedList(cards, 'latest', 10).map((c) => c.id)).toEqual(['kai', 'c1', 'ele', 'c2']);
+  });
+
+  it('si la lectura del carril Hunters falla, Recientes sigue con la comunidad', async () => {
+    state.laneError = { message: 'boom' };
+    state.rows = [
+      row('kai', MCP_AUTHOR, 'Hunter', '2026-10-11T10:00:00Z', { bot_meta: { hunter_code: 'kai' } }),
+      row('c1', HUMAN, 'Ana', '2026-10-11T09:00:00Z'),
+    ];
+    const result = await getHomeFeed({ type: 'recent' });
+    expect(result.success && result.data.map((o) => o.id)).toEqual(['c1']);
+  });
+
   it('Día a día y Top no consultan machine_clients ni excluyen Hunters', async () => {
     state.rows = [row('h1', DB_HUNTER, 'Hunter', '2026-10-11T10:00:00Z', { up_votes: 1 })];
     const vitales = await getHomeFeed({ view: 'vitales', period: 'week' });
@@ -206,6 +265,7 @@ describe('getHomeFeed: origen por id de autor', () => {
   beforeEach(() => {
     state.rows = [];
     state.error = null;
+    state.laneError = null;
     state.machineClients = [];
     state.machineClientsError = null;
     state.calls = [];

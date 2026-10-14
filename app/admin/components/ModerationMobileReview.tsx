@@ -19,6 +19,7 @@ import { moderationUi } from '../moderation/moderationUi';
 import ModerationConfidenceChip from './ModerationConfidenceChip';
 import ModerationBotFactsCard from './ModerationBotFactsCard';
 import MultiBuyReview from '@/app/components/moderation/MultiBuyReview';
+import HunterLaneReview from '@/app/components/moderation/HunterLaneReview';
 import ModerationChecklist from './ModerationChecklist';
 import ModerationDecisionCard from './ModerationDecisionCard';
 import ModerationFixSheet, { type FixField } from './ModerationFixSheet';
@@ -470,6 +471,14 @@ export default function ModerationMobileReview({
           </div>
 
           <MultiBuyReview mode={mode} offerId={offer.id} botMeta={offer.bot_meta} readOnly={readOnly} />
+          <HunterLaneReview
+            mode={mode}
+            offerId={offer.id}
+            botMeta={offer.bot_meta}
+            title={offer.title}
+            category={offer.category}
+            readOnly={readOnly}
+          />
 
           {offer.is_bot ? (
             <ModerationChecklist

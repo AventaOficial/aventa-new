@@ -2,6 +2,7 @@ import type { CardOffer, FeedApiItemShape } from '@/lib/offers/transform';
 import { DEFAULT_MAX_SAME_PRODUCT, deferDuplicateProducts } from '@/lib/offers/feedDiversity';
 import { rankDespensa, type DespensaRankable } from '@/lib/despensa/rank';
 import type { DespensaBudget } from '@/lib/despensa/budget';
+import { isRecientesHunterCode } from '@/lib/product/hunters/lane';
 
 /** Ofertas con score >= este valor solo aparecen en Top, no en Día a día. */
 export const DIA_A_DIA_SCORE_CAP = 90;
@@ -84,11 +85,14 @@ export function applyVitalesFeedTransform<T extends VitalesItem>(
 }
 
 /**
- * Recientes es solo de la comunidad. El servidor ya excluye a los autores automáticos
- * antes de paginar; esto descarta cualquier oferta que aun así llegue marcada como máquina.
+ * Recientes es de la comunidad más los hunters de especialidad (tecnología, moda).
+ * El servidor ya arma esa mezcla antes de paginar; esto descarta cualquier oferta máquina
+ * de uso diario que aun así llegue.
  */
-export function excludeMachineOffers<T extends { origin?: 'community' | 'machine' | null }>(list: readonly T[]): T[] {
-  return list.filter((item) => item.origin !== 'machine');
+export function excludeMachineOffers<
+  T extends { origin?: 'community' | 'machine' | null; author?: { hunter?: { code?: string | null } | null } | null },
+>(list: readonly T[]): T[] {
+  return list.filter((item) => item.origin !== 'machine' || isRecientesHunterCode(item.author?.hunter?.code));
 }
 
 /**

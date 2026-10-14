@@ -18,6 +18,7 @@ import {
 import { profileSlugFromDisplayName } from '@/lib/profileSlug';
 import { BOT_AUTHOR_DISPLAY_NAME, isBotUserId } from '@/lib/bots/ingest/isBotUserId';
 import { hunterCodeFromBotMeta, presentAuthor } from '@/lib/product/hunters/identity';
+import HunterLaneReview from '@/app/components/moderation/HunterLaneReview';
 
 type ModerationOffer = {
   id: string;
@@ -375,6 +376,10 @@ export default function ModerationOfferCard({
             )}
             </div>
           </div>
+
+          {status !== 'rejected' ? (
+            <HunterLaneReview mode="admin" offerId={offer.id} botMeta={offer.bot_meta} title={offer.title} category={offer.category} />
+          ) : null}
 
           {similarOffers.length > 0 && (
             <div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 px-3 py-2 text-sm text-amber-800 dark:text-amber-200">
