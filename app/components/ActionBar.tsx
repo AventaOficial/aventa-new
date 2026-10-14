@@ -24,7 +24,7 @@ import {
   listPriceBadgePercent,
   listPriceDifferenceText,
 } from '@/lib/offers/listPriceComparison';
-import { resolveOfferSourceCurrency } from '@/lib/offers/sourceCurrency';
+import { uploadPreviewCurrency } from '@/lib/offers/sourceCurrency';
 import { logClientError } from '@/lib/utils/handleError';
 import {
   normalizePastedOfferUrl,
@@ -153,6 +153,7 @@ export default function ActionBar() {
   /** true si el usuario tocó la galería (subir / quitar / portada). */
   const imagesUserEditedRef = useRef(false);
   const lastParsedOfferUrlRef = useRef('');
+  const [parsedUrlCurrency, setParsedUrlCurrency] = useState<{ url: string; currency: string | null } | null>(null);
 
   const resetUploadModalState = () => {
     setFormData({
@@ -181,6 +182,7 @@ export default function ActionBar() {
     userEditedFieldsRef.current = new Set();
     imagesUserEditedRef.current = false;
     lastParsedOfferUrlRef.current = '';
+    setParsedUrlCurrency(null);
     setHasDiscount(true);
     setMobileTab('form');
     setUploadLinkGatePassed(false);
@@ -489,6 +491,12 @@ export default function ActionBar() {
           }
           return next;
         });
+        if (!cancelled && stillCurrent) {
+          setParsedUrlCurrency({
+            url,
+            currency: typeof data.suggested_currency === 'string' ? data.suggested_currency : null,
+          });
+        }
         if (disc && orig && Number(orig) > Number(disc)) {
           setHasDiscount(true);
         } else if (!edited.has('originalPrice') && !edited.has('discountPrice')) {
@@ -1875,10 +1883,10 @@ export default function ActionBar() {
                     <p className="text-xs text-gray-400 mb-5">Vista previa en tiempo real</p>
                     <AnimatePresence mode="wait">
                       {(formData.title.trim() || formData.store.trim() || formData.originalPrice || formData.discountPrice) ? (() => {
-                        const previewCurrency = resolveOfferSourceCurrency(
-                          null,
-                          normalizePastedOfferUrl(formData.offer_url),
-                        );
+                        const previewCurrency = uploadPreviewCurrency({
+                          offerUrl: normalizePastedOfferUrl(formData.offer_url),
+                          parsed: parsedUrlCurrency,
+                        });
                         const previewCurrent = hasDiscount
                           ? parseDecimalPrice(formData.discountPrice) || parseDecimalPrice(formData.originalPrice)
                           : parseDecimalPrice(formData.originalPrice);

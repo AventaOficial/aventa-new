@@ -71,3 +71,17 @@ export function resolveOfferSourceCurrency(
 ): string | null {
   return confirmedExtractionCurrency({ apiCurrency: stored, pageUrl: offerUrl });
 }
+
+/**
+ * Moneda de la vista previa al subir. Un enlace corto (meli.la, link.amazon) no dice la tienda,
+ * pero el análisis del enlace ya la confirmó sobre la ficha expandida, igual que el servidor al guardar.
+ * Solo vale si ese análisis es del enlace que sigue en el formulario.
+ */
+export function uploadPreviewCurrency(input: {
+  offerUrl: string;
+  parsed: { url: string; currency: string | null } | null;
+}): string | null {
+  const parsedCurrency =
+    input.parsed && input.parsed.url === input.offerUrl ? isoCurrencyCode(input.parsed.currency) : null;
+  return parsedCurrency ?? resolveOfferSourceCurrency(null, input.offerUrl);
+}
