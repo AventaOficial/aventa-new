@@ -116,6 +116,32 @@ export function mergeNewestFirst<T extends Record<string, unknown>>(a: readonly 
     .sort((x, y) => Date.parse(String(y.created_at ?? '')) - Date.parse(String(x.created_at ?? '')));
 }
 
+/**
+ * Evita que Recientes se perciba como una racha de la misma categoría sin alterar
+ * los límites de página ni la continuidad del cursor. La selección sigue siendo la
+ * misma ventana cronológica; solo cambia su presentación dentro de esa ventana.
+ */
+export function interleaveRecentCategories<T extends { category?: string | null }>(
+  rows: readonly T[],
+): T[] {
+  const remaining = [...rows];
+  const result: T[] = [];
+  let previousCategory: string | null = null;
+
+  while (remaining.length > 0) {
+    const nextIndex = remaining.findIndex((row) => {
+      const category = row.category?.trim().toLowerCase() || null;
+      return previousCategory == null || category !== previousCategory;
+    });
+    const index = nextIndex === -1 ? 0 : nextIndex;
+    const [next] = remaining.splice(index, 1);
+    result.push(next);
+    previousCategory = next.category?.trim().toLowerCase() || null;
+  }
+
+  return result;
+}
+
 export async function getHomeFeed({
   limit = 20,
   cursor = null,
@@ -211,7 +237,10 @@ export async function getHomeFeed({
       }
     }
     const hasMore = rows.length > safeLimit;
-    const slice = hasMore ? rows.slice(0, safeLimit) : rows;
+    // Primero cerramos la ventana cronológica; así la alternancia no desplaza filas
+    // entre páginas ni rompe el cursor. mergeNewestFirst ya elimina IDs repetidos.
+    const chronologicalSlice = hasMore ? rows.slice(0, safeLimit) : rows;
+    const slice = communityOnly ? interleaveRecentCategories(chronologicalSlice) : chronologicalSlice;
     const hunterCodes = await loadOfferHunterCodes(
       supabase,
       slice.map((row: Record<string, unknown>) => ({
