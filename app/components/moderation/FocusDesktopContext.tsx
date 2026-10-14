@@ -13,6 +13,7 @@ import { cn } from '@/app/components/panel/utils';
 import StoreBrandMark from '@/app/components/StoreBrandMark';
 import FocusHunterComment from '@/app/components/moderation/FocusHunterComment';
 import MultiBuyReview from '@/app/components/moderation/MultiBuyReview';
+import HunterLaneReview from '@/app/components/moderation/HunterLaneReview';
 
 const REFERENCE_DROPPED: Record<string, string> = {
   absent: 'la página no muestra lista',
@@ -205,6 +206,14 @@ export default function FocusDesktopContext({
       <FocusHunterComment mode={mode} hunterComment={offer.hunter_comment} botMeta={offer.bot_meta} />
 
       <MultiBuyReview mode={mode} offerId={offer.id} botMeta={offer.bot_meta} readOnly={!canEdit} />
+      <HunterLaneReview
+        mode={mode}
+        offerId={offer.id}
+        botMeta={offer.bot_meta}
+        title={offer.title}
+        category={offer.category}
+        readOnly={!canEdit}
+      />
 
       <section className={cn('mt-auto space-y-2 border-t pt-3', ui.border)}>
         <p className={cn('text-[10px] font-semibold uppercase tracking-wider', ui.label)}>
