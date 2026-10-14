@@ -104,7 +104,7 @@ const KAI_SHIN = hunter({
   slug: 'kai-shin',
   name: 'Kai',
   displayName: 'Kai "Shin"',
-  title: 'Cazador Estratégico',
+  title: 'Explorador Urbano',
   specialty: 'Analista / Estratega',
   sortOrder: 4,
   shortBio: 'Japonés, de Tokio. «La disciplina también te lleva a las mejores oportunidades.»',
@@ -118,8 +118,8 @@ const KAI_SHIN = hunter({
     'Vive solo en Tokio. Sus padres trabajan en tecnología. Siempre lo han apoyado en su forma de ver el mundo. Quiere hacerlos sentir orgullosos y demostrar que su camino también tiene propósito.',
     'Le gustan el ramen (especialmente picante), la tecnología y los gadgets, el anime y el manga, la fotografía urbana, los trenes y las ciudades, los videojuegos, la lectura y la estrategia, la cultura tradicional japonesa, el senderismo (Monte Fuji), la música lo-fi y electrónica, los gatos, y descubrir nuevas tendencias.',
     'No le gustan el desorden, la gente imprudente, las decisiones sin lógica, el ruido excesivo, las ofertas falsas, perder el tiempo, el spam, la falta de disciplina, las multitudes ni la comida muy dulce.',
-    'Su herramienta es la katana Análisis: una katana moderna que simboliza precisión y enfoque. La usa como herramienta y recordatorio de disciplina.',
-    'Lo acompaña Haru, un dron que analiza precios, detecta tendencias y alerta sobre oportunidades en segundos.',
+    'Su herramienta es la katana Shinrai: una katana moderna que simboliza precisión y enfoque. La usa como herramienta y recordatorio de disciplina.',
+    'Lo acompaña Yuki, un dron que analiza precios, detecta tendencias y alerta sobre oportunidades en segundos.',
   ],
 });
 
