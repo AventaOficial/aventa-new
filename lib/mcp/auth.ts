@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { isMcpScope, type MachineClientStatus, type McpScope } from '@/lib/mcp/contract';
 import { machineTokenFromAuthorization, machineTokenHashMatches } from '@/lib/mcp/tokens';
+import { parseHunterCodeText } from '@/lib/mcp/machineClients';
 
 export type MachineClientContext = {
   id: string;
@@ -9,6 +10,8 @@ export type MachineClientContext = {
   status: Exclude<MachineClientStatus, 'revoked'>;
   authorProfileId: string;
   dailyCandidateCap: number;
+  /** Code del hunter que presenta las ofertas, tal como está guardado. La ingesta decide si es válido. */
+  hunterCode?: string | null;
 };
 
 export type MachineAuthResult =
@@ -25,7 +28,10 @@ type MachineClientRow = {
   daily_candidate_cap: number | null;
   expires_at: string | null;
   revoked_at: string | null;
+  hunter_code?: string | null;
 };
+
+const AUTH_COLUMNS = 'id, name, token_hash, scopes, status, author_profile_id, daily_candidate_cap, expires_at, revoked_at';
 
 /**
  * Autentica `Authorization: Bearer avk_...` contra machine_clients.
@@ -40,16 +46,17 @@ export async function authenticateMachineClient(
   const parsed = machineTokenFromAuthorization(authorization);
   if (!parsed) return { ok: false, reason: 'invalid_token' };
 
-  const { data, error } = await supabase
-    .from('machine_clients')
-    .select('id, name, token_hash, scopes, status, author_profile_id, daily_candidate_cap, expires_at, revoked_at')
-    .eq('token_prefix', parsed.prefix)
-    .maybeSingle();
+  const lookup = (columns: string) =>
+    supabase.from('machine_clients').select(columns).eq('token_prefix', parsed.prefix).maybeSingle();
+  let { data, error } = await lookup(`${AUTH_COLUMNS}, hunter_code`);
+  if (error && /hunter_code/i.test(error.message ?? '')) {
+    ({ data, error } = await lookup(AUTH_COLUMNS));
+  }
   if (error) {
     console.error('[mcp-auth] client lookup failed');
     return { ok: false, reason: 'lookup_failed' };
   }
-  const row = data as MachineClientRow | null;
+  const row = data as unknown as MachineClientRow | null;
   if (!row || !machineTokenHashMatches(parsed.token, row.token_hash)) {
     return { ok: false, reason: 'invalid_token' };
   }
@@ -70,6 +77,7 @@ export async function authenticateMachineClient(
       status: row.status,
       authorProfileId: row.author_profile_id,
       dailyCandidateCap: Number.isFinite(cap) && cap > 0 ? Math.floor(cap) : 0,
+      hunterCode: parseHunterCodeText(row.hunter_code),
     },
   };
 }

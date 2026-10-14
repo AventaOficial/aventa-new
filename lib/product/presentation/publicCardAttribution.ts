@@ -6,17 +6,28 @@ export const AVENTA_EDITORIAL_NAME = 'AVENTA DIARIAS';
 /** Una sola línea de apoyo. No se apila con otra insignia de verificación. */
 export const AVENTA_EDITORIAL_LINE = 'Selección diaria de Aventa';
 
+/** Marca editorial por especialidad del hunter. Un code sin entrada usa la selección diaria. */
+export const HUNTER_EDITORIAL: Readonly<Record<string, { label: string; line: string }>> = {
+  ximena: { label: AVENTA_EDITORIAL_NAME, line: AVENTA_EDITORIAL_LINE },
+  kai: { label: 'AVENTA TECH', line: 'Top tecnología' },
+  eleonore: { label: 'AVENTA MODA', line: 'Moda, tenis y perfumes' },
+};
+
+export function hunterEditorial(code: string | null | undefined): { label: string; line: string } {
+  return HUNTER_EDITORIAL[code?.trim().toLowerCase() ?? ''] ?? HUNTER_EDITORIAL.ximena;
+}
+
 export type PublicCardAttribution =
   | {
       kind: 'brand';
-      label: typeof AVENTA_EDITORIAL_NAME;
-      line: typeof AVENTA_EDITORIAL_LINE;
+      label: string;
+      line: string;
       hunterCode: string;
     }
   | { kind: 'person'; label: string };
 
 /**
- * En la tarjeta pública, un hunter del canon se presenta como la selección de Aventa.
+ * En la tarjeta pública, un hunter del canon se presenta como la selección de Aventa de su especialidad.
  * El code queda para trazabilidad; el nombre editable no decide la marca.
  * Una persona de la comunidad conserva su nombre.
  */
@@ -26,12 +37,7 @@ export function publicCardAttribution(author: {
 } | null | undefined): PublicCardAttribution | null {
   const hunterCode = author?.hunter?.code?.trim();
   if (hunterCode) {
-    return {
-      kind: 'brand',
-      label: AVENTA_EDITORIAL_NAME,
-      line: AVENTA_EDITORIAL_LINE,
-      hunterCode,
-    };
+    return { kind: 'brand', ...hunterEditorial(hunterCode), hunterCode };
   }
   const username = author?.username?.trim();
   if (!username) return null;

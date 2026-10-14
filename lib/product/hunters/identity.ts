@@ -45,6 +45,21 @@ const EMPTY_ASSETS: HunterAssetSet = {
 /** El carril de suministro actual se presenta como este Hunter. No es un UUID. */
 export const SUPPLY_HUNTER_CODE = 'ximena';
 
+/** Hunters que un cliente MCP puede presentar. Cada uno tiene su especialidad en la tarjeta. */
+export const SUPPLY_HUNTER_CODES = ['ximena', 'kai', 'eleonore'] as const;
+export type SupplyHunterCode = (typeof SUPPLY_HUNTER_CODES)[number];
+
+export function isSupplyHunterCode(value: unknown): value is SupplyHunterCode {
+  return typeof value === 'string' && (SUPPLY_HUNTER_CODES as readonly string[]).includes(value);
+}
+
+/** `bot_meta.hunter_code` que estampa la ingesta MCP. Cualquier otro valor se ignora. */
+export function hunterCodeFromBotMeta(botMeta: unknown): SupplyHunterCode | null {
+  if (!botMeta || typeof botMeta !== 'object') return null;
+  const code = (botMeta as { hunter_code?: unknown }).hunter_code;
+  return isSupplyHunterCode(code) ? code : null;
+}
+
 /** Assets públicos por code. Un slot vacío no se inventa en el componente. */
 export const HUNTER_PUBLIC_FILES: Record<string, HunterAssetSet> = {
   ximena: {
@@ -52,6 +67,14 @@ export const HUNTER_PUBLIC_FILES: Record<string, HunterAssetSet> = {
     portraitUrl: null,
     coverUrl: '/hunters/ximena/cover.png',
     icon: '/hunters/ximena/icon.png',
+    fullBodyUrl: null,
+    expressions: {},
+  },
+  eleonore: {
+    avatarUrl: '/hunters/eleonore/avatar.jpg',
+    portraitUrl: null,
+    coverUrl: '/hunters/eleonore/cover.jpg',
+    icon: null,
     fullBodyUrl: null,
     expressions: {},
   },
@@ -68,6 +91,18 @@ const PRODUCT_VOICE: Record<string, Pick<HunterPublicIdentity, 'role' | 'special
     specialty: 'Ofertas del día a día, hogar, despensa, higiene y productos que realmente necesitas.',
     voice: 'Estoy siempre buscando productos que usamos en casa: limpieza, despensa, higiene y básicos del día a día.',
     accent: '#f97316',
+  },
+  kai: {
+    role: 'Cazador Estratégico',
+    specialty: 'Tecnología: laptops, celulares, audio, gaming y gadgets con descuentos de verdad.',
+    voice: 'Reviso precios de tecnología todos los días y solo comparto los descuentos que valen la pena.',
+    accent: '#0ea5e9',
+  },
+  eleonore: {
+    role: 'Estratega e Ilusión',
+    specialty: 'Moda, tenis, perfumes y belleza con precio real.',
+    voice: 'Busco moda, tenis y perfumes originales a buen precio. Las mejores oportunidades se encuentran en los detalles.',
+    accent: '#d4a017',
   },
 };
 
@@ -108,6 +143,29 @@ export function hunterByCode(code: string | null | undefined): HunterPublicIdent
   if (direct) return direct;
   const bySlug = EDITORIAL_CANON.find((hunter) => hunter.slug === normalized);
   return bySlug ? toPublic(bySlug.code) : null;
+}
+
+/** Code o slug del canon (p. ej. `ximena-fuego`) a code de suministro. Otro valor es null. */
+export function toSupplyHunterCode(value: unknown): SupplyHunterCode | null {
+  if (typeof value !== 'string') return null;
+  const code = hunterByCode(value)?.code;
+  return isSupplyHunterCode(code) ? code : null;
+}
+
+/** Opciones de hunter para el formulario del Owner. Sólo datos públicos del canon. */
+export function supplyHunterOptions(): Array<{
+  code: SupplyHunterCode;
+  displayName: string;
+  avatarUrl: string | null;
+  specialty: string;
+  accent: string;
+}> {
+  return SUPPLY_HUNTER_CODES.flatMap((code) => {
+    const hunter = hunterByCode(code);
+    return hunter
+      ? [{ code, displayName: hunter.displayName, avatarUrl: hunter.avatarUrl, specialty: hunter.specialty, accent: hunter.accent }]
+      : [];
+  });
 }
 
 export function defaultSupplyHunter(): HunterPublicIdentity {

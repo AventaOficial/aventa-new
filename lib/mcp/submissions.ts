@@ -253,6 +253,7 @@ export async function submitDealCandidates(
       batchId: created.batch.id,
       createdBy: client.authorProfileId,
       machineClientId: client.id,
+      hunterCode: client.hunterCode ?? null,
       candidate,
     });
   }

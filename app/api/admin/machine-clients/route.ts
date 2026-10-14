@@ -4,12 +4,22 @@ import { requireOwner } from '@/lib/server/requireAdmin';
 import { generateMachineToken } from '@/lib/mcp/tokens';
 import { isMcpIngestEnabled } from '@/lib/mcp/flags';
 import {
+  MACHINE_CLIENT_BASE_COLUMNS,
   MACHINE_CLIENT_PUBLIC_COLUMNS,
+  isMissingHunterCodeColumn,
   isMissingMachineClientsTable,
+  loadMachineAuthorOptions,
   parseMachineClientCreate,
   toPublicMachineClient,
   validateMachineAuthor,
+  type MachineClientPublic,
 } from '@/lib/mcp/machineClients';
+import { SUPPLY_HUNTER_CODES, supplyHunterOptions, toSupplyHunterCode } from '@/lib/product/hunters/identity';
+
+/** Un slug guardado (p. ej. `ximena-fuego`) se muestra con su code de suministro. */
+function forOwner(client: MachineClientPublic): MachineClientPublic {
+  return { ...client, hunterCode: toSupplyHunterCode(client.hunterCode) };
+}
 
 const NO_STORE = { 'Cache-Control': 'no-store' } as const;
 
@@ -19,11 +29,11 @@ export async function GET(request: Request) {
   if ('error' in auth) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
   const supabase = createServerClient();
-  const { data, error } = await supabase
-    .from('machine_clients')
-    .select(MACHINE_CLIENT_PUBLIC_COLUMNS)
-    .order('created_at', { ascending: false })
-    .limit(200);
+  const list = (columns: string) =>
+    supabase.from('machine_clients').select(columns).order('created_at', { ascending: false }).limit(200);
+  let { data, error } = await list(MACHINE_CLIENT_PUBLIC_COLUMNS);
+  const hunterCodeReady = !isMissingHunterCodeColumn(error);
+  if (!hunterCodeReady) ({ data, error } = await list(MACHINE_CLIENT_BASE_COLUMNS));
   if (error) {
     if (isMissingMachineClientsTable(error)) {
       return NextResponse.json({ clients: [], needsMigration: true, ingestEnabled: isMcpIngestEnabled() }, { headers: NO_STORE });
@@ -33,9 +43,12 @@ export async function GET(request: Request) {
   }
   return NextResponse.json(
     {
-      clients: ((data ?? []) as Record<string, unknown>[]).map(toPublicMachineClient),
+      clients: ((data ?? []) as unknown as Record<string, unknown>[]).map((row) => forOwner(toPublicMachineClient(row))),
       needsMigration: false,
       ingestEnabled: isMcpIngestEnabled(),
+      hunterCodeReady,
+      hunters: supplyHunterOptions(),
+      authors: await loadMachineAuthorOptions(supabase),
     },
     { headers: NO_STORE },
   );
@@ -47,7 +60,7 @@ export async function POST(request: Request) {
   if ('error' in auth) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
   const body = await request.json().catch(() => null);
-  const parsed = parseMachineClientCreate(body);
+  const parsed = parseMachineClientCreate(body, new Date(), { allowedHunterCodes: SUPPLY_HUNTER_CODES });
   if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400 });
 
   const supabase = createServerClient();
@@ -67,12 +80,16 @@ export async function POST(request: Request) {
       daily_candidate_cap: parsed.value.dailyCandidateCap,
       expires_at: parsed.value.expiresAt,
       created_by: auth.user.id,
+      ...(parsed.value.hunterCode ? { hunter_code: parsed.value.hunterCode } : {}),
     })
-    .select(MACHINE_CLIENT_PUBLIC_COLUMNS)
+    .select(parsed.value.hunterCode ? MACHINE_CLIENT_PUBLIC_COLUMNS : MACHINE_CLIENT_BASE_COLUMNS)
     .single();
   if (error || !data) {
     if (isMissingMachineClientsTable(error)) {
       return NextResponse.json({ error: 'Falta aplicar la migración de clientes MCP', needsMigration: true }, { status: 503 });
+    }
+    if (isMissingHunterCodeColumn(error)) {
+      return NextResponse.json({ error: 'Falta aplicar la migración de hunter_code' }, { status: 503 });
     }
     console.error('[admin/machine-clients] POST failed:', error?.code ?? 'unknown');
     return NextResponse.json({ error: 'No se pudo crear' }, { status: 500 });
@@ -81,7 +98,7 @@ export async function POST(request: Request) {
   return NextResponse.json(
     {
       ok: true,
-      client: toPublicMachineClient(data as Record<string, unknown>),
+      client: forOwner(toPublicMachineClient(data as unknown as Record<string, unknown>)),
       token,
       tokenNotice: 'Guarda este token ahora. Aventa no lo vuelve a mostrar ni puede recuperarlo.',
     },

@@ -1,7 +1,7 @@
 import { revalidatePath } from 'next/cache';
 import { createServerClient } from '@/lib/supabase/server';
 import { EDITORIAL_CANON } from './canon';
-import { hunterAssets, hunterByCode, SUPPLY_HUNTER_CODE } from './identity';
+import { hunterAssets, hunterByCode, isSupplyHunterCode } from './identity';
 import type { EditorialHunter } from './types';
 
 const COLUMNS =
@@ -51,9 +51,9 @@ export function toEditorialHunter(row: Row): EditorialHunter {
   };
 }
 
-/** Ximena es pública aunque su ficha editorial siga en borrador. Un archivado no vuelve por el canon. */
+/** Los hunters de suministro son públicos aunque su ficha editorial siga en borrador. Un archivado no vuelve por el canon. */
 export function supplyHunterProjection(slug: string): EditorialHunter | null {
-  const source = EDITORIAL_CANON.find((hunter) => hunter.slug === slug && hunter.code === SUPPLY_HUNTER_CODE);
+  const source = EDITORIAL_CANON.find((hunter) => hunter.slug === slug && isSupplyHunterCode(hunter.code));
   const pub = source ? hunterByCode(source.code) : null;
   if (!source || !pub) return null;
   const now = '1970-01-01T00:00:00.000Z';
@@ -96,9 +96,10 @@ export async function loadPublicHunters(): Promise<EditorialHunter[]> {
       .order('sort_order', { ascending: true })
       .order('name', { ascending: true });
     const rows = error || !data ? [] : (data as Row[]).map(toEditorialHunter).filter((h) => h.status === 'active');
-    const ximena = supplyHunterProjection('ximena-fuego');
-    if (ximena && !rows.some((hunter) => hunter.code === ximena.code)) rows.unshift(ximena);
-    return rows;
+    const supply = EDITORIAL_CANON.filter((hunter) => isSupplyHunterCode(hunter.code))
+      .map((hunter) => supplyHunterProjection(hunter.slug))
+      .filter((hunter): hunter is EditorialHunter => hunter != null && !rows.some((row) => row.code === hunter.code));
+    return [...supply, ...rows].sort((a, b) => a.sortOrder - b.sortOrder);
   } catch {
     return [];
   }

@@ -26,6 +26,8 @@ describe('OfferCard feed layout', () => {
     const line = readFileSync('app/components/hunters/HunterIdentity.tsx', 'utf8');
     expect(line).toContain('src="/icon.svg"');
     expect(line).not.toMatch(/>\s*A\s*</);
-    expect(card).toMatch(/cardAttribution\?\.kind === 'brand' \? \(\s*<AventaFoundLine \/>/);
+    expect(card).toMatch(
+      /cardAttribution\?\.kind === 'brand' \? \(\s*<AventaFoundLine label=\{cardAttribution\.label\} line=\{cardAttribution\.line\} \/>/,
+    );
   });
 });

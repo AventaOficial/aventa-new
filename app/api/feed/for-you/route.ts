@@ -13,6 +13,7 @@ import { computeOfferScore } from '@/lib/offers/scoring';
 import { observeFeedRequest } from '@/lib/analytics/observeProductBehavior';
 import { omitMatchedOffers } from '@/lib/interests/match';
 import { buildInterestView, listInterests } from '@/lib/interests/store';
+import { withOfferHunterCodes } from '@/lib/offers/offerHunterCodes';
 
 const DEFAULT_LIMIT = 12;
 const FETCH_LIMIT = FOR_YOU_MAX_LIMIT;
@@ -198,7 +199,7 @@ export async function GET(request: Request) {
     console.error('[for-you] interests', error instanceof Error ? error.message : 'failed');
   }
 
-  const result = feed.slice(0, limit);
+  const result = await withOfferHunterCodes(supabase, feed.slice(0, limit));
   await observeFeedRequest(request, {
     feedType: 'for_you',
     userId: user.id,

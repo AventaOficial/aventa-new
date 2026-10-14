@@ -20,6 +20,7 @@ import { compareWithListPrice } from '@/lib/offers/listPriceComparison';
 import { buildBotOfferDescription } from '@/lib/bots/ingest/buildBotOfferDescription';
 import { OFFER_DESCRIPTION_MAX } from '@/lib/contracts/offers';
 import { buildPendingMultiBuy, multiBuyModeratorLine, type MultiBuyMeta } from '@/lib/offers/multiBuy';
+import { toSupplyHunterCode } from '@/lib/product/hunters/identity';
 
 /** `moderator_comment` admite 500; el prefijo cabe con la nota MCP completa (280). */
 const MCP_INTERNAL_NOTE_MAX = 470;
@@ -84,11 +85,14 @@ export async function enqueueHunterOffer(
     batchId: string;
     createdBy: string;
     machineClientId: string;
+    /** Hunter que presenta la oferta en público. Viene del cliente, nunca del candidato. */
+    hunterCode?: string | null;
     candidate: ValidCandidate;
   },
   deps: EnqueueHunterOfferDeps = {},
 ): Promise<{ offerId: string | null }> {
-  const { batchId, createdBy, machineClientId, candidate } = params;
+  const { batchId, createdBy, machineClientId, hunterCode, candidate } = params;
+  const supplyHunterCode = toSupplyHunterCode(hunterCode);
   const base = { batchId, identityKey: candidate.identityKey, actorId: createdBy };
 
   const nm = await (deps.negativeMemory ?? isSuppressedByNegativeMemory)({ supabase, url: candidate.url });
@@ -253,6 +257,7 @@ export async function enqueueHunterOffer(
     offerExtras: {
       ...(moderatorComment ? { moderator_comment: moderatorComment } : {}),
       bot_meta: {
+        ...(supplyHunterCode ? { hunter_code: supplyHunterCode } : {}),
         ...(internalNote ? { internal_note: internalNote } : {}),
         ...(multiBuy ? { multi_buy: multiBuy } : {}),
         enrichment: {

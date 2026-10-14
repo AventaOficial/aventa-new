@@ -40,7 +40,10 @@ export function HunterMark({
 }
 
 /** Identidad editorial de la tarjeta. No enlaza al hunter ni marca el precio como verificado. */
-export function AventaFoundLine() {
+export function AventaFoundLine({
+  label = AVENTA_EDITORIAL_NAME,
+  line = AVENTA_EDITORIAL_LINE,
+}: { label?: string; line?: string } = {}) {
   return (
     <span className="inline-flex min-w-0 items-center gap-2">
       <Image
@@ -54,9 +57,9 @@ export function AventaFoundLine() {
       />
       <span className="min-w-0 leading-tight">
         <span className="block truncate text-[10px] font-semibold tracking-[0.12em] text-violet-700 dark:text-violet-300 md:text-[11px]">
-          {AVENTA_EDITORIAL_NAME}
+          {label}
         </span>
-        <span className="block truncate text-[10px] text-gray-500 dark:text-zinc-400">{AVENTA_EDITORIAL_LINE}</span>
+        <span className="block truncate text-[10px] text-gray-500 dark:text-zinc-400">{line}</span>
       </span>
     </span>
   );
