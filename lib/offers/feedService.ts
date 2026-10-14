@@ -5,6 +5,7 @@ import { resolveOfferSourceCurrency } from '@/lib/offers/sourceCurrency';
 import { isBotUserId } from '@/lib/bots/ingest/isBotUserId';
 import { loadMachineAuthorIds, machineAuthorNotInList } from '@/lib/offers/machineAuthors';
 import { loadOfferHunterCodes } from '@/lib/offers/offerHunterCodes';
+import { RECIENTES_HUNTER_CODES } from '@/lib/product/hunters/lane';
 
 export type FeedOfferAuthor = {
   display_name: string;
@@ -78,6 +79,43 @@ export function isCommunityOnlyFeed(
   return view === 'latest' || (view == null && type === 'recent');
 }
 
+/**
+ * Ofertas máquina de los hunters de especialidad (tecnología, moda): sí van en Recientes.
+ * La vista pública no expone bot_meta, así que el filtro se hace en `offers`. Si falla, Recientes sigue sin ellas.
+ */
+async function loadRecientesHunterOfferIds(
+  supabase: ReturnType<typeof createInteractiveServerClient>,
+  input: { nowISO: string; cursor: string | null; limit: number },
+): Promise<string[]> {
+  let q = supabase
+    .from('offers')
+    .select('id')
+    .in('bot_meta->>hunter_code', [...RECIENTES_HUNTER_CODES])
+    .in('status', ['approved', 'published'])
+    .or(`expires_at.is.null,expires_at.gte.${input.nowISO}`)
+    .order('created_at', { ascending: false });
+  if (input.cursor) q = q.lt('created_at', new Date(input.cursor).toISOString());
+  const { data, error } = await q.limit(input.limit);
+  if (error) {
+    console.error('[FEED API ERROR] hunter lane ids skipped', error.code ?? 'unknown');
+    return [];
+  }
+  return ((data ?? []) as { id: string }[]).map((row) => row.id);
+}
+
+/** Une dos listas ya ordenadas por created_at desc, sin duplicados. */
+export function mergeNewestFirst<T extends Record<string, unknown>>(a: readonly T[], b: readonly T[]): T[] {
+  const seen = new Set<string>();
+  return [...a, ...b]
+    .filter((row) => {
+      const id = String(row.id ?? '');
+      if (seen.has(id)) return false;
+      seen.add(id);
+      return true;
+    })
+    .sort((x, y) => Date.parse(String(y.created_at ?? '')) - Date.parse(String(x.created_at ?? '')));
+}
+
 export async function getHomeFeed({
   limit = 20,
   cursor = null,
@@ -91,18 +129,58 @@ export async function getHomeFeed({
     const supabase = createInteractiveServerClient();
     const nowISO = new Date().toISOString();
 
-    let query = supabase
-      .from('ofertas_ranked_general')
-      .select(
-        'id, title, price, original_price, offer_url, created_at, score, up_votes, down_votes, ranking_blend, ranking_momentum, image_url, image_urls, bank_coupon, store, category, msi_months, description, hunter_comment, coupons, conditions, created_by, expires_at, profiles:public_profiles_view!created_by(display_name, avatar_url, leader_badge, ml_tracking_tag, amazon_tracking_tag, slug)'
-      )
-      .not('created_at', 'is', null)
-      .in('status', ['approved', 'published'])
-      .or(`expires_at.is.null,expires_at.gte.${nowISO}`);
-
     const useHomePipeline = view != null;
+    const communityOnly = isCommunityOnlyFeed(view, type);
+    const safeLimit = Math.min(Math.max(1, limit), 100);
 
-    if (isCommunityOnlyFeed(view, type)) {
+    const buildQuery = () => {
+      let query = supabase
+        .from('ofertas_ranked_general')
+        .select(
+          'id, title, price, original_price, offer_url, created_at, score, up_votes, down_votes, ranking_blend, ranking_momentum, image_url, image_urls, bank_coupon, store, category, msi_months, description, hunter_comment, coupons, conditions, created_by, expires_at, profiles:public_profiles_view!created_by(display_name, avatar_url, leader_badge, ml_tracking_tag, amazon_tracking_tag, slug)'
+        )
+        .not('created_at', 'is', null)
+        .in('status', ['approved', 'published'])
+        .or(`expires_at.is.null,expires_at.gte.${nowISO}`);
+
+      if (useHomePipeline) {
+        const floor = homeFeedCreatedAtIsoMin(period);
+        query = query.gte('created_at', floor);
+        if (store?.trim()) {
+          query = query.eq('store', store.trim());
+        }
+        const catIn = homeFeedCategoryInList(view, category);
+        if (catIn != null && catIn.length > 0) {
+          query = query.in('category', catIn);
+        }
+        if (view === 'latest') {
+          query = query.order('created_at', { ascending: false });
+          if (cursor) {
+            const cursorDate = new Date(cursor).toISOString();
+            query = query.lt('created_at', cursorDate);
+          }
+        } else if (view === 'top') {
+          query = query.gte('up_votes', 1).order('score_final', { ascending: false });
+        } else {
+          query = query.order('ranking_blend', { ascending: false });
+        }
+      } else {
+        if (type === 'trending') {
+          query = query.order('ranking_blend', { ascending: false });
+        } else {
+          query = query.order('created_at', { ascending: false });
+        }
+
+        if (cursor && type === 'recent') {
+          const cursorDate = new Date(cursor).toISOString();
+          query = query.lt('created_at', cursorDate);
+        }
+      }
+      return query;
+    };
+
+    let query = buildQuery();
+    if (communityOnly) {
       const machineAuthors = await loadMachineAuthorIds(supabase);
       if (!machineAuthors) {
         console.error('[FEED API ERROR] machine authors unavailable; Recientes closed');
@@ -113,41 +191,6 @@ export async function getHomeFeed({
       if (notIn) query = query.not('created_by', 'in', notIn);
     }
 
-    if (useHomePipeline) {
-      const floor = homeFeedCreatedAtIsoMin(period);
-      query = query.gte('created_at', floor);
-      if (store?.trim()) {
-        query = query.eq('store', store.trim());
-      }
-      const catIn = homeFeedCategoryInList(view, category);
-      if (catIn != null && catIn.length > 0) {
-        query = query.in('category', catIn);
-      }
-      if (view === 'latest') {
-        query = query.order('created_at', { ascending: false });
-        if (cursor) {
-          const cursorDate = new Date(cursor).toISOString();
-          query = query.lt('created_at', cursorDate);
-        }
-      } else if (view === 'top') {
-        query = query.gte('up_votes', 1).order('score_final', { ascending: false });
-      } else {
-        query = query.order('ranking_blend', { ascending: false });
-      }
-    } else {
-      if (type === 'trending') {
-        query = query.order('ranking_blend', { ascending: false });
-      } else {
-        query = query.order('created_at', { ascending: false });
-      }
-
-      if (cursor && type === 'recent') {
-        const cursorDate = new Date(cursor).toISOString();
-        query = query.lt('created_at', cursorDate);
-      }
-    }
-
-    const safeLimit = Math.min(Math.max(1, limit), 100);
     const { data, error } = await query.limit(safeLimit + 1);
 
     if (error) {
@@ -155,7 +198,18 @@ export async function getHomeFeed({
       return { success: false, error: error.message };
     }
 
-    const rows = data ?? [];
+    let rows: Record<string, unknown>[] = (data ?? []) as unknown as Record<string, unknown>[];
+    if (communityOnly) {
+      const laneIds = await loadRecientesHunterOfferIds(supabase, { nowISO, cursor, limit: safeLimit + 1 });
+      if (laneIds.length > 0) {
+        const lane = await buildQuery().in('id', laneIds).limit(safeLimit + 1);
+        if (lane.error) {
+          console.error('[FEED API ERROR] hunter lane skipped', lane.error.code ?? 'unknown');
+        } else {
+          rows = mergeNewestFirst(rows, (lane.data ?? []) as unknown as Record<string, unknown>[]);
+        }
+      }
+    }
     const hasMore = rows.length > safeLimit;
     const slice = hasMore ? rows.slice(0, safeLimit) : rows;
     const hunterCodes = await loadOfferHunterCodes(
