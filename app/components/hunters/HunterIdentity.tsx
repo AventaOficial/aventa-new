@@ -4,6 +4,7 @@ import type { HunterPublicIdentity } from '@/lib/product/hunters/identity';
 import { AVENTA_EDITORIAL_LINE, AVENTA_EDITORIAL_NAME } from '@/lib/product/presentation/publicCardAttribution';
 import { teamAuthorCard } from '@/lib/product/presentation/teamAuthor';
 import OfferAuthorCard from '@/app/components/offers/OfferAuthorCard';
+import { VerifiedBadge } from '@/app/components/hunters/VerifiedBadge';
 
 export function HunterMark({
   name,
@@ -39,7 +40,7 @@ export function HunterMark({
   );
 }
 
-/** Identidad editorial de la tarjeta. No enlaza al hunter ni marca el precio como verificado. */
+/** Identidad editorial de la tarjeta. No enlaza al hunter; la insignia verifica autoría, no el precio. */
 export function AventaFoundLine({
   label = AVENTA_EDITORIAL_NAME,
   line = AVENTA_EDITORIAL_LINE,
@@ -56,8 +57,11 @@ export function AventaFoundLine({
         aria-hidden
       />
       <span className="min-w-0 leading-tight">
-        <span className="block truncate text-[10px] font-semibold tracking-[0.12em] text-violet-700 dark:text-violet-300 md:text-[11px]">
-          {label}
+        <span className="flex min-w-0 items-center gap-1">
+          <span className="truncate text-[10px] font-semibold tracking-[0.12em] text-violet-700 dark:text-violet-300 md:text-[11px]">
+            {label}
+          </span>
+          <VerifiedBadge size={13} />
         </span>
         <span className="block truncate text-[10px] text-gray-500 dark:text-zinc-400">{line}</span>
       </span>
@@ -74,6 +78,7 @@ export function HunterFoundLine({ hunter }: { hunter: HunterPublicIdentity }) {
     >
       <HunterMark name={hunter.name} accent={hunter.accent} avatarUrl={hunter.avatarUrl} />
       <span className="truncate">{hunter.foundLabel}</span>
+      <VerifiedBadge size={13} />
     </Link>
   );
 }
