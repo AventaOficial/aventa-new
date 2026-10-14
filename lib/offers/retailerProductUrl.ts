@@ -3,7 +3,7 @@ import { offerUrlFingerprint } from '@/lib/offers/offerUrlFingerprint';
 /**
  * PDP de retailers soportados.
  * Amazon y Mercado Libre usan la huella fuerte (ASIN / item).
- * Soriana y Costco usan el path real de producto observado en catálogo.
+ * Soriana, Costco, Chedraui y Liverpool usan el path real de producto observado en catálogo.
  * Un host permitido sin path de producto no pasa.
  */
 
@@ -56,7 +56,12 @@ export function isSupportedRetailerProductUrl(rawUrl: string): boolean {
   if (!trimmed) return false;
   const fingerprint = offerUrlFingerprint(trimmed);
   if (fingerprint && (fingerprint.startsWith('amz:') || fingerprint.startsWith('ml:'))) return true;
-  return isSorianaProductUrl(trimmed) || isCostcoMxProductUrl(trimmed) || isChedrauiProductUrl(trimmed);
+  return (
+    isSorianaProductUrl(trimmed) ||
+    isCostcoMxProductUrl(trimmed) ||
+    isChedrauiProductUrl(trimmed) ||
+    isLiverpoolProductUrl(trimmed)
+  );
 }
 
 export type OfferPageKind = 'PRODUCT' | 'CATEGORY' | 'SEARCH' | 'HOME' | 'UNKNOWN';
@@ -77,7 +82,7 @@ export function classifyOfferPageKind(rawUrl: string): OfferPageKind {
   if (!parsed) return 'UNKNOWN';
   const path = parsed.pathname.replace(/\/+$/, '') || '/';
   if (path === '/') return 'HOME';
-  if (isSupportedRetailerProductUrl(rawUrl) || isLiverpoolProductUrl(rawUrl)) return 'PRODUCT';
+  if (isSupportedRetailerProductUrl(rawUrl)) return 'PRODUCT';
   const known = KNOWN_RETAILER.some((fragment) => parsed.host.includes(fragment) || hostIs(parsed.host, fragment));
   if (!known) return 'UNKNOWN';
   if (/^\/(s|search|buscar|busqueda|jm\/search)(\/|$)/i.test(parsed.pathname) || /\/search(\/|$)/i.test(parsed.pathname)) {

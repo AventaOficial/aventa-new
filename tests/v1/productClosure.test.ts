@@ -2,6 +2,9 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { isResolvedProductOfferUrl } from '@/lib/affiliate/assessOfferAffiliateLink';
+import { validateAffiliatePaste } from '@/lib/affiliate/validateAffiliatePaste';
+import { evaluateAffiliateReadiness } from '@/lib/moderation/affiliateReadinessContract';
+import { classifyOfferPageKind } from '@/lib/offers/retailerProductUrl';
 import { isMoneyPathFrozen } from '@/lib/server/moneyPathFreeze';
 import { DEFAULT_FEED_POLICY } from '@/lib/sponsored/placements';
 import { mexicanRetailerCurrency, resolveOfferSourceCurrency } from '@/lib/offers/sourceCurrency';
@@ -58,6 +61,39 @@ describe('URL de producto Soriana y Costco', () => {
     expect(isResolvedProductOfferUrl('https://www.costco.com.mx/')).toBe(false);
     expect(isResolvedProductOfferUrl('https://www.costco.com.mx/Mascotas/Alimentos-y-Premios')).toBe(false);
     expect(isResolvedProductOfferUrl('https://www.amazon.com.mx/s?k=audifonos')).toBe(false);
+  });
+});
+
+describe('URL de producto Liverpool en moderación', () => {
+  const LIVERPOOL = 'https://www.liverpool.com.mx/tienda/pdp/smartwatch-fit-5-con-gps/1199500218';
+  const LIVERPOOL_MCP = 'https://www.liverpool.com.mx/tienda/pdp/x/1061490571';
+  const LIVERPOOL_SKU =
+    'https://www.liverpool.com.mx/tienda/pdp/eau-de-toilette-ros-para-mujer/1061490571?skuId=1061490571';
+
+  it('reconoce el PDP real, con slug genérico o con skuId', () => {
+    expect(isResolvedProductOfferUrl(LIVERPOOL)).toBe(true);
+    expect(isResolvedProductOfferUrl(LIVERPOOL_MCP)).toBe(true);
+    expect(isResolvedProductOfferUrl(LIVERPOOL_SKU)).toBe(true);
+    expect(classifyOfferPageKind(LIVERPOOL)).toBe('PRODUCT');
+  });
+
+  it('rechaza home, categoría y hosts falsos', () => {
+    expect(isResolvedProductOfferUrl('https://www.liverpool.com.mx/')).toBe(false);
+    expect(isResolvedProductOfferUrl('https://www.liverpool.com.mx/tienda/celulares/cat5150024')).toBe(false);
+    expect(isResolvedProductOfferUrl('https://liverpool.com.mx.evil.com/tienda/pdp/x/1061490571')).toBe(false);
+    expect(isResolvedProductOfferUrl('https://www.liverpool.com.mx/tienda/pdp/x/abc')).toBe(false);
+  });
+
+  it('el moderador puede confirmar el enlace del mismo producto y no el de otro', () => {
+    expect(validateAffiliatePaste(LIVERPOOL_MCP, LIVERPOOL_SKU)).toMatchObject({ valid: true, productMatched: true });
+    expect(validateAffiliatePaste(LIVERPOOL, LIVERPOOL)).toMatchObject({ valid: true });
+    expect(validateAffiliatePaste(LIVERPOOL, LIVERPOOL_MCP).valid).toBe(false);
+  });
+
+  it('Liverpool sin programa afiliado queda lista para aprobar con su PDP', () => {
+    expect(
+      evaluateAffiliateReadiness({ offerUrl: LIVERPOOL_SKU, originalOfferUrl: LIVERPOOL_MCP, linkModOk: false }).ready,
+    ).toBe(true);
   });
 });
 
