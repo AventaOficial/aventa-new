@@ -38,6 +38,8 @@ import ClientLayout from '@/app/ClientLayout';
 import VoteArrowButton from '@/app/components/VoteArrowButton';
 import AffiliateDisclosure from '@/app/components/AffiliateDisclosure';
 import OfferPriceInsightBlock from '@/app/components/OfferPriceInsightBlock';
+import OfferStepsList from '@/app/components/offers/OfferStepsList';
+import OfferConditionsBlock from '@/app/components/offers/OfferConditionsBlock';
 import { OfferListPriceInline, OfferListPriceNotes } from '@/app/components/OfferListPrice';
 import { presentListPrice } from '@/lib/offers/listPriceComparison';
 import { useOfferPriceEvidence } from '@/lib/hooks/useOfferPriceEvidence';
@@ -996,7 +998,7 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
           <div className="divide-y divide-gray-200 dark:divide-gray-700 border-t border-gray-200 dark:border-gray-700">
               {descriptionText ? (
                 <section className="px-6 md:px-8 py-5">
-                  <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Sobre esta oferta</h2>
+                  <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Descripción del cazador</h2>
                   <p
                     className={`mt-2 text-sm leading-relaxed text-gray-600 dark:text-gray-400 whitespace-pre-wrap ${
                       descriptionLong && !descExpanded ? 'line-clamp-4' : ''
@@ -1020,15 +1022,7 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
                   <summary className="cursor-pointer text-sm font-semibold text-gray-800 dark:text-gray-200">
                     Pasos
                   </summary>
-                  <p className="mt-3 text-gray-600 dark:text-gray-400 whitespace-pre-wrap">{offer.steps}</p>
-                </details>
-              ) : null}
-              {offer.conditions?.trim() ? (
-                <details className="px-6 md:px-8 py-4">
-                  <summary className="cursor-pointer text-sm font-semibold text-gray-800 dark:text-gray-200">
-                    Condiciones
-                  </summary>
-                  <p className="mt-3 text-gray-600 dark:text-gray-400 whitespace-pre-wrap">{offer.conditions}</p>
+                  <OfferStepsList steps={offer.steps} className="mt-3" />
                 </details>
               ) : null}
               {offer.coupons?.trim() && !showCtaCouponChip ? (
@@ -1231,6 +1225,7 @@ export default function OfferPageContent({ offer }: { offer: OfferPayload }) {
                 Información adicional
               </summary>
               <div className="mt-3 space-y-4">
+                <OfferConditionsBlock conditions={offer.conditions} />
                 <OfferPriceInsightBlock evidence={priceEvidence} />
                 <AffiliateDisclosure variant="block" includeAmazonEn />
               </div>

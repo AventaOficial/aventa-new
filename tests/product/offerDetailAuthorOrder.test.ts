@@ -9,12 +9,12 @@ describe('orden del detalle de oferta', () => {
   const page = readFileSync('app/oferta/[id]/OfferPageContent.tsx', 'utf8');
   const modal = readFileSync('app/components/OfferModal.tsx', 'utf8');
 
-  it('página: galería, título, precio, Sobre esta oferta, comentarios, Información adicional, autor', () => {
+  it('página: galería, título, precio, Descripción del cazador, comentarios, Información adicional, autor', () => {
     const idx = indexesInOrder(page, [
       '<OfferImageThumbs',
       '<h1',
       'presentOfferPrice(offer.discountPrice',
-      'Sobre esta oferta',
+      'Descripción del cazador',
       'id="comentarios"',
       'Información adicional',
       'aria-label="Ficha del autor"',
@@ -29,6 +29,15 @@ describe('orden del detalle de oferta', () => {
     const articleEnd = page.indexOf('</article>');
     const between = page.slice(authorIdx, articleEnd);
     expect(between).not.toMatch(/<(details|h2)\b/);
+  });
+
+  it('página: las condiciones viven dentro de Información adicional', () => {
+    const infoIdx = page.indexOf('Información adicional');
+    const conditionsIdx = page.indexOf('<OfferConditionsBlock');
+    const authorIdx = page.indexOf('aria-label="Ficha del autor"');
+    expect(page.match(/<OfferConditionsBlock/g)?.length ?? 0).toBe(1);
+    expect(conditionsIdx).toBeGreaterThan(infoIdx);
+    expect(conditionsIdx).toBeLessThan(authorIdx);
   });
 
   it('modal: la ficha del autor aparece una sola vez, después de comentarios', () => {

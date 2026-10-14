@@ -30,6 +30,9 @@ import { applyFavoriteToggle } from '@/lib/offers/applyFavoriteToggle';
 import { useRouter } from 'next/navigation';
 import { createPortal } from 'react-dom';
 import OfferPriceInsightBlock from './OfferPriceInsightBlock';
+import OfferStepsList from './offers/OfferStepsList';
+import OfferConditionsBlock from './offers/OfferConditionsBlock';
+import { parseOfferSteps } from '@/lib/offers/offerSteps';
 import { presentListPrice } from '@/lib/offers/listPriceComparison';
 import { useOfferPriceEvidence } from '@/lib/hooks/useOfferPriceEvidence';
 import { OfferListPriceInline, OfferListPriceNotes } from './OfferListPrice';
@@ -724,7 +727,7 @@ export default function OfferModal({
 
               {description?.trim() && (
                 <div>
-                  <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Descripción</p>
+                  <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Descripción del cazador</p>
                   <p className="text-gray-600 dark:text-gray-400 leading-relaxed">{description.trim()}</p>
                 </div>
               )}
@@ -734,41 +737,17 @@ export default function OfferModal({
                   <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-600 pb-2">
                     Información adicional
                   </p>
+                  {parseOfferSteps(steps).length > 0 ? (
+                    <div>
+                      <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Pasos para aprovechar la oferta</p>
+                      <OfferStepsList steps={steps} />
+                    </div>
+                  ) : null}
+                  <OfferConditionsBlock conditions={conditions} />
                   {offerId ? (
                     <OfferPriceInsightBlock evidence={priceEvidence} />
                   ) : null}
                   <AffiliateDisclosure variant="block" includeAmazonEn />
-                  {steps?.trim() && (() => {
-                    let stepItems: string[] = [];
-                    try {
-                      const parsed = JSON.parse(steps.trim());
-                      if (Array.isArray(parsed)) stepItems = parsed.filter((s: unknown) => typeof s === 'string' && s.trim());
-                    } catch {
-                      stepItems = steps.trim().split(/\n+/).map((s) => s.trim()).filter(Boolean);
-                    }
-                    if (stepItems.length === 0) return null;
-                    return (
-                      <div>
-                        <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Pasos para aprovechar la oferta</p>
-                        <ol className="space-y-2">
-                          {stepItems.map((text, i) => (
-                            <li key={i} className="flex gap-3">
-                              <span className="shrink-0 w-6 h-6 rounded-full bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300 text-xs font-semibold flex items-center justify-center">
-                                {i + 1}
-                              </span>
-                              <span className="text-sm text-gray-700 dark:text-gray-300 pt-0.5">{text}</span>
-                            </li>
-                          ))}
-                        </ol>
-                      </div>
-                    );
-                  })()}
-                  {conditions?.trim() && (
-                    <div>
-                      <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Condiciones</p>
-                      <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-line">{conditions.trim()}</p>
-                    </div>
-                  )}
                   {coupons?.trim() && !showCtaCouponChip && (
                     <div>
                       <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Cupón o código</p>
