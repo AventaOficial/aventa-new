@@ -609,25 +609,32 @@ describe('check_offer_exists', () => {
   const URL = 'https://www.amazon.com.mx/dp/B0TESTAAAA';
   const base = { offer_url: URL, ingestion_identity_key: 'amz:B0TESTAAAA', deleted_at: null, bot_meta: null, expires_at: null };
 
-  it('sólo catálogo público: approved/published sí; pending, borrada o vencida no', async () => {
-    for (const [row, exists] of [
-      [{ ...base, status: 'approved' }, true],
-      [{ ...base, status: 'published' }, true],
-      [{ ...base, status: 'pending' }, false],
-      [{ ...base, status: 'rejected' }, false],
-      [{ ...base, status: 'approved', deleted_at: '2026-10-01T00:00:00Z' }, false],
-      [{ ...base, status: 'approved', expires_at: '2026-10-01T00:00:00Z' }, false],
+  it('exists = sólo catálogo público; status/canSubmit reflejan lo que haría submit', async () => {
+    for (const [row, exists, status, canSubmit, previouslyRejected] of [
+      [{ ...base, status: 'approved' }, true, 'published', false, false],
+      [{ ...base, status: 'published' }, true, 'published', false, false],
+      [{ ...base, status: 'pending' }, false, 'in_review', false, false],
+      [{ ...base, status: 'rejected' }, false, 'none', true, true],
+      [{ ...base, status: 'approved', deleted_at: '2026-10-01T00:00:00Z' }, false, 'none', true, false],
+      [{ ...base, status: 'approved', expires_at: '2026-10-01T00:00:00Z' }, false, 'not_visible', false, false],
     ] as const) {
       const r = await checkOfferExists(memorySupabase(dbWithOffers([row])), URL, NOW);
-      expect(r).toEqual({ ok: true, data: { exists } });
+      expect(r).toEqual({
+        ok: true,
+        data: { exists, status, matchedBy: status === 'none' ? null : 'product_identity', canSubmit, previouslyRejected },
+      });
     }
   });
 
-  it('devuelve sólo exists; tienda no soportada => false; URL inválida => INVALID_INPUT', async () => {
+  it('sin ids ni datos internos; tienda no soportada => no enviable; URL inválida => INVALID_INPUT', async () => {
     const sb = memorySupabase(dbWithOffers([{ ...base, status: 'approved', id: 'secret-offer-id', title: 'x' }]));
     const r = await checkOfferExists(sb, URL, NOW);
-    expect(r).toEqual({ ok: true, data: { exists: true } });
-    expect(await checkOfferExists(sb, 'https://evil.example/x', NOW)).toEqual({ ok: true, data: { exists: false } });
+    expect(r).toEqual({ ok: true, data: { exists: true, status: 'published', matchedBy: 'product_identity', canSubmit: false, previouslyRejected: false } });
+    expect(JSON.stringify(r)).not.toContain('secret-offer-id');
+    expect(await checkOfferExists(sb, 'https://evil.example/x', NOW)).toEqual({
+      ok: true,
+      data: { exists: false, status: 'none', matchedBy: null, canSubmit: false, previouslyRejected: false },
+    });
     expect(await checkOfferExists(sb, 'http://localhost/x', NOW)).toMatchObject({ ok: false, code: 'INVALID_INPUT' });
     expect(await checkOfferExists(sb, `${URL}?tag=abc`, NOW)).toMatchObject({ ok: false, code: 'INVALID_INPUT' });
   });
