@@ -739,30 +739,127 @@ Orden obligatorio. Cada paso necesita evidencia del anterior; si algo falla, se 
 3. **Prompt.** La tarea de xAI tiene el bloque `text` completo de `GROK_HUNTER_PROMPT.md`. Se comprueba con la sincronización descrita en ese documento.
 4. **Lectura segura.** Una corrida que solo llame a `get_submission_rules` y `check_offer_exists`. No debe enviar nada ni crear filas en `offer_batches`.
 5. **Prueba de pausa.** Con `MCP_INGEST_ENABLED` apagado, `get_submission_rules` devuelve `ingestEnabled: false`. El reporte del bot debe terminar sin llamar a `submit_deal_candidates`. Si llega a enviar, el servidor responde `INGEST_PAUSED` y el prompt instalado no es el correcto.
-6. **Canario de 1 candidato.** Se ejecuta con los requisitos y pasos del canario de cierre (abajo), con autorización explícita del Owner para encender la ingesta y con un moderador disponible.
+6. **Canario de 1 candidato.** Se ejecuta con las condiciones y pasos del próximo canario v3 (abajo), con autorización explícita del Owner para encender la ingesta y con un moderador disponible.
 7. **Revisión real.** Un moderador decide sobre la oferta. Antes de seguir se revisan el precio de lista, la imagen, la tienda, el comentario y que no haya escrituras económicas.
 8. **Muestra inicial de 3.** Solo si el canario salió limpio, una corrida nueva con 2 candidatos (`runId` nuevo) para llegar a 3. Se revisan con el mismo criterio.
 9. **Escalar.** Solo si los 3 salieron limpios y la moderación puede revisar el volumen sin que expiren pendientes (con v2, 69 de 193 candidatos expiraron sin revisión). Se sube por corridas de como máximo 5 aceptados, dentro de la cuota diaria configurada. Nunca se suben límites para acelerar.
 
-### Canario de cierre (preparado, no ejecutado)
+### Estado al 2026-10-14 (01:15 UTC, solo lectura)
 
-Requisitos:
-- el conector de xAI con el token del cliente v3 y solo las 4 herramientas;
-- el prompt `core-1.2.0` / `despensa-mx-1.1.0` pegado en la tarea;
-- el código que lee el tachado de Soriana desplegado en producción, para que el precio de lista del candidato se pueda confirmar;
-- moderación disponible para revisar el candidato;
-- la autorización explícita del Owner.
+- #120 y #121 en producción (`7e2d034`). `MCP_INGEST_ENABLED=false` en Production desde el redeploy de las 01:08 UTC; es el estado por defecto.
+- Primer canario con `core-1.2.0` (`grok-despensa-20261013-1901-a`, 01:03 UTC, v3): 3 candidatos, 2 ofertas `pending` de Soriana y 1 de Amazon en `NEEDS_REVIEW` (`IMAGE_BLOCKED`). Ninguna oferta se aprobó ni publicó sola. No reenvió ningún producto retenido, así que la liberación de identidades no se ejercitó en producción; la cubre `tests/mcp/identityRelease.pg.integration.test.ts` contra PostgreSQL real.
+- La tarea v2 sigue sin confirmarse como desactivada: `aventa-mcp-xai-production-v2` (`paused`) llamó a `get_submission_rules` 9 veces en 24 h, la última a las 00:07 UTC.
 
-1. `get_submission_rules`: debe devolver `ingestEnabled: true`, y la fila nueva de `machine_client_calls` debe ser del cliente v3.
-2. Elegir 1 producto de despensa en `soriana.com` que cumpla las reglas de calidad del prompt: ficha limpia, comprable, con imagen, precio visible en MXN y precio tachado mayor, sin condiciones.
-3. `check_offer_exists(url)`: debe devolver `canSubmit: true`. Si es `false`, elegir otro producto.
-4. `submit_deal_candidates` con `runId` `grok-despensa-canary-<AAAAMMDD>-01`, `idempotencyKey` `<runId>:core-1.2.0:01` y un solo candidato. Se espera `accepted: [{ index: 0 }]`.
-5. `get_submission_status(submissionId)`: se espera `accepted`, es decir, oferta `pending` y no publicada.
-6. Verificar en la base con las consultas de arriba:
-   - `offer_batches.mcp_run_id` coincide con el `runId` y `mcp_idempotency_key` contiene `core-1.2.0`;
-   - el ítem está `APPROVED` con `offer_id`;
-   - `offers.status = 'pending'` y `source_currency = 'MXN'`;
-   - `bot_meta.price_policy.kind = 'list_price_comparison'` y `offers.original_price` igual al tachado de la ficha;
-   - existe la fila `ingest_cycle_locks` `mcp:run-slot:<v3>:1:<runId>`;
-   - ninguna escritura en tablas de recompensas, comisiones, ledger ni payouts.
-7. Cuando un moderador apruebe la oferta, `get_submission_status` debe devolver `published` sin que nadie abra la consola de lotes.
+### Desactivar solo la tarea v2 (Owner, en xAI)
+
+El repo no tiene integración con xAI: la tarea solo se administra desde su interfaz, y nadie puede darla por desactivada sin hacerlo ahí. No se toca el cliente v3, ni sus scopes, ni su token. Tampoco se revoca v2 para "apagar" la tarea: el cliente ya está `paused` y no escribe.
+
+1. En Grok (xAI), abrir la lista de tareas programadas de la cuenta que opera Aventa.
+2. Identificar la tarea v2: su conector MCP usa el token del cliente `aventa-mcp-xai-production-v2` y/o sus instrucciones no empiezan con `AVENTA GROK HUNTER · núcleo core-1.2.0`. Su patrón visible en Aventa es una llamada a `get_submission_rules` cerca del minuto :57–:07 de cada hora.
+3. Pausar o eliminar **solo esa tarea**. Si la tarea v2 y la v3 comparten conector, no editar el conector: se desactiva la tarea.
+4. Anotar la hora (UTC) del cambio.
+5. Confirmar con evidencia, al menos 2 horas después:
+
+```sql
+select c.name, k.tool, k.result_status, k.created_at
+from machine_client_calls k join machine_clients c on c.id = k.machine_client_id
+where c.name = 'aventa-mcp-xai-production-v2' and k.created_at > '<hora del cambio>'
+order by k.created_at desc;
+```
+
+Cero filas = v2 desactivada. Con cualquier fila, la tarea sigue viva.
+
+### Próximo canario v3: una corrida controlada (preparado, no ejecutado)
+
+**Condiciones previas, todas con evidencia:**
+
+1. La prueba de PostgreSQL de la liberación (`identityRelease.pg.integration.test.ts`, workflow `pg-concurrency`) pasó en el runner y alguien la revisó.
+2. La tarea v2 está desactivada y la consulta de arriba devuelve cero filas durante al menos 2 h.
+3. En xAI hay una sola tarea activa para Aventa:
+   - el conector usa el token de `aventa-mcp-xai-production-v3` (`active`) y expone solo `get_submission_rules`, `check_offer_exists`, `submit_deal_candidates` y `get_submission_status`;
+   - las instrucciones son el bloque `text` de `GROK_HUNTER_PROMPT.md`, `core-1.2.0` / `despensa-mx-1.1.0`.
+4. Hay un moderador disponible y el Owner autorizó la ventana de forma explícita.
+5. `MCP_INGEST_ENABLED=false` antes de empezar. Es el estado por defecto y se restaura al terminar.
+
+**Límites (no se cambian para el canario):**
+
+- como máximo 5 aceptados por `runId` (`MCP_PILOT_MAX_ACCEPTED_PER_RUN`);
+- 20 candidatos por llamada;
+- 10 llamadas por minuto;
+- la cuota diaria del cliente (200);
+- el prompt pide una sola llamada a `submit_deal_candidates` y como máximo 2 candidatos por tienda y por categoría.
+
+**Ventana:**
+
+1. Línea base (solo lectura). Anotar `T0` (UTC) y el resultado de:
+
+   ```sql
+   select status, count(*) from offers where updated_at > now() - interval '1 hour' group by 1;
+   select count(*) from offer_batches where machine_client_id is not null and created_at > '<T0>';
+   ```
+
+2. Encender la ingesta (Owner) y redesplegar Production sin cambiar el commit:
+
+   ```bash
+   echo true | vercel env update MCP_INGEST_ENABLED production --project aventa-new --scope aventa-oficial --yes
+   vercel redeploy <url del despliegue de producción actual> --target production --scope aventa-oficial
+   ```
+
+3. Lanzar **una** corrida de la tarea v3. Lo que debe hacer, según el prompt:
+   1. `get_submission_rules`: `ingestEnabled: true` y anota `dailyQuota.remainingToday`.
+   2. Recorre la rotación de tiendas. Cada tienda queda como explorada (con al menos una ficha abierta) o como no explorada con su motivo: `SEARCH_FAILED`, `PAGE_BLOCKED` o `NOT_REACHED`.
+   3. Aplica las reglas de calidad a cada ficha.
+   4. `check_offer_exists` por candidato. Con `canSubmit: false` lo descarta (`ALREADY_EXISTS`). Con `previouslyRejected: true` solo lo envía si la promoción es nueva y lo explica en `note`.
+   5. Una sola llamada `submit_deal_candidates`, con como máximo 5 candidatos e `idempotencyKey` `<runId>:core-1.2.0:01`.
+   6. `get_submission_status` del `submissionId`.
+   7. Entrega el reporte de la sección 7.
+4. Al terminar la corrida, apagar la ingesta y redesplegar, en el mismo turno:
+
+   ```bash
+   echo false | vercel env update MCP_INGEST_ENABLED production --project aventa-new --scope aventa-oficial --yes
+   vercel redeploy <url del despliegue de producción actual> --target production --scope aventa-oficial
+   ```
+
+**Verificación (solo lectura, después de apagar la ingesta):**
+
+```sql
+-- 1. Llamadas de la ventana: todas de v3, ninguna de v2
+select c.name, k.tool, k.result_status, k.accepted_count, k.rejected_count, k.created_at
+from machine_client_calls k join machine_clients c on c.id = k.machine_client_id
+where k.created_at > '<T0>' order by k.created_at;
+
+-- 2. Lote y candidatos: un solo lote core-1.2.0, ≤ 5 aceptados, ≤ 2 por tienda
+select b.mcp_run_id, b.mcp_idempotency_key, i.position, i.status, i.error_code, i.duplicate_status,
+       case when i.identity_key like 'amz:%' then 'amazon' else split_part(substr(i.identity_key, 3), '/', 1) end as tienda,
+       o.status as offer_status
+from offer_batches b join offer_batch_items i on i.batch_id = b.id left join offers o on o.id = i.offer_id
+where b.machine_client_id is not null and b.created_at > '<T0>' order by b.created_at, i.position;
+
+-- 3. Retenedores liberados en la ventana (reenvío tras rechazo)
+select identity_key, status, rejection_reason, rejected_at
+from offer_batch_items where rejection_reason = 'offer_no_longer_active' and rejected_at > '<T0>';
+
+-- 4. Nada publicado solo: toda oferta creada por el lote sigue pending hasta que un moderador actúe
+select o.id, o.status, o.updated_at
+from offers o join offer_batch_items i on i.offer_id = o.id join offer_batches b on b.id = i.batch_id
+where b.machine_client_id is not null and b.created_at > '<T0>' and o.status <> 'pending';
+```
+
+Criterios para dar el canario por bueno:
+
+- la consulta 1 no tiene filas de v2;
+- la 2 muestra un solo lote `core-1.2.0`, como máximo 5 ítems con oferta y no más de 2 por tienda;
+- la 4 devuelve cero filas antes de que modere un humano;
+- no hay escrituras en tablas de recompensas, comisiones, ledger ni payouts;
+- después de apagar la ingesta, la siguiente llamada a `submit_deal_candidates` de cualquier tarea devuelve `INGEST_PAUSED`.
+
+El reporte de Grok debe traer:
+
+- tiendas exploradas y no exploradas con su motivo;
+- categorías;
+- productos investigados y candidatos válidos;
+- descartes por motivo;
+- duplicados separados en `ALREADY_EXISTS` (los marcó `check_offer_exists`), `DUPLICATE_IN_RUN` y `ALREADY_IN_REVIEW` (los rechazó el servidor; si aparece alguno, check y submit no coincidieron y se investiga antes de otra corrida);
+- el estado final de cada candidato según `get_submission_status`.
+
+**Si algo falla**, se apaga la ingesta (paso 4) y no se lanza otra corrida. Las ofertas `pending` quedan para moderación; el historial no se borra.

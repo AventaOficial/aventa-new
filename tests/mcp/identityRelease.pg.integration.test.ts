@@ -63,6 +63,8 @@ function assertIsolated(url: string): void {
 }
 
 const RUN = `pgrel-${Date.now()}`;
+/** Fijo por corrida: el hash de idempotencia incluye observedAt. */
+const OBSERVED = new Date(Date.now() - 60_000).toISOString();
 const ACTIVE = ['pending', 'approved', 'published'];
 const OPEN = ['INGESTED', 'PROCESSING', 'READY', 'NEEDS_REVIEW', 'ERROR', 'APPROVED'];
 let seq = 0;
@@ -112,7 +114,7 @@ describe.skipIf(!enabled)('PostgreSQL aislado: un retenedor caducado no bloquea;
     return submitDealCandidates(db, client, {
       runId,
       idempotencyKey: key,
-      candidates: [{ url, title: 'Toallitas húmedas QA 80 pz', price: 59, originalPrice: 79, currency: 'MXN', observedAt: new Date().toISOString() }],
+      candidates: [{ url, title: 'Toallitas húmedas QA 80 pz', price: 59, originalPrice: 79, currency: 'MXN', observedAt: OBSERVED }],
     });
   }
 
