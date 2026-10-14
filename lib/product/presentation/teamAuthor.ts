@@ -19,9 +19,9 @@ const TEAM_FUNCTION: Record<string, { functionLabel: string; editorial: string }
       'Seleccionamos descuentos fuertes en laptops, celulares, audio, gaming y gadgets de tiendas confiables.',
   },
   eleonore: {
-    functionLabel: 'Moda, tenis y perfumes',
+    functionLabel: 'Moda, tenis, perfumes y maquillaje',
     editorial:
-      'Seleccionamos moda, tenis, perfumes y belleza con buen precio en tiendas oficiales y confiables.',
+      'Seleccionamos moda, tenis, perfumes, maquillaje y belleza con buen precio en tiendas oficiales y confiables.',
   },
 };
 

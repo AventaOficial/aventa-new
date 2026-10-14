@@ -95,7 +95,7 @@ describe('hunters de suministro', () => {
 
   it('la ficha del equipo describe la especialidad de cada hunter', () => {
     expect(teamAuthorCard(hunterByCode('kai')!).functionLabel).toBe('Top tecnología');
-    expect(teamAuthorCard(hunterByCode('eleonore')!).functionLabel).toBe('Moda, tenis y perfumes');
+    expect(teamAuthorCard(hunterByCode('eleonore')!).functionLabel).toBe('Moda, tenis, perfumes y maquillaje');
   });
 
   it('bot_meta.hunter_code sólo acepta codes de suministro', () => {

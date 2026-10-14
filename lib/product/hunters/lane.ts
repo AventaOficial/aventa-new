@@ -18,7 +18,10 @@ const TECH_RE =
   /\b(laptop|notebook|macbook|chromebook|smartphone|celular|iphone|ipad|tablet|galaxy|pixel|huawei|xiaomi|motorola|audifonos|auriculares|earbuds|airpods|bocina|monitor|teclado|mouse|webcam|consola|nintendo|playstation|ps5|xbox|smartwatch|smart tv|ssd|router|rtx|ryzen|gamer|gaming|videojuego)\b/;
 
 const FASHION_RE =
-  /\b(perfume|parfum|eau de toilette|colonia|fragancia|tenis|sneakers|zapatos|zapatillas|botas|vestido|playera|camisa|jeans|pantalon|sudadera|chamarra|maquillaje|labial|nike|adidas|puma|converse|vans|new balance)\b/;
+  /\b(perfume|parfum|eau de toilette|colonia|fragancia|tenis|sneakers|zapatos|zapatillas|botas|vestido|playera|camisa|jeans|pantalon|sudadera|chamarra|nike|adidas|puma|converse|vans|new balance)\b/;
+
+const MAKEUP_RE =
+  /\b(maquillaje|labial|labiales|lip gloss|brillo labial|delineador|rimel|mascara de pestanas|pestanas postizas|sombras? de ojos|paleta de sombras|rubor|blush|bronzer|contorno facial|iluminador facial|corrector de ojeras|corrector facial|concealer|polvo compacto|polvo traslucido|primer facial|fijador de maquillaje|setting spray|bb cream|cc cream|maybelline|l oreal|loreal|revlon|nyx|nars|fenty|rare beauty|charlotte tilbury|too faced|urban decay|huda beauty|benefit cosmetics|mac cosmetics|clinique|lancome|estee lauder|bobbi brown|essence cosmetics|e l f cosmetics)\b/;
 
 const CATEGORY_HUNTER: Readonly<Record<string, SupplyHunterCode>> = {
   tecnologia: 'kai',
@@ -37,7 +40,7 @@ export function suggestSupplyHunter(input: { title?: string | null; category?: s
   const text = normalizeInterestText(input.title ?? '');
   if (text) {
     if (TECH_RE.test(text)) return 'kai';
-    if (FASHION_RE.test(text)) return 'eleonore';
+    if (FASHION_RE.test(text) || MAKEUP_RE.test(text)) return 'eleonore';
     if (classifyDespensaText(input.title)) return 'ximena';
   }
   return CATEGORY_HUNTER[input.category?.trim().toLowerCase() ?? ''] ?? null;
