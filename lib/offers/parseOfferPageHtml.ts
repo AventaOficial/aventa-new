@@ -1,30 +1,10 @@
 import { isBlockedOfferParseUrl } from '@/lib/server/fetchUrlSafety';
 import { OFFER_IMAGE_CANDIDATE_CAP } from '@/lib/offers/selectOfferImages';
 import { normalizeOfferUrl } from '@/lib/offers/urlResolution/normalizeOfferUrl';
-
-const NAMED_ATTRIBUTE_ENTITIES: Record<string, string> = {
-  amp: '&',
-  quot: '"',
-  apos: "'",
-  lt: '<',
-  gt: '>',
-  nbsp: ' ',
-};
+import { decodeHtmlAttributeEntities } from '@/lib/offers/htmlEntities';
 
 /** Valores de atributo HTML (`content="…"`) llegan escapados: `&amp;` en una URL rompe su query. */
-export function decodeHtmlAttributeEntities(value: string): string {
-  if (!value.includes('&')) return value;
-  return value.replace(/&(#x[0-9a-f]{1,6}|#[0-9]{1,7}|[a-z]+);/gi, (match, body: string) => {
-    if (body[0] === '#') {
-      const code = body[1] === 'x' || body[1] === 'X' ? parseInt(body.slice(2), 16) : parseInt(body.slice(1), 10);
-      if (!Number.isFinite(code) || code <= 0 || code > 0x10ffff || (code >= 0xd800 && code <= 0xdfff)) {
-        return match;
-      }
-      return String.fromCodePoint(code);
-    }
-    return NAMED_ATTRIBUTE_ENTITIES[body.toLowerCase()] ?? match;
-  });
-}
+export { decodeHtmlAttributeEntities };
 
 function metaValue(raw: string | undefined): string | null {
   if (raw == null) return null;

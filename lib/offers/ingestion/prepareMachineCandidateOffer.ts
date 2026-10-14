@@ -9,6 +9,7 @@ import { mexicanRetailerCurrency } from '@/lib/offers/sourceCurrency';
 import { isValidOfferImage } from '@/lib/hunter/enrichment/isValidOfferImage';
 import { recordHunterEnrichment } from '@/lib/hunter/enrichment/metrics';
 import { evaluateBatchExtraction } from '@/lib/offers/batch/contract';
+import { normalizeOfferTitle } from '@/lib/offers/normalizeOfferTitle';
 import {
   pageFetchFailureClass,
   type PageFetchFailure,
@@ -152,7 +153,7 @@ export async function prepareMachineCandidateOffer(
   return {
     pageKind,
     product: true,
-    title: outcome.body.title,
+    title: outcome.body.title ? normalizeOfferTitle(outcome.body.title) || null : null,
     imageUrl: images[0] ?? null,
     imageUrls: images.slice(1),
     store: outcome.body.store,

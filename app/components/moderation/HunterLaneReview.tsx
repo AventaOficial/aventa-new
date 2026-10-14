@@ -15,6 +15,8 @@ type Props = {
   title?: string | null;
   category?: string | null;
   readOnly?: boolean;
+  /** Tras guardar: el padre actualiza `bot_meta.hunter_code` para que el autor mostrado cambie. */
+  onSaved?: (hunterCode: string) => void;
 };
 
 /** Oferta de un cliente MCP: la ingesta deja price_policy o enrichment en bot_meta. */
@@ -25,19 +27,20 @@ function machineMeta(botMeta: unknown): Record<string, unknown> | null {
 }
 
 /** Qué hunter presenta la oferta del bot. Avisa si el producto no corresponde a su especialidad. */
-export default function HunterLaneReview({ mode, offerId, botMeta, title, category, readOnly = false }: Props) {
+export default function HunterLaneReview({ mode, offerId, botMeta, title, category, readOnly = false, onSaved }: Props) {
   const meta = machineMeta(botMeta);
   if (!meta) return null;
   const initial = offerLaneCode(typeof meta.hunter_code === 'string' ? meta.hunter_code : null);
   return (
     <HunterLaneForm
-      key={`${offerId}:${initial}`}
+      key={offerId}
       mode={mode}
       offerId={offerId}
       initial={initial}
       title={title ?? null}
       category={category ?? null}
       readOnly={readOnly}
+      onSaved={onSaved}
     />
   );
 }
@@ -49,6 +52,7 @@ function HunterLaneForm({
   title,
   category,
   readOnly,
+  onSaved,
 }: {
   mode: ModerationHubMode;
   offerId: string;
@@ -56,6 +60,7 @@ function HunterLaneForm({
   title: string | null;
   category: string | null;
   readOnly: boolean;
+  onSaved?: (hunterCode: string) => void;
 }) {
   const ui = moderationUi(mode);
   const { session } = useAuth();
@@ -63,6 +68,12 @@ function HunterLaneForm({
   const [choice, setChoice] = useState(initial);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [syncedInitial, setSyncedInitial] = useState(initial);
+  if (initial !== syncedInitial) {
+    setSyncedInitial(initial);
+    setCurrent(initial);
+    setChoice(initial);
+  }
 
   const hunter = hunterByCode(current);
   const mismatch = hunterLaneMismatch({ hunterCode: current, title, category });
@@ -87,6 +98,7 @@ function HunterLaneForm({
     setCurrent(code);
     setChoice(code);
     setMessage(`Ahora la presenta ${hunterByCode(code)?.displayName ?? code}`);
+    onSaved?.(code);
   };
 
   return (
