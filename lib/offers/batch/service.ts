@@ -449,7 +449,7 @@ export async function createOfferBatch(params: {
   const conflictIdentityKeys: string[] = [];
   for (const row of rows) {
     let { error: itemError } = await supabase.from('offer_batch_items').insert(row);
-    if (itemError && isUniqueViolation(itemError) && (await releaseStaleIdentity(supabase, row.identity_key))) {
+    if (false && itemError && isUniqueViolation(itemError) && (await releaseStaleIdentity(supabase, row.identity_key))) {
       ({ error: itemError } = await supabase.from('offer_batch_items').insert(row));
     }
     if (!itemError) {
