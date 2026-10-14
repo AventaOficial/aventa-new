@@ -106,6 +106,13 @@ export function excludeFeaturedOffers<T extends { id: string }>(list: readonly T
 export const HOME_FEED_MAX_LIMIT = 100;
 
 export const HOME_FEED_PAGE_SIZE = 12;
+/** Top tiene suficiente señal para una primera lectura más amplia sin esperar otra petición. */
+export const TOP_FEED_INITIAL_PAGE_SIZE = 24;
+
+/** Tamaño inicial y de "Cargar más" por pestaña pública. */
+export function homeFeedPageSize(tab: HomeTab): number {
+  return tab === 'top' ? TOP_FEED_INITIAL_PAGE_SIZE : HOME_FEED_PAGE_SIZE;
+}
 /** Día a día ordena en el cliente: necesita un universo mínimo aunque la página sea corta. */
 export const VITALES_MIN_API_LIMIT = 60;
 

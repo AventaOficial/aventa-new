@@ -3,6 +3,7 @@ import { createServerClient } from '@/lib/supabase/server';
 import { requireModeration } from '@/lib/server/requireAdmin';
 import { loadBotIngestConfig } from '@/lib/bots/ingest/config';
 import { isBotUserId } from '@/lib/bots/ingest/isBotUserId';
+import { CLAIM_QUEUE_HARD_CAP } from '@/lib/moderation/slaContract';
 
 function hasMissingColumn(error: { message?: string } | null, columnName: string): boolean {
   const msg = (error?.message ?? '').toLowerCase();
@@ -63,7 +64,10 @@ export async function GET(request: Request) {
       .from('offers')
       .select(columns)
       .eq('status', 'pending')
-      .order('created_at', { ascending: true });
+      .order('created_at', { ascending: true })
+      // Misma cota que claim-next: evita una lectura/payload sin límite al abrir la cola.
+      // No sustituye ninguna validación ni cambia las decisiones de moderación.
+      .limit(CLAIM_QUEUE_HARD_CAP);
 
     data = (res.data ?? null) as Record<string, unknown>[] | null;
     error = res.error;

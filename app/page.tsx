@@ -45,6 +45,7 @@ import {
   HOME_TAB_PARAM,
   excludeFeaturedOffers,
   homeFeedHeading,
+  homeFeedPageSize,
   homeTabDefinition,
   homeTabHref,
   hrefWithoutParams,
@@ -177,7 +178,7 @@ function HomeContent() {
   const [highlightOffers, setHighlightOffers] = useState<Offer[]>([]);
   const [highlightPeriod, setHighlightPeriod] = useState<'week' | 'month'>('week');
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
-  const [limit, setLimit] = useState(12);
+  const [limit, setLimit] = useState(HOME_FEED_PAGE_SIZE);
   const [hasMoreCursor, setHasMoreCursor] = useState(false);
   const [searchHasMore, setSearchHasMore] = useState(false);
   const [showTesterOffers, setShowTesterOffers] = useState(false);
@@ -506,10 +507,10 @@ function HomeContent() {
       prevFiltersRef.current.debouncedQuery !== debouncedQuery ||
       prevFiltersRef.current.storeFilter !== storeFilter ||
       prevFiltersRef.current.categoryFilter !== categoryFilter;
-    const effectiveLimit = filtersChanged ? 12 : limit;
+    const effectiveLimit = filtersChanged ? homeFeedPageSize(viewMode) : limit;
     if (filtersChanged) {
       prevFiltersRef.current = { viewMode, timeFilter, debouncedQuery, storeFilter, categoryFilter };
-      setLimit(HOME_FEED_PAGE_SIZE);
+      setLimit(homeFeedPageSize(viewMode));
       setHasMoreCursor(false);
       setSearchHasMore(false);
     }
@@ -980,7 +981,7 @@ function HomeContent() {
                       if (viewMode === 'latest' && !debouncedQuery.trim()) {
                         fetchNextPage();
                       } else {
-                        setLimit((prev) => prev + HOME_FEED_PAGE_SIZE);
+                        setLimit((prev) => prev + homeFeedPageSize(viewMode));
                       }
                     }}
                     className="rounded-xl border-2 border-violet-600 dark:border-violet-500 bg-white dark:bg-[#141414] px-6 py-2.5 text-sm font-semibold text-violet-600 dark:text-violet-400 transition-all duration-200 hover:bg-violet-50 dark:hover:bg-violet-900/20 disabled:opacity-60"

@@ -93,7 +93,7 @@ vi.mock('@/lib/supabase/server', () => {
   return { createServerClient: client, createInteractiveServerClient: client };
 });
 
-import { getHomeFeed, isCommunityOnlyFeed } from '@/lib/offers/feedService';
+import { getHomeFeed, interleaveRecentCategories, isCommunityOnlyFeed } from '@/lib/offers/feedService';
 import { resetMachineAuthorCacheForTests } from '@/lib/offers/machineAuthors';
 import { mapOfferToCard, type FeedApiItemShape } from '@/lib/offers/transform';
 import { processHomeFeedList } from '@/lib/offers/homeFeedClient';
@@ -258,6 +258,24 @@ describe('Recientes: solo publicaciones de la comunidad', () => {
     expect(vitales.success && vitales.data.map((o) => o.id)).toEqual(['h1']);
     expect(top.success && top.data.map((o) => o.id)).toEqual(['h1']);
     expect(state.calls.some((c) => c.table === 'machine_clients')).toBe(false);
+  });
+});
+
+describe('Recientes: diversidad de categorías', () => {
+  it('intercala categorías repetidas sin perder ni duplicar ofertas', () => {
+    const rows = [
+      { id: 'a', category: 'tecnologia' },
+      { id: 'b', category: 'tecnologia' },
+      { id: 'c', category: 'moda' },
+      { id: 'd', category: 'tecnologia' },
+      { id: 'e', category: 'hogar' },
+    ];
+    expect(interleaveRecentCategories(rows).map((row) => row.id)).toEqual(['a', 'c', 'b', 'e', 'd']);
+  });
+
+  it('con una sola categoría conserva el orden cronológico', () => {
+    const rows = [{ id: 'a', category: 'tecnologia' }, { id: 'b', category: 'tecnologia' }];
+    expect(interleaveRecentCategories(rows).map((row) => row.id)).toEqual(['a', 'b']);
   });
 });
 

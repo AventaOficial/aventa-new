@@ -4,9 +4,11 @@ import {
   DEFAULT_HOME_TAB,
   HOME_FEED_MAX_LIMIT,
   HOME_FEED_PAGE_SIZE,
+  TOP_FEED_INITIAL_PAGE_SIZE,
   HOME_TABS,
   excludeFeaturedOffers,
   homeFeedHeading,
+  homeFeedPageSize,
   homeTabDefinition,
   homeTabHref,
   hrefWithoutParams,
@@ -85,6 +87,13 @@ describe('Top sin duplicados', () => {
 });
 
 describe('paginación de Día a día', () => {
+  it('Top abre y crece en lotes de 24; las demás pestañas conservan 12', () => {
+    expect(TOP_FEED_INITIAL_PAGE_SIZE).toBe(24);
+    expect(homeFeedPageSize('top')).toBe(24);
+    expect(homeFeedPageSize('latest')).toBe(HOME_FEED_PAGE_SIZE);
+    expect(homeFeedPageSize('vitales')).toBe(HOME_FEED_PAGE_SIZE);
+  });
+
   it('el límite pedido al servidor está acotado por el contrato', () => {
     expect(HOME_FEED_MAX_LIMIT).toBe(feedHomeQuerySchema.shape.limit.unwrap().maxValue);
     expect(vitalesApiLimit(HOME_FEED_PAGE_SIZE)).toBe(60);
