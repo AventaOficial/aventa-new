@@ -645,7 +645,7 @@ describe('get_submission_rules', () => {
     const rules = buildSubmissionRules(client(), { dailyCap: 200, usedToday: 3, remainingToday: 197 });
     expect(rules.currency).toBe('MXN');
     expect(rules.limits.maxCandidatesPerCall).toBe(20);
-    expect(rules.limits.maxAcceptedPerRun).toBe(5);
+    expect(rules.limits.maxAcceptedPerRun).toBe(100);
     expect(rules.limits.runIdRequired).toBe(true);
     expect(rules.candidate.notes.some((r) => r.includes('runId nuevo en cada corrida'))).toBe(true);
     expect(rules.candidate.notes.some((r) => r.includes('misma idempotencyKey con el mismo payload'))).toBe(true);

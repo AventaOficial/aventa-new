@@ -23,8 +23,9 @@ const PROMPT = (() => {
   const section = DOC.split('## Instrucciones (pegar en xAI)')[1] ?? '';
   return section.split('```text')[1]?.split('```')[0] ?? '';
 })();
-const CORE = 'core-1.2.0';
-const CONFIG = 'despensa-mx-1.1.0';
+const CORE = 'core-1.3.0';
+const CONFIG = 'despensa-mx-1.2.0';
+const MAX_SUBMIT_CALLS = Math.ceil(MCP_PILOT_MAX_ACCEPTED_PER_RUN / MCP_MAX_CANDIDATES_PER_CALL);
 
 function sectionOf(title: string): string {
   return PROMPT.split(`=== ${title} ===`)[1]?.split('\n=== ')[0] ?? '';
@@ -64,8 +65,27 @@ describe('prompt maestro del Grok Hunter', () => {
       `de ${HUNTER_COMMENT_MIN_CHARS} a ${OFFER_HUNTER_COMMENT_MAX} caracteres`,
     );
     expect(sectionOf('2. CONFIGURACIÓN DEL BOT')).toContain(
-      `Máximo por corrida: ${MCP_PILOT_MAX_ACCEPTED_PER_RUN} candidatos preparados`,
+      `Máximo por corrida: ${MCP_PILOT_MAX_ACCEPTED_PER_RUN} candidatos preparados, enviados en hasta ${MAX_SUBMIT_CALLS} llamadas`,
     );
+    expect(sectionOf('5. PROTOCOLO DE EJECUCIÓN')).toContain(
+      `Prepara como máximo ${MCP_PILOT_MAX_ACCEPTED_PER_RUN} candidatos.`,
+    );
+  });
+
+  it('envía en lotes del tamaño del contrato, cada uno con su llave, y para al tocar el cupo', () => {
+    const protocol = sectionOf('5. PROTOCOLO DE EJECUCIÓN');
+    expect(protocol).toContain(`lotes de hasta ${MCP_MAX_CANDIDATES_PER_CALL}`);
+    expect(protocol).toContain(`como máximo ${MAX_SUBMIT_CALLS}\n   llamadas, una por lote`);
+    for (let i = 1; i <= MAX_SUBMIT_CALLS; i++) {
+      const key = `<runId>:${CORE}:${String(i).padStart(2, '0')}`;
+      expect(protocol, key).toContain(key);
+    }
+    expect(protocol).not.toContain(`<runId>:${CORE}:${String(MAX_SUBMIT_CALLS + 1).padStart(2, '0')}`);
+    expect(protocol).toMatch(/RUN_CAP_REACHED o QUOTA_EXCEEDED, no envíes los lotes que\s+faltan/);
+    expect(protocol).toContain(`<runId>:${CORE}:02-r`);
+    expect(protocol).toContain('Llama get_submission_status con cada submissionId');
+    expect(sectionOf('3. CONTRATO MCP')).toContain('deja al menos 6 segundos entre llamadas');
+    expect(60 / 6).toBeLessThanOrEqual(MCP_CALLS_PER_MINUTE);
   });
 
   it('nombra exactamente las cuatro herramientas, todos los errores y todos los estados', () => {
@@ -99,7 +119,7 @@ describe('prompt maestro del Grok Hunter', () => {
     expect(new Set(rotation).size).toBe(rotation.length);
     expect(config).toContain(`módulo ${rotation.length}`);
     for (const store of ['liverpool.com.mx', 'elektra.com.mx', 'sears.com.mx', 'soriana.com']) expect(rotation).toContain(store);
-    expect(config).toMatch(/Como máximo 2 candidatos de la misma tienda[\s\S]*Es un tope, no\s+una meta/);
+    expect(config).toMatch(/Como máximo 20 candidatos de la misma tienda y 20 de la misma categoría[\s\S]*Es un tope, no\s+una meta/);
   });
 
   it('una tienda solo cuenta como explorada si se abrió una ficha; el reporte trae las métricas de cobertura', () => {
@@ -114,7 +134,13 @@ describe('prompt maestro del Grok Hunter', () => {
   });
 
   it('no fija metas de volumen y permite terminar sin candidatos', () => {
-    expect(PROMPT).not.toMatch(/\b(50|70|100)\s+(ofertas|candidatos)\b/i);
+    const volumes = [...PROMPT.matchAll(/(.{0,30})\b(\d+)\s+(ofertas|candidatos)\b/gi)];
+    expect(volumes.length).toBeGreaterThan(0);
+    for (const [phrase, before] of volumes) {
+      expect(before, phrase).toMatch(/(máximo|Máximo por corrida:|hasta)\s*$/);
+    }
+    expect(PROMPT).not.toMatch(/al menos \d+\s+(ofertas|candidatos)|(meta|objetivo) de \d+/i);
+    expect(sectionOf('2. CONFIGURACIÓN DEL BOT')).toMatch(/Máximo por corrida:[^\n]*\n[^\n]*Es un tope, no una meta\./);
     expect(sectionOf('1. NÚCLEO COMÚN')).toContain('Una corrida sin candidatos es correcta');
     expect(sectionOf('1. NÚCLEO COMÚN')).toContain('No tienes cuota que cumplir');
   });

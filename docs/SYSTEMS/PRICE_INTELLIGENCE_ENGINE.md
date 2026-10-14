@@ -482,7 +482,7 @@ Una oferta que llega por MCP solo alimenta la captura si cumple todo esto (compr
   artículo (`articulo.mercadolibre.com.mx/MLM-<id>`).
 - El título que cuenta es el de la página extraída. Debe nombrar el tipo: «Aceite vegetal Nutrioli» clasifica,
   «Aceite Nutrioli» no; «Sal» y «Croquetas» tampoco clasifican hoy.
-- Cupos vigentes: 5 aceptados por `runId`, 20 candidatos por llamada, 200 por día y cliente, 10 llamadas por minuto.
+- Cupos vigentes: 100 aceptados por `runId`, 20 candidatos por llamada, 200 por día y cliente, 10 llamadas por minuto.
   100 aceptadas requieren al menos 20 `runId` distintos.
 - Aceptada por MCP no es publicada: cada oferta queda `pending` hasta la moderación. Del 5 al 13 de octubre, de 194
   ofertas MCP, moderación rechazó 164.
