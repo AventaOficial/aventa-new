@@ -10,7 +10,7 @@ export const AVENTA_EDITORIAL_LINE = 'Selección diaria de Aventa';
 export const HUNTER_EDITORIAL: Readonly<Record<string, { label: string; line: string }>> = {
   ximena: { label: AVENTA_EDITORIAL_NAME, line: AVENTA_EDITORIAL_LINE },
   kai: { label: 'AVENTA TECH', line: 'Top tecnología' },
-  eleonore: { label: 'AVENTA MODA', line: 'Moda, tenis y perfumes' },
+  eleonore: { label: 'AVENTA MODA', line: 'Moda, tenis, perfumes y maquillaje' },
 };
 
 export function hunterEditorial(code: string | null | undefined): { label: string; line: string } {

@@ -31,6 +31,34 @@ describe('carril de hunters', () => {
     expect(suggestSupplyHunter({ title: 'Huevo Rojo Bachoco 30 piezas', category: 'other' })).toBe('ximena');
   });
 
+  it('el maquillaje es de Éléonore', () => {
+    for (const title of [
+      'Base de Maquillaje Maybelline Fit Me 30 ml',
+      'Máscara de Pestañas Lash Sensational',
+      'Labial Líquido Matte Ink',
+      'Paleta de Sombras Naked Urban Decay',
+      'Rubor en Polvo NARS Orgasm',
+      'Corrector de Ojeras Instant Age Rewind',
+      "L'Oréal Paris True Match Polvo Compacto",
+      'Fenty Beauty Gloss Bomb Lip Gloss',
+      'Delineador Líquido Negro NYX Epic Ink',
+      'Rimel Pestañas Volumen Essence',
+    ]) {
+      expect(suggestSupplyHunter({ title })).toBe('eleonore');
+    }
+    expect(hunterLaneMismatch({ hunterCode: 'ximena', title: 'Labial Líquido Matte Ink' })).toEqual({
+      current: 'ximena',
+      suggested: 'eleonore',
+    });
+  });
+
+  it('los términos ambiguos de hogar y oficina no se toman por maquillaje', () => {
+    expect(suggestSupplyHunter({ title: 'Brocha para pintura Truper 3 pulgadas' })).toBeNull();
+    expect(suggestSupplyHunter({ title: 'Marcatextos Highlighter Stabilo 6 piezas' })).toBeNull();
+    expect(suggestSupplyHunter({ title: 'Cojín Cushion decorativo 45 cm' })).toBeNull();
+    expect(suggestSupplyHunter({ title: 'Esmalte Gloss blanco Comex 1 L' })).toBeNull();
+  });
+
   it('sin señal clara no sugiere; la categoría sirve de respaldo', () => {
     expect(suggestSupplyHunter({ title: 'LEGO Star Wars Halcón Milenario' })).toBeNull();
     expect(suggestSupplyHunter({ title: 'Producto genérico', category: 'tecnologia' })).toBe('kai');

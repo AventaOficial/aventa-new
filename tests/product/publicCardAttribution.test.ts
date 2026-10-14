@@ -30,7 +30,7 @@ describe('atribución pública de tarjetas', () => {
     expect(eleonore.kind === 'hunter' && publicCardAttribution({ hunter: eleonore.hunter })).toEqual({
       kind: 'brand',
       label: 'AVENTA MODA',
-      line: 'Moda, tenis y perfumes',
+      line: 'Moda, tenis, perfumes y maquillaje',
       hunterCode: 'eleonore',
     });
     expect(publicCardAttribution({ hunter: { code: 'kenji' } })).toMatchObject({

@@ -115,8 +115,8 @@ const PRODUCT_VOICE: Record<string, Pick<HunterPublicIdentity, 'role' | 'special
   },
   eleonore: {
     role: 'Estratega e Ilusión',
-    specialty: 'Moda, tenis, perfumes y belleza con precio real.',
-    voice: 'Busco moda, tenis y perfumes originales a buen precio. Las mejores oportunidades se encuentran en los detalles.',
+    specialty: 'Moda, tenis, perfumes, maquillaje y belleza con precio real.',
+    voice: 'Busco moda, tenis, perfumes y maquillaje originales a buen precio. Las mejores oportunidades se encuentran en los detalles.',
     accent: '#d4a017',
   },
 };
