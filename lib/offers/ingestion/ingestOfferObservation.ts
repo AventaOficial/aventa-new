@@ -15,6 +15,7 @@ import {
 import { normalizeBankCoupon } from '@/lib/bankCoupons';
 import { normalizeCategoryForStorage } from '@/lib/categories';
 import { inferOfferAutogroup } from '@/lib/offers/inferOfferAutogroup';
+import { normalizeOfferTitle } from '@/lib/offers/normalizeOfferTitle';
 import { isUniqueViolation, releaseExpiredFingerprintSlot } from '@/lib/offers/findDuplicateOffer';
 import { resolveIngestionIdentity } from '@/lib/offers/ingestion/identity';
 import { mexicanRetailerCurrency } from '@/lib/offers/sourceCurrency';
@@ -323,7 +324,7 @@ export async function ingestOfferObservation(
     };
   }
   const body: CreateOfferInput = parsed.data;
-  const title = body.title.trim();
+  const title = normalizeOfferTitle(body.title);
   const store = body.store.trim();
   if (!title || !store) {
     return { ok: false, httpStatus: 400, error: 'Título y tienda son obligatorios' };

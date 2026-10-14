@@ -26,7 +26,7 @@ import { initialAffiliatePasteUi } from '@/lib/moderation/affiliatePasteUi';
 import { mergeOfferImageUrls, normalizeOfferImageUrl } from '@/lib/offerPath';
 import { profileSlugFromDisplayName } from '@/lib/profileSlug';
 import { BOT_AUTHOR_DISPLAY_NAME, isBotUserId } from '@/lib/bots/ingest/isBotUserId';
-import { hunterCodeFromBotMeta, presentAuthor } from '@/lib/product/hunters/identity';
+import { botMetaWithHunterCode, hunterCodeFromBotMeta, presentAuthor } from '@/lib/product/hunters/identity';
 import type { ModerationHubMode } from '@/lib/moderation/hubConfig';
 import { moderationUi } from '../moderation/moderationUi';
 import ModerationConfidenceChip from './ModerationConfidenceChip';
@@ -110,6 +110,8 @@ type Props = {
   qualityCandidate?: boolean;
   similarOffers?: SimilarOffer[];
   onOfferUpdated?: () => void;
+  /** El moderador cambió el hunter: el padre guarda el nuevo `bot_meta.hunter_code` en su estado. */
+  onHunterChanged?: (hunterCode: string) => void;
   onBack?: () => void;
   mode?: ModerationHubMode;
   currentUserId?: string | null;
@@ -146,6 +148,7 @@ export default function ModerationOfferDetail({
   qualityCandidate = false,
   similarOffers = [],
   onOfferUpdated,
+  onHunterChanged,
   onBack,
   mode = 'admin',
   currentUserId = null,
@@ -276,7 +279,12 @@ export default function ModerationOfferDetail({
     onRequestRejectHandled?.();
   }, [requestReject, readOnly, onRequestRejectHandled]);
 
+  const [hunterOverride, setHunterOverride] = useState<{ offerId: string; code: string } | null>(null);
+  const botMeta =
+    hunterOverride?.offerId === offer.id ? botMetaWithHunterCode(offer.bot_meta, hunterOverride.code) : offer.bot_meta;
+  const hunterCode = hunterCodeFromBotMeta(botMeta);
   const isBotOffer =
+    hunterCode != null ||
     offer.is_bot === true ||
     isBotUserId(offer.created_by) ||
     (offer.moderator_comment ?? '').toLowerCase().includes('[bot-ingest]') ||
@@ -284,7 +292,7 @@ export default function ModerationOfferDetail({
   const presented = presentAuthor({
     userId: offer.created_by,
     displayName: offer.profiles?.display_name,
-    hunterCode: isBotOffer ? hunterCodeFromBotMeta(offer.bot_meta) : null,
+    hunterCode,
   });
   const authorName = presented.kind === 'hunter'
     ? presented.hunter.name
@@ -682,10 +690,14 @@ export default function ModerationOfferDetail({
           <HunterLaneReview
             mode={mode}
             offerId={offer.id}
-            botMeta={offer.bot_meta}
+            botMeta={botMeta}
             title={offer.title}
             category={offer.category}
             readOnly={readOnly}
+            onSaved={(code) => {
+              setHunterOverride({ offerId: offer.id, code });
+              onHunterChanged?.(code);
+            }}
           />
 
           <div className={`flex flex-wrap gap-x-4 gap-y-1 text-xs ${ui.muted}`}>

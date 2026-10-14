@@ -40,6 +40,7 @@ import { offerRequiresAffiliateValidation } from '@/lib/moderation/approveReadin
 import { evaluateAffiliateReadiness } from '@/lib/moderation/affiliateReadinessContract';
 import { useModerationQueueRealtime } from '@/lib/hooks/useModerationQueueRealtime';
 import { isOfferLockedByOther } from '@/lib/moderation/moderationLock';
+import { botMetaWithHunterCode } from '@/lib/product/hunters/identity';
 import { batchFailureMessage, moderationDecisionApplied } from '@/lib/moderation/moderationDecisionResponse';
 import {
   readModerationLastSeen,
@@ -374,6 +375,12 @@ export default function ModerationPendingPanel({
 
   const patchOfferInPending = useCallback((id: string, patch: Partial<ModerationOffer>) => {
     setPending((prev) => prev.map((o) => (o.id === id ? { ...o, ...patch } : o)));
+  }, []);
+
+  const setOfferHunter = useCallback((id: string, hunterCode: string) => {
+    setPending((prev) =>
+      prev.map((o) => (o.id === id ? { ...o, bot_meta: botMetaWithHunterCode(o.bot_meta, hunterCode) } : o))
+    );
   }, []);
 
   const claimNextFromServer = useCallback(
@@ -1039,6 +1046,7 @@ export default function ModerationPendingPanel({
           onOfferUpdated={() => {
             if (selectedId) patchOfferInPending(selectedId, { link_mod_ok: true });
           }}
+          onHunterChanged={setOfferHunter}
           loading={loading}
           showDetail={mobileShowDetail}
           onShowDetailChange={setMobileShowDetail}
@@ -1493,6 +1501,7 @@ export default function ModerationPendingPanel({
                     onOfferUpdated={() => {
                       if (selectedId) patchOfferInPending(selectedId, { link_mod_ok: true });
                     }}
+                    onHunterChanged={(code) => setOfferHunter(selectedOffer.id, code)}
                   />
                 ) : (
                   <div className={`flex flex-col items-center justify-center gap-3 p-10 text-sm ${ui.muted}`}>

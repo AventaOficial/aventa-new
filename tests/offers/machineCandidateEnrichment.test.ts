@@ -108,6 +108,14 @@ describe('enriquecimiento antes de moderación', () => {
     expect(machineOfferReadyForModeration(prepared)).toBe(true);
   });
 
+  it('el título scrapeado llega sin entidades HTML', async () => {
+    const image = 'https://m.media-amazon.com/images/I/test.jpg';
+    const prepared = await prepareMachineCandidateOffer(AMAZON, async () =>
+      outcome([image], { title: 'ASUS ROG Strix G16/16&#34; FHD+/L&#39;Oréal &amp; más' })
+    );
+    expect(prepared.title).toBe(`ASUS ROG Strix G16/16" FHD+/L'Oréal & más`);
+  });
+
   it('un bloqueo de la tienda no se esconde', async () => {
     const blocked = outcome([]);
     blocked.body.diagnostics = { accessFailure: 'ACCESS_BLOCKED', extractionErrorCode: null };

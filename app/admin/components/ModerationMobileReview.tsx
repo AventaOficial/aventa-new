@@ -85,6 +85,8 @@ type Props = {
   onReject: (id: string, reason?: string) => void;
   onSnooze?: (minutes: 15 | 60 | 240) => void;
   onOfferUpdated?: () => void;
+  /** El moderador cambió el hunter: el padre guarda el nuevo `bot_meta.hunter_code` en su estado. */
+  onHunterChanged?: (offerId: string, hunterCode: string) => void;
   loading?: boolean;
   actionError?: string | null;
   onClearActionError?: () => void;
@@ -111,6 +113,7 @@ export default function ModerationMobileReview({
   onReject,
   onSnooze,
   onOfferUpdated,
+  onHunterChanged,
   loading = false,
   actionError = null,
   onClearActionError,
@@ -478,6 +481,7 @@ export default function ModerationMobileReview({
             title={offer.title}
             category={offer.category}
             readOnly={readOnly}
+            onSaved={(code) => onHunterChanged?.(offer.id, code)}
           />
 
           {offer.is_bot ? (

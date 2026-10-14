@@ -60,6 +60,13 @@ export function hunterCodeFromBotMeta(botMeta: unknown): SupplyHunterCode | null
   return isSupplyHunterCode(code) ? code : null;
 }
 
+/** `bot_meta` con el hunter que acaba de guardar moderación; el resto de la metadata no cambia. */
+export function botMetaWithHunterCode(botMeta: unknown, hunterCode: string): Record<string, unknown> {
+  const base =
+    botMeta && typeof botMeta === 'object' && !Array.isArray(botMeta) ? (botMeta as Record<string, unknown>) : {};
+  return { ...base, hunter_code: hunterCode };
+}
+
 /** Assets públicos por code. Un slot vacío no se inventa en el componente. */
 export const HUNTER_PUBLIC_FILES: Record<string, HunterAssetSet> = {
   ximena: {

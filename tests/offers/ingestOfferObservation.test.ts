@@ -446,6 +446,17 @@ describe('ingestOfferObservation idempotency', () => {
     expect(db.counts().observations).toBe(2);
   });
 
+  it('el título se guarda con las entidades HTML decodificadas', async () => {
+    const r = await ingestOfferObservation(db.client as never, {
+      createdBy: 'bot-1',
+      source: 'mcp:hunter',
+      body: baseBody({ title: 'Lenovo LOQ 15.6&#34; FHD | iOS &amp; Android  ' }),
+    });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(db.offers.get(r.offerId)!.title).toBe('Lenovo LOQ 15.6" FHD | iOS & Android');
+  });
+
   it('15. idempotency key repeated → observation reused', async () => {
     const key = buildObservationIdempotencyKey({
       identityKey: 'amz:B0TESTASI1',

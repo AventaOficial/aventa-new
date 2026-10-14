@@ -17,8 +17,9 @@ import {
 } from '@/lib/moderation/galleryNavigation';
 import { profileSlugFromDisplayName } from '@/lib/profileSlug';
 import { BOT_AUTHOR_DISPLAY_NAME, isBotUserId } from '@/lib/bots/ingest/isBotUserId';
-import { hunterCodeFromBotMeta, presentAuthor } from '@/lib/product/hunters/identity';
+import { botMetaWithHunterCode, hunterCodeFromBotMeta, presentAuthor } from '@/lib/product/hunters/identity';
 import HunterLaneReview from '@/app/components/moderation/HunterLaneReview';
+import { buildCardEditBody, editPatchFromResponse, type ModerationOfferPatch } from '@/lib/moderation/cardEditPayload';
 
 type ModerationOffer = {
   id: string;
@@ -37,6 +38,7 @@ type ModerationOffer = {
   conditions?: string | null;
   created_at: string;
   created_by: string | null;
+  expires_at?: string | null;
   risk_score?: number | null;
   moderator_comment?: string | null;
   bot_meta?: unknown;
@@ -61,7 +63,8 @@ type Props = {
   onToggleSelect?: () => void;
   batchMode?: boolean;
   qualityCandidate?: boolean;
-  onOfferUpdated?: () => void;
+  /** Sin patch: el padre recarga. Con patch: lo que el servidor confirmó, para actualizar la tarjeta en sitio. */
+  onOfferUpdated?: (patch?: ModerationOfferPatch) => void;
 };
 
 const ACTION_LABELS: Record<string, string> = {
@@ -107,7 +110,9 @@ export default function ModerationOfferCard({
   const [editOfferUrl, setEditOfferUrl] = useState(offer.offer_url ?? '');
   const [editDescription, setEditDescription] = useState(typeof offer.description === 'string' ? offer.description : '');
   const [editImageUrl, setEditImageUrl] = useState(offer.image_url ?? '');
+  const [editCategory, setEditCategory] = useState(() => normalizeCategoryForStorage(offer.category) ?? '');
   const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
   const { session } = useAuth();
   const [showHistory, setShowHistory] = useState(false);
   const [historyLogs, setHistoryLogs] = useState<ModLog[]>([]);
@@ -137,14 +142,19 @@ export default function ModerationOfferCard({
       .finally(() => setHistoryLoading(false));
   }, [offer.id, historyLogs.length, session?.access_token]);
 
+  const [hunterOverride, setHunterOverride] = useState<{ offerId: string; code: string } | null>(null);
+  const botMeta =
+    hunterOverride?.offerId === offer.id ? botMetaWithHunterCode(offer.bot_meta, hunterOverride.code) : offer.bot_meta;
+  const hunterCode = hunterCodeFromBotMeta(botMeta);
   const isBotOffer =
+    hunterCode != null ||
     isBotUserId(offer.created_by) ||
     (offer.moderator_comment ?? '').toLowerCase().includes('[bot-ingest]') ||
     (offer.description ?? '').toLowerCase().includes('ingesta automática (bot)');
   const presented = presentAuthor({
     userId: offer.created_by,
     displayName: offer.profiles?.display_name,
-    hunterCode: isBotOffer ? hunterCodeFromBotMeta(offer.bot_meta) : null,
+    hunterCode,
   });
   const authorName = presented.kind === 'hunter'
     ? presented.hunter.name
@@ -278,6 +288,11 @@ export default function ModerationOfferCard({
               ) : (
                 <span className="text-[11px] text-amber-700 dark:text-amber-400 font-medium">Sin URL</span>
               )}
+              {offer.expires_at && new Date(offer.expires_at).getTime() <= Date.now() ? (
+                <span className="inline-flex items-center gap-0.5 text-[11px] text-gray-700 dark:text-gray-300 font-medium rounded-md bg-gray-200 dark:bg-gray-700 px-2 py-0.5">
+                  Expirada
+                </span>
+              ) : null}
               {qualityCandidate ? (
                 <span className="inline-flex items-center gap-0.5 text-[11px] text-emerald-700 dark:text-emerald-300 font-medium rounded-md bg-emerald-100 dark:bg-emerald-900/30 px-2 py-0.5">
                   Calidad candidata
@@ -378,7 +393,14 @@ export default function ModerationOfferCard({
           </div>
 
           {status !== 'rejected' ? (
-            <HunterLaneReview mode="admin" offerId={offer.id} botMeta={offer.bot_meta} title={offer.title} category={offer.category} />
+            <HunterLaneReview
+              mode="admin"
+              offerId={offer.id}
+              botMeta={botMeta}
+              title={offer.title}
+              category={offer.category}
+              onSaved={(code) => setHunterOverride({ offerId: offer.id, code })}
+            />
           ) : null}
 
           {similarOffers.length > 0 && (
@@ -418,10 +440,12 @@ export default function ModerationOfferCard({
                   setEditOfferUrl(offer.offer_url ?? '');
                   setEditDescription(typeof offer.description === 'string' ? offer.description : '');
                   setEditImageUrl(offer.image_url ?? '');
+                  setEditCategory(normalizeCategoryForStorage(offer.category) ?? '');
+                  setEditError(null);
                   setShowEdit(true);
                 }}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
-                title="Editar título, enlace o descripción"
+                title="Editar título, categoría, enlace o descripción"
               >
                 <Pencil className="h-4 w-4" />
                 Editar
@@ -451,7 +475,7 @@ export default function ModerationOfferCard({
                       headers,
                       body: JSON.stringify({ offerId: offer.id }),
                     });
-                    if (res.ok) onOfferUpdated?.();
+                    if (res.ok) onOfferUpdated?.({ expires_at: new Date().toISOString() });
                   } finally {
                     setExpiring(false);
                   }
@@ -778,6 +802,27 @@ export default function ModerationOfferCard({
                 />
               </div>
               <div>
+                <label
+                  htmlFor={`moderation-card-category-${offer.id}`}
+                  className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                >
+                  Categoría
+                </label>
+                <select
+                  id={`moderation-card-category-${offer.id}`}
+                  value={editCategory}
+                  onChange={(e) => setEditCategory(e.target.value)}
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100"
+                >
+                  {editCategory === '' ? <option value="">Sin categoría</option> : null}
+                  {ALL_CATEGORIES.map((c) => (
+                    <option key={c.value} value={c.value}>
+                      {c.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">URL del enlace</label>
                 <input
                   type="text"
@@ -820,29 +865,44 @@ export default function ModerationOfferCard({
                   type="button"
                   disabled={editSaving}
                   onClick={async () => {
+                    const body = buildCardEditBody(offer.id, offer, {
+                      title: editTitle,
+                      offer_url: editOfferUrl,
+                      description: editDescription,
+                      image_url: editImageUrl,
+                      category: editCategory,
+                    });
+                    if (Object.keys(body).length === 1) {
+                      setShowEdit(false);
+                      return;
+                    }
                     setEditSaving(true);
+                    setEditError(null);
                     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
                     if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
                     const res = await fetch('/api/admin/update-offer', {
                       method: 'PATCH',
                       headers,
-                      body: JSON.stringify({
-                        id: offer.id,
-                        title: editTitle.trim() || undefined,
-                        offer_url: editOfferUrl.trim() || undefined,
-                        description: editDescription.trim() || undefined,
-                        image_url: editImageUrl.trim() || undefined,
-                      }),
-                    });
+                      body: JSON.stringify(body),
+                    }).catch(() => null);
+                    const data = res ? await res.json().catch(() => ({})) : {};
                     setEditSaving(false);
-                    if (!res.ok) return;
+                    if (!res?.ok) {
+                      setEditError(typeof data?.error === 'string' ? data.error : 'No se pudo guardar');
+                      return;
+                    }
                     setShowEdit(false);
-                    onOfferUpdated?.();
+                    onOfferUpdated?.(editPatchFromResponse(data));
                   }}
                   className="px-4 py-2 text-sm font-medium rounded-lg bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-50"
                 >
                   {editSaving ? 'Guardando…' : 'Guardar'}
                 </button>
+                {editError ? (
+                  <p className="w-full text-sm text-red-600 dark:text-red-400" role="alert">
+                    {editError}
+                  </p>
+                ) : null}
                 <button
                   type="button"
                   onClick={() => setShowEdit(false)}
