@@ -10,7 +10,7 @@ Verificado el 2026-10-13 (solo lectura, `machine_clients` y `offer_batches` de p
 | `aventa-mcp-xai-production-v2` | `paused` | mismos 3 | 13 | 2026-10-07 11:21 UTC |
 | `aventa-mcp-xai-production-v3` | `active` (cuota 200, vence 2027-01-01) | mismos 3 | 5 | 2026-10-13 20:50 UTC |
 
-Ítems MCP de los últimos 14 días: 193 `APPROVED` (oferta `pending` creada), 4 `PUBLISHED`, 8 `NEEDS_REVIEW` (1 con `IMAGE_NOT_FOUND`). El cupo de 5 aceptados por `runId` (§9) sigue activo.
+Ítems MCP de los últimos 14 días: 193 `APPROVED` (oferta `pending` creada), 4 `PUBLISHED`, 8 `NEEDS_REVIEW` (1 con `IMAGE_NOT_FOUND`). El cupo de aceptados por `runId` (§9) sigue activo (5 entonces; 100 desde el 2026-10-14).
 
 | Entorno | Migración | Autor bot | Redis (namespace) | Cliente activo |
 |---|---|---|---|---|
@@ -265,7 +265,7 @@ Límite conocido: la clave del lote conserva `www.` y la del writer no. Dos URLs
 
 ### Cupo del piloto por `runId`
 
-**Regla**: como máximo `MCP_PILOT_MAX_ACCEPTED_PER_RUN = 5` candidatos **aceptados** por (cliente, `runId`), sumando llamadas, reintentos con otra `idempotencyKey` y llamadas concurrentes.
+**Regla**: como máximo `MCP_PILOT_MAX_ACCEPTED_PER_RUN = 100` candidatos **aceptados** por (cliente, `runId`), sumando llamadas, reintentos con otra `idempotencyKey` y llamadas concurrentes. Era 5 hasta el 2026-10-14; con 20 por llamada, una corrida completa son 5 llamadas y la cuota diaria por defecto (200) admite dos.
 
 **Activación**: siempre activo, por constante en `lib/mcp/contract.ts`. No depende del prompt de Grok, del script local (`--max` 1-5 sigue siendo una segunda barrera) ni de variables de entorno.
 - No hay variable nueva que configurar.
@@ -279,14 +279,15 @@ Límite conocido: la clave del lote conserva `www.` y la del writer no. Dos URLs
 - **Cupo agotado**: el envío se registra igual (lote archivado, sin ítems) para que su replay sea estable.
 - **Orden de controles**: la cuota diaria se comprueba antes (sin ocupar slots) y se cobra sólo por los candidatos que pasaron el cupo.
 
-**Mecanismo (sin migración)**: cada aceptado ocupa un slot `n ∈ 1..5`. Un slot es una fila de `ingest_cycle_locks` (PK `lock_key`, `service_role` con ALL; aplicada en producción, **ausente en staging** al 2026-10-12, ver §14) con `lock_key = mcp:run-slot:<clientId>:<n>:<runId>` y `expires_at = 9999-12-31`.
+**Mecanismo (sin migración)**: cada aceptado ocupa un slot `n ∈ 1..100`. Un slot es una fila de `ingest_cycle_locks` (PK `lock_key`, `service_role` con ALL; aplicada en producción, **ausente en staging** al 2026-10-12, ver §14) con `lock_key = mcp:run-slot:<clientId>:<n>:<runId>` y `expires_at = 9999-12-31`.
 - **Ocupar**: un INSERT de la PK. Si da 23505, se intenta retomar con un único `UPDATE … WHERE lock_key = … AND expires_at <= now()`.
 - **Liberar** (candidato `ALREADY_IN_REVIEW` o lote fallido): adelantar `expires_at` filtrando por `holder`. Nunca se borra.
 - **Sin choques con la ingesta**: los locks de ingesta usan otras claves (`ingest:ml_worker`) y sólo tocan las suyas.
 
 **Garantías**:
 - Atómico por sentencia en Postgres: dos llamadas no pueden ocupar el mismo slot (PK) ni retomar el mismo slot liberado. En Postgres, dos UPDATE concurrentes sobre la fila se serializan y el segundo reevalúa el `WHERE`.
-- Nunca hay más de 5 slots vivos por corrida. Cada ítem aceptado conserva el suyo para siempre, así que una corrida no puede pasar de 5 aceptados.
+- Nunca hay más de 100 slots vivos por corrida. Cada ítem aceptado conserva el suyo para siempre, así que una corrida no puede pasar de 100 aceptados.
+- Costo: ocupar recorre los slots en orden con una sentencia por slot (más una retoma si está ocupado). La quinta llamada de una corrida llena hace del orden de 180 sentencias cortas antes de encontrar sus 20 slots libres.
 - No es una transacción multi-sentencia. Un crash entre ocupar y crear el lote, o un fallo al liberar, deja el slot ocupado: la corrida acepta **menos**, nunca más.
 - **Fail-closed**: si la tabla no responde, o falla algo distinto de "slot ocupado", el envío devuelve `INTERNAL_ERROR` antes de crear lote o ítems. Se libera lo ya ocupado y se puede reintentar con la misma llave.
 - **No depende de Redis**: si Upstash cae, el rate limit ya responde 503 antes de llegar aquí.
@@ -671,7 +672,7 @@ Requiere: PR #100 fusionado, despliegue de producción `READY` con ese commit y 
 
 1. Archivo de 1 a 5 observaciones reales verificadas a mano: URL de ficha de producto, precio visible en la página. En Amazon y Mercado Libre, solo URLs con ASIN / item id (`/dp/…`, `MLM…`); los enlaces cortos quedan retenidos.
 2. Simular: `npx tsx scripts/despensa-grok-batch.ts --input <archivo> --out <reporte.json>`. Revisar rechazos.
-3. En una terminal sin historial, `AVENTA_MCP_URL=https://aventaofertas.com/api/mcp` y `AVENTA_MCP_TOKEN` del gestor de secretos; ejecutar `npx tsx scripts/despensa-grok-batch.ts --input <archivo> --run-id <runId nuevo> --submit --max <n ≤ 5>`. El script consulta `get_submission_rules` (se detiene si `ingestEnabled` no es `true`), descarta con `check_offer_exists` lo que ya existe, envía con `submit_deal_candidates` y muestra `get_submission_status`. El servidor limita a 5 aceptados por cliente y `runId`.
+3. En una terminal sin historial, `AVENTA_MCP_URL=https://aventaofertas.com/api/mcp` y `AVENTA_MCP_TOKEN` del gestor de secretos; ejecutar `npx tsx scripts/despensa-grok-batch.ts --input <archivo> --run-id <runId nuevo> --submit --max <n ≤ 5>`. El script consulta `get_submission_rules` (se detiene si `ingestEnabled` no es `true`), descarta con `check_offer_exists` lo que ya existe, envía con `submit_deal_candidates` y muestra `get_submission_status`. El servidor limita a 100 aceptados por cliente y `runId`; el script, a 5 por ejecución.
 4. Resultado esperado por índice: `accepted` (oferta `pending` en `/admin/moderation`, sin paso por Hunters IA), `in_review` (retenido con motivo visible en Hunters IA), `duplicate` (vinculado a la oferta existente) o `rejected`/`invalid`. Ninguno queda `published` sin moderador.
 5. Un moderador decide cada `pending` en `/admin/moderation`. El bot no publica ni tiene herramienta para hacerlo.
 6. Si algo no coincide: pausar el cliente en `/admin/machine-clients` (efecto inmediato) y abrir el lote en la consola de lotes; el historial no se borra.
@@ -681,7 +682,7 @@ Requiere: PR #100 fusionado, despliegue de producción `READY` con ese commit y 
 ### Incidente del 2026-10-13
 
 - Desde las 15:57 UTC, las tareas de Grok se autenticaron con el token de `aventa-mcp-xai-production-v2`, un cliente en estado `paused`. `get_submission_rules` le devolvía `ingestEnabled: false`, pero el prompt no lo comprobaba: siguió con 9 llamadas a `check_offer_exists` y terminó en `submit_deal_candidates` → `CLIENT_PAUSED` (18:06:10 UTC). El cliente activo es `aventa-mcp-xai-production-v3`, que ese día solo hizo una llamada a `get_submission_rules`.
-- Los prompts anteriores al 2026-10-12 enviaban hasta 20 candidatos por llamada, con un `runId` por franja horaria. Con el cupo de 5 aceptados por `runId` (§9), todo lo que pase de 5 vuelve como `RUN_CAP_REACHED`.
+- Los prompts anteriores al 2026-10-12 enviaban hasta 20 candidatos por llamada, con un `runId` por franja horaria. Con el cupo por `runId` (§9; 5 hasta el 2026-10-14, hoy 100), todo lo que lo pase vuelve como `RUN_CAP_REACHED`.
 - Descubrir ofertas en Mercado Libre desde Grok choca con 403 y verificación de cuenta. Es una limitación externa y no se elude. Soriana funcionó en los canarios `432879fd`, `9fae5c6e` y `37ab5cef`.
 - `get_submission_status` reportaba `accepted` para ofertas que un moderador ya había aprobado. Se corrigió: ahora deriva el estado de `offers` (§7).
 
@@ -690,7 +691,7 @@ Requiere: PR #100 fusionado, despliegue de producción `READY` con ese commit y 
 Ambas cosas viven fuera de este repo, en xAI (Grok):
 
 - **Conector MCP**: URL `https://aventaofertas.com/api/mcp`, con encabezado `Authorization: Bearer <token del cliente aventa-mcp-xai-production-v3>`. El token se toma del gestor de secretos y nunca se pega en tickets, chats ni en este repo. Cada tarea programada que use el conector debe apuntar a ese mismo conector. Un token de un cliente `paused` o `revoked` no envía nada.
-- **Instrucciones de la tarea programada**: el bloque `text` de `docs/SYSTEMS/GROK_HUNTER_PROMPT.md` (núcleo `core-1.2.0`, configuración `despensa-mx-1.1.0`), completo y sin cambios. Ese documento es la única fuente; sustituye a las instrucciones que antes vivían aquí y en §5. Allí está también la comprobación de sincronización con xAI.
+- **Instrucciones de la tarea programada**: el bloque `text` de `docs/SYSTEMS/GROK_HUNTER_PROMPT.md` (núcleo `core-1.3.0`, configuración `despensa-mx-1.2.0`), completo y sin cambios. Ese documento es la única fuente; sustituye a las instrucciones que antes vivían aquí y en §5. Allí está también la comprobación de sincronización con xAI.
 
 ### Estado verificado el 2026-10-13 (20:15 UTC, solo lectura)
 
@@ -742,7 +743,7 @@ Orden obligatorio. Cada paso necesita evidencia del anterior; si algo falla, se 
 6. **Canario de 1 candidato.** Se ejecuta con las condiciones y pasos del próximo canario v3 (abajo), con autorización explícita del Owner para encender la ingesta y con un moderador disponible.
 7. **Revisión real.** Un moderador decide sobre la oferta. Antes de seguir se revisan el precio de lista, la imagen, la tienda, el comentario y que no haya escrituras económicas.
 8. **Muestra inicial de 3.** Solo si el canario salió limpio, una corrida nueva con 2 candidatos (`runId` nuevo) para llegar a 3. Se revisan con el mismo criterio.
-9. **Escalar.** Solo si los 3 salieron limpios y la moderación puede revisar el volumen sin que expiren pendientes (con v2, 69 de 193 candidatos expiraron sin revisión). Se sube por corridas de como máximo 5 aceptados, dentro de la cuota diaria configurada. Nunca se suben límites para acelerar.
+9. **Escalar.** Solo si los 3 salieron limpios y la moderación puede revisar el volumen sin que expiren pendientes (con v2, 69 de 193 candidatos expiraron sin revisión). Se sube por corridas de como máximo 100 aceptados (el tope del servidor), dentro de la cuota diaria configurada. Nunca se suben límites para acelerar.
 
 ### Estado al 2026-10-14 (01:15 UTC, solo lectura)
 
@@ -755,7 +756,7 @@ Orden obligatorio. Cada paso necesita evidencia del anterior; si algo falla, se 
 El repo no tiene integración con xAI: la tarea solo se administra desde su interfaz, y nadie puede darla por desactivada sin hacerlo ahí. No se toca el cliente v3, ni sus scopes, ni su token. Tampoco se revoca v2 para "apagar" la tarea: el cliente ya está `paused` y no escribe.
 
 1. En Grok (xAI), abrir la lista de tareas programadas de la cuenta que opera Aventa.
-2. Identificar la tarea v2: su conector MCP usa el token del cliente `aventa-mcp-xai-production-v2` y/o sus instrucciones no empiezan con `AVENTA GROK HUNTER · núcleo core-1.2.0`. Su patrón visible en Aventa es una llamada a `get_submission_rules` cerca del minuto :57–:07 de cada hora.
+2. Identificar la tarea v2: su conector MCP usa el token del cliente `aventa-mcp-xai-production-v2` y/o sus instrucciones no empiezan con `AVENTA GROK HUNTER · núcleo core-1.` (v3 usa `core-1.2.0` o `core-1.3.0`). Su patrón visible en Aventa es una llamada a `get_submission_rules` cerca del minuto :57–:07 de cada hora.
 3. Pausar o eliminar **solo esa tarea**. Si la tarea v2 y la v3 comparten conector, no editar el conector: se desactiva la tarea.
 4. Anotar la hora (UTC) del cambio.
 5. Confirmar con evidencia, al menos 2 horas después:
@@ -777,17 +778,17 @@ Cero filas = v2 desactivada. Con cualquier fila, la tarea sigue viva.
 2. La tarea v2 está desactivada y la consulta de arriba devuelve cero filas durante al menos 2 h.
 3. En xAI hay una sola tarea activa para Aventa:
    - el conector usa el token de `aventa-mcp-xai-production-v3` (`active`) y expone solo `get_submission_rules`, `check_offer_exists`, `submit_deal_candidates` y `get_submission_status`;
-   - las instrucciones son el bloque `text` de `GROK_HUNTER_PROMPT.md`, `core-1.2.0` / `despensa-mx-1.1.0`.
+   - las instrucciones son el bloque `text` de `GROK_HUNTER_PROMPT.md`, `core-1.3.0` / `despensa-mx-1.2.0`.
 4. Hay un moderador disponible y el Owner autorizó la ventana de forma explícita.
 5. `MCP_INGEST_ENABLED=false` antes de empezar. Es el estado por defecto y se restaura al terminar.
 
 **Límites (no se cambian para el canario):**
 
-- como máximo 5 aceptados por `runId` (`MCP_PILOT_MAX_ACCEPTED_PER_RUN`);
+- como máximo 100 aceptados por `runId` (`MCP_PILOT_MAX_ACCEPTED_PER_RUN`);
 - 20 candidatos por llamada;
 - 10 llamadas por minuto;
 - la cuota diaria del cliente (200);
-- el prompt pide una sola llamada a `submit_deal_candidates` y como máximo 2 candidatos por tienda y por categoría.
+- el prompt permite hasta 5 llamadas a `submit_deal_candidates` (lotes de hasta 20) y como máximo 20 candidatos por tienda y por categoría.
 
 **Ventana:**
 
@@ -810,8 +811,8 @@ Cero filas = v2 desactivada. Con cualquier fila, la tarea sigue viva.
    2. Recorre la rotación de tiendas. Cada tienda queda como explorada (con al menos una ficha abierta) o como no explorada con su motivo: `SEARCH_FAILED`, `PAGE_BLOCKED` o `NOT_REACHED`.
    3. Aplica las reglas de calidad a cada ficha.
    4. `check_offer_exists` por candidato. Con `canSubmit: false` lo descarta (`ALREADY_EXISTS`). Con `previouslyRejected: true` solo lo envía si la promoción es nueva y lo explica en `note`.
-   5. Una sola llamada `submit_deal_candidates`, con como máximo 5 candidatos e `idempotencyKey` `<runId>:core-1.2.0:01`.
-   6. `get_submission_status` del `submissionId`.
+   5. `submit_deal_candidates` en lotes de hasta 20 (como máximo 5 lotes, 100 candidatos), con `idempotencyKey` `<runId>:core-1.3.0:01` … `:05`.
+   6. `get_submission_status` de cada `submissionId`.
    7. Entrega el reporte de la sección 7.
 4. Al terminar la corrida, apagar la ingesta y redesplegar, en el mismo turno:
 
@@ -828,7 +829,7 @@ select c.name, k.tool, k.result_status, k.accepted_count, k.rejected_count, k.cr
 from machine_client_calls k join machine_clients c on c.id = k.machine_client_id
 where k.created_at > '<T0>' order by k.created_at;
 
--- 2. Lote y candidatos: un solo lote core-1.2.0, ≤ 5 aceptados, ≤ 2 por tienda
+-- 2. Lotes y candidatos: ≤ 5 lotes core-1.3.0, ≤ 100 aceptados, ≤ 20 por tienda
 select b.mcp_run_id, b.mcp_idempotency_key, i.position, i.status, i.error_code, i.duplicate_status,
        case when i.identity_key like 'amz:%' then 'amazon' else split_part(substr(i.identity_key, 3), '/', 1) end as tienda,
        o.status as offer_status
@@ -848,7 +849,7 @@ where b.machine_client_id is not null and b.created_at > '<T0>' and o.status <> 
 Criterios para dar el canario por bueno:
 
 - la consulta 1 no tiene filas de v2;
-- la 2 muestra un solo lote `core-1.2.0`, como máximo 5 ítems con oferta y no más de 2 por tienda;
+- la 2 muestra como máximo 5 lotes `core-1.3.0` del mismo `runId`, como máximo 100 ítems con oferta y no más de 20 por tienda;
 - la 4 devuelve cero filas antes de que modere un humano;
 - no hay escrituras en tablas de recompensas, comisiones, ledger ni payouts;
 - después de apagar la ingesta, la siguiente llamada a `submit_deal_candidates` de cualquier tarea devuelve `INGEST_PAUSED`.

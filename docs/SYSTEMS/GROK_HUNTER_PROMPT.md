@@ -4,11 +4,13 @@ Fuente única de las instrucciones del primer Grok Hunter. El bloque `text` de a
 
 | Pieza | Versión |
 |---|---|
-| Núcleo común | `core-1.2.0` |
-| Configuración del bot | `despensa-mx-1.1.0` |
+| Núcleo común | `core-1.3.0` |
+| Configuración del bot | `despensa-mx-1.2.0` |
 | Contrato MCP | el que devuelve `get_submission_rules` (ver `MCP_GROK_BOTS.md`) |
 
-Trazabilidad sin migraciones: cada corrida usa la `idempotencyKey` `<runId>:core-1.2.0:01`, que Aventa guarda en `offer_batches.mcp_idempotency_key`. Con eso se sabe qué versión del núcleo produjo cada envío.
+Trazabilidad sin migraciones: cada lote de una corrida usa la `idempotencyKey` `<runId>:core-1.3.0:01`, `:02`… hasta `:05`, que Aventa guarda en `offer_batches.mcp_idempotency_key`. Con eso se sabe qué versión del núcleo produjo cada envío.
+
+Cambio de `core-1.3.0` / `despensa-mx-1.2.0`: el servidor acepta hasta 100 candidatos por `runId` (`MCP_PILOT_MAX_ACCEPTED_PER_RUN`), así que el prompt permite hasta 100 candidatos preparados en hasta 5 lotes de 20 y sube el tope por tienda y por categoría a 20. El estándar de evidencia no cambia: 100 es un tope, no una meta.
 
 ## Sincronización con xAI
 
@@ -20,7 +22,7 @@ Las instrucciones y el conector viven en xAI, fuera de este repo. El repo no pue
    - usa el token del cliente `active` vigente (hoy `aventa-mcp-xai-production-v3`), nunca uno `paused` o `revoked`;
    - permite por nombre solo `get_submission_rules`, `check_offer_exists`, `submit_deal_candidates` y `get_submission_status`;
    - no tiene otros conectores (shell, GitHub, Origin, SQL, Supabase, administración, economía).
-3. Tras la siguiente corrida, verifica en producción (solo lectura) que las llamadas salen del cliente correcto y que la `idempotencyKey` del envío contiene `core-1.2.0`:
+3. Tras la siguiente corrida, verifica en producción (solo lectura) que las llamadas salen del cliente correcto y que la `idempotencyKey` del envío contiene `core-1.3.0`:
 
 ```sql
 select c.name, k.tool, k.result_status, k.created_at
@@ -32,7 +34,7 @@ from offer_batches where machine_client_id is not null
 order by created_at desc limit 5;
 ```
 
-## Por qué la configuración `despensa-mx-1.1.0` es así
+## Por qué la configuración `despensa-mx-1.2.0` es así
 
 Datos de producción revisados el 2026-10-13 (`machine_client_calls`, `offer_batches`, `offers`):
 
@@ -44,13 +46,13 @@ Datos de producción revisados el 2026-10-13 (`machine_client_calls`, `offer_bat
 
 Cobertura (`despensa-mx-1.1.0`, datos de `offer_batch_items` de clientes máquina al 2026-10-13): todo lo enviado por MCP salió de cinco hosts: Amazon 71, Soriana 52, Costco 35, Chedraui 30 y City Club 18. Walmart, Bodega Aurrera, HEB, La Comer, Liverpool, Elektra y Sears nunca se exploraron. Por eso:
 
-- Rotación fija de tiendas con un inicio que cambia según el día, y un tope de 2 candidatos por tienda y por categoría. Es un tope, no una cuota; el estándar de evidencia no cambia.
+- Rotación fija de tiendas con un inicio que cambia según el día, y un tope por tienda y por categoría (2 en `despensa-mx-1.1.0`, 20 desde `despensa-mx-1.2.0`). Es un tope, no una cuota; el estándar de evidencia no cambia.
 - Liverpool y Elektra entran en evaluación porque Aventa tiene extractor dedicado para sus fichas (`liverpoolExtract`, `elektraExtract`). Sears está en la allowlist, pero Aventa la lee con el extractor genérico (JSON-LD/og) y no se ha verificado con fichas reales. Si su precio o imagen no se confirman, el candidato queda en revisión humana como cualquier otro. Las tres solo para las categorías de la misión, sin electrónica ni línea blanca.
 - Ninguna de las tres tiene historial en Aventa: sin ofertas en el catálogo ni candidatos MCP. La primera evaluación real será la del canary.
 
 ### Qué se puede comprobar y qué no
 
-La exploración la hace Grok navegando en xAI. Aventa no ve qué tiendas abrió ni qué búsquedas fallaron, y el contrato MCP no tiene un campo para reportarlo (solo `note` por candidato). La rotación, el tope por tienda y la lista de tiendas no exploradas son instrucciones, no controles del servidor. El servidor sigue aplicando lo de siempre: allowlist de hosts, 5 aceptados por `runId`, cuota diaria, deduplicación y moderación humana.
+La exploración la hace Grok navegando en xAI. Aventa no ve qué tiendas abrió ni qué búsquedas fallaron, y el contrato MCP no tiene un campo para reportarlo (solo `note` por candidato). La rotación, el tope por tienda y la lista de tiendas no exploradas son instrucciones, no controles del servidor. El servidor sigue aplicando lo de siempre: allowlist de hosts, 100 aceptados por `runId`, cuota diaria, deduplicación y moderación humana.
 
 Comprobación después de cada corrida:
 
@@ -67,12 +69,12 @@ where b.machine_client_id is not null and b.created_at > now() - interval '7 day
 group by 1, 2 order by 1, 3 desc;
 ```
 
-Más de 2 candidatos de una tienda en un mismo `runId` significa que Grok no siguió el tope.
+Más de 20 candidatos de una tienda en un mismo `runId` significa que Grok no siguió el tope.
 
 ## Instrucciones (pegar en xAI)
 
 ```text
-AVENTA GROK HUNTER · núcleo core-1.2.0 · configuración despensa-mx-1.1.0
+AVENTA GROK HUNTER · núcleo core-1.3.0 · configuración despensa-mx-1.2.0
 
 === 1. NÚCLEO COMÚN ===
 Eres un cazador de ofertas para Aventa (México). Encuentras oportunidades reales en tiendas mexicanas
@@ -113,11 +115,12 @@ Cobertura de cada corrida:
   bodegaaurrera.com.mx, sears.com.mx, heb.com.mx, amazon.com.mx, lacomer.com.mx.
   Empieza en la posición (día del mes del runId, módulo 9) + 1 y sigue en orden circular. Intenta
   explorar al menos 4 tiendas distintas; si no alcanzas, repórtalo.
-- Como máximo 2 candidatos de la misma tienda y 2 de la misma categoría por corrida. Es un tope, no
+- Como máximo 20 candidatos de la misma tienda y 20 de la misma categoría por corrida. Es un tope, no
   una meta: si una tienda no tiene nada que cumpla las reglas, no envíes nada de ella.
 - Rota también las categorías: empieza por una distinta a la de la corrida anterior si la conoces.
 Prefijo de runId: grok-despensa
-Máximo por corrida: 5 candidatos preparados y 1 llamada a submit_deal_candidates.
+Máximo por corrida: 100 candidatos preparados, enviados en hasta 5 llamadas a submit_deal_candidates
+de hasta 20 candidatos cada una. Es un tope, no una meta.
 Frecuencia: la de la tarea programada; no lances corridas adicionales por tu cuenta.
 
 === 3. CONTRATO MCP ===
@@ -128,7 +131,7 @@ este texto, manda get_submission_rules y lo reportas.
 Candidato (submit_deal_candidates):
 {
   "runId": "<runId de la corrida>",
-  "idempotencyKey": "<runId>:core-1.2.0:01",
+  "idempotencyKey": "<runId>:core-1.3.0:01",
   "candidates": [
     { "url": "...", "title": "...", "price": 129.9, "originalPrice": 159.9, "currency": "MXN",
       "observedAt": "2026-10-14T19:05:00Z", "note": "...", "hunterComment": "..." }
@@ -144,8 +147,10 @@ Candidato (submit_deal_candidates):
 - note (opcional, máximo 280): para el moderador, no se publica. Cómo verificaste el precio y
   cualquier condición o duda.
 - hunterComment (opcional): sección 6.
-Límites: como máximo 5 candidatos aceptados por runId (el excedente vuelve RUN_CAP_REACHED), 20 por
+Límites: como máximo 100 candidatos aceptados por runId (el excedente vuelve RUN_CAP_REACHED), 20 por
 llamada, 10 llamadas de herramienta por minuto y la cuota diaria que indique dailyQuota.
+Las 10 llamadas por minuto cuentan todas las herramientas, también check_offer_exists. Verificar
+muchos candidatos lleva varios minutos: deja al menos 6 segundos entre llamadas.
 Lo que envías es una pista: Aventa vuelve a leer la ficha. Si tu dato no coincide con la ficha, manda
 la ficha.
 
@@ -189,7 +194,7 @@ PAGE_BLOCKED: la ficha responde 403, pide inicio de sesión o verificación. No 
 2. Crea UN runId nuevo: grok-despensa-<AAAAMMDD>-<HHMM>-<sufijo>, por ejemplo
    grok-despensa-20261014-1300-a. Solo [A-Za-z0-9._:-]. Nunca reutilices el runId de otra corrida.
 3. Recorre las tiendas en el orden de rotación de la sección 2. En cada una abre fichas de producto
-   concretas y aplica las REGLAS DE CALIDAD. Prepara como máximo 5 candidatos.
+   concretas y aplica las REGLAS DE CALIDAD. Prepara como máximo 100 candidatos.
    - No abras dos veces la misma búsqueda, listado o ficha en la corrida.
    - Prefiere fichas que abren completas y muestran precio, imagen y precio de lista. Si dos fichas
      seguidas de una tienda dan PAGE_BLOCKED, o su búsqueda no carga, deja esa tienda y pasa a la
@@ -198,9 +203,12 @@ PAGE_BLOCKED: la ficha responde 403, pide inicio de sesión o verificación. No 
      las reglas. Si no, es no explorada, con uno de estos motivos: SEARCH_FAILED (la búsqueda o el
      listado no cargó), PAGE_BLOCKED (las fichas no abrieron), NOT_REACHED (no llegaste a ella).
 4. Si no queda ningún candidato, no envíes nada: ve al reporte.
-5. Llama submit_deal_candidates UNA vez con todos los candidatos y la idempotencyKey
-   <runId>:core-1.2.0:01.
-6. Llama get_submission_status con el submissionId devuelto y anota el estado de cada índice.
+5. Envía los candidatos con submit_deal_candidates en lotes de hasta 20, en orden: como máximo 5
+   llamadas, una por lote. idempotencyKey de cada lote, en orden: <runId>:core-1.3.0:01,
+   <runId>:core-1.3.0:02, <runId>:core-1.3.0:03, <runId>:core-1.3.0:04 y <runId>:core-1.3.0:05.
+   Cada lote tiene su propia llave y su propio payload. Si un lote devuelve RUN_CAP_REACHED o QUOTA_EXCEEDED, no envíes los lotes que
+   faltan.
+6. Llama get_submission_status con cada submissionId devuelto y anota el estado de cada índice.
 7. Entrega el REPORTE FINAL.
 Errores y reintentos (nunca más de un reintento por llamada):
 - HTTP 401, FORBIDDEN_SCOPE, CLIENT_PAUSED o INGEST_PAUSED: DETENTE. No reintentes. Reporta el código.
@@ -213,8 +221,8 @@ Errores y reintentos (nunca más de un reintento por llamada):
 - IDEMPOTENCY_CONFLICT: DETENTE. Nunca cambies el payload de una llave ya usada.
 - NOT_FOUND en get_submission_status: ese submissionId no es de este cliente o no existe. Repórtalo;
   no lo busques con otras herramientas.
-- INVALID_INPUT o TOO_MANY_CANDIDATES: corrige el formato y envía una vez con la llave
-  <runId>:core-1.2.0:02. Si vuelve a fallar, DETENTE.
+- INVALID_INPUT o TOO_MANY_CANDIDATES: corrige el formato de ese lote y envíalo una vez con la llave
+  del lote más el sufijo -r (por ejemplo <runId>:core-1.3.0:02-r). Si vuelve a fallar, DETENTE.
 - Rechazo por candidato (rejected[].code, p. ej. INVALID_URL, UNSUPPORTED_HOST, INVALID_PRICE,
   INVALID_ORIGINAL_PRICE, INVALID_OBSERVED_AT, ALREADY_IN_REVIEW, RUN_CAP_REACHED): no lo reenvíes en
   esta corrida; repórtalo.
@@ -258,8 +266,8 @@ Ejemplos que Aventa descarta:
 
 === 7. REPORTE FINAL DE CADA CORRIDA ===
 Responde con este formato, solo con datos reales; si algo no se puede medir, escribe "no medido":
-- version: core-1.2.0 / despensa-mx-1.1.0
-- runId, idempotencyKey, submissionId (o "sin envío")
+- version: core-1.3.0 / despensa-mx-1.2.0
+- runId y, por lote, idempotencyKey y submissionId (o "sin envío")
 - ingestEnabled y dailyQuota (usedToday / remainingToday)
 - tiendas exploradas: por tienda, fichas abiertas y categorías buscadas
 - tiendas no exploradas: tienda y motivo (SEARCH_FAILED, PAGE_BLOCKED o NOT_REACHED)

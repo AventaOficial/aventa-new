@@ -34,7 +34,7 @@ export const MCP_MAX_CANDIDATES_PER_CALL = 20;
  * Piloto: candidatos aceptados como máximo por `runId` y cliente, sumando todas sus llamadas.
  * Siempre activo mientras dure el piloto; `runId` es obligatorio. Relajarlo exige un cambio de código.
  */
-export const MCP_PILOT_MAX_ACCEPTED_PER_RUN = 5;
+export const MCP_PILOT_MAX_ACCEPTED_PER_RUN = 100;
 export const MCP_TITLE_MAX = 200;
 export const MCP_NOTE_MAX = 280;
 /** Mismo tope que `offers.hunter_comment` en la tarjeta pública. */
