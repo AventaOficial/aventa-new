@@ -14,7 +14,10 @@ on:
       - 'docs/supabase-migrations/20260926_offer_ingestion_evidence.sql'
       - 'docs/supabase-migrations/20260927_offer_batches.sql'
       - 'docs/supabase-migrations/20261013_offer_batch_items_open_identity_uidx.sql'
+      - 'docs/supabase-migrations/20260908_ingest_cycle_locks.sql'
+      - 'lib/mcp/**'
       - 'tests/offers/ingestConcurrency.pg.integration.test.ts'
+      - 'tests/mcp/identityRelease.pg.integration.test.ts'
       - '.github/workflows/pg-concurrency.yml'
 
 permissions:
@@ -53,6 +56,7 @@ jobs:
           set -euo pipefail
           for f in \
             FOUNDATION_BASELINE_20260917.sql \
+            20260908_ingest_cycle_locks.sql \
             20260920_offers_hunter_comment.sql \
             20260926_offer_ingestion_evidence.sql \
             20260927_offer_batches.sql \
@@ -76,7 +80,7 @@ jobs:
           sleep 3
           AVENTA_ISOLATED_PG_TEST=1 AVENTA_REQUIRE_PG_TEST=1 \
           ISOLATED_SUPABASE_URL="$API_URL" ISOLATED_SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY" \
-            npx vitest run tests/offers/ingestConcurrency.pg.integration.test.ts \
+            npx vitest run tests/offers/ingestConcurrency.pg.integration.test.ts tests/mcp/identityRelease.pg.integration.test.ts \
               --reporter=verbose --reporter=junit --outputFile.junit=pg-concurrency-results.xml
 
       - name: Resultados
