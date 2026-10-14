@@ -781,7 +781,7 @@ export default function OfferCard({
                 <MessageCircle className="h-3 w-3 shrink-0" aria-hidden />
                 Comentario del cazador
               </div>
-              <p className="text-xs md:text-[13px] leading-snug text-violet-900/75 dark:text-violet-200/80 line-clamp-3 wrap-anywhere">
+              <p className="text-xs md:text-[13px] leading-snug text-gray-500 dark:text-gray-400 line-clamp-3 wrap-anywhere">
                 {shortHunterComment}
                 {hunterCommentOverflow ? '…' : ''}
               </p>
@@ -799,7 +799,7 @@ export default function OfferCard({
             <MessageCircle className="h-3 w-3 shrink-0" aria-hidden />
             Comentario del cazador
           </div>
-          <p className="text-xs leading-snug text-violet-900/75 dark:text-violet-200/80 line-clamp-3 wrap-anywhere">
+          <p className="text-xs leading-snug text-gray-500 dark:text-gray-400 line-clamp-3 wrap-anywhere">
             {shortHunterComment}
             {hunterCommentOverflow ? '…' : ''}
           </p>
