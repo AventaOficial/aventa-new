@@ -166,7 +166,7 @@ Añadidas el 2026-10-14 para los hunters de tecnología y moda (tiendas oficiale
 «Completa» = título, precio e imagen; esos candidatos pueden crear la oferta `pending` directamente. Parcial o falla = el ítem queda `NEEDS_REVIEW` (§19) y lo decide un humano. «No probada» no significa que falle.
 
 - On (`on.com`) no se añadió: `on.com/es-mx` redirige a la tienda suiza y no hay tienda oficial de On para México; se vende a través de distribuidores (por ejemplo, El Palacio de Hierro, ya admitida).
-- Los dominios `.mx`/`.com.mx`, `mx.tommy.com`, `mx.puma.com`, `newbalancemexico.com` y `sallymexico.com` confirman MXN (`lib/offers/sourceCurrency.ts`). Los globales con ruta por país (`zara.com`, `hm.com`, `bershka.com`, `pullandbear.com`, `samsung.com`) y `lululemon.mx` (checkout de un tercero que puede cotizar en la moneda del visitante) no la confirman desde el host.
+- Los dominios `.mx`/`.com.mx`, `mx.tommy.com`, `mx.puma.com`, `newbalancemexico.com` y `sallymexico.com` confirman MXN (`lib/offers/sourceCurrency.ts`). Los globales con ruta por país (`zara.com`, `bershka.com`, `pullandbear.com` y `samsung.com` bajo `/mx/`; `hm.com` bajo `/es_mx/`) la confirman solo dentro de esa ruta; con otra ruta, sin moneda. `lululemon.mx` (checkout de un tercero que puede cotizar en la moneda del visitante) no la confirma.
 
 ## 5. Contrato de candidatos
 

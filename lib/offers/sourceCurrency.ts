@@ -2,8 +2,8 @@
  * Moneda de origen a partir del retailer, no del símbolo "$".
  * Solo hosts cuya página de precio es inequívocamente mexicana.
  * amazon.com, costco.com, mercadolibre.com.ar y acortadores (meli.la, link.amazon) quedan sin moneda.
- * También los dominios globales con ruta por país (zara.com, hm.com, samsung.com…) y lululemon.mx,
- * cuyo checkout de terceros puede cotizar en la moneda del visitante.
+ * Los dominios globales con ruta por país (zara.com, hm.com, samsung.com…) solo confirman MXN bajo su ruta mexicana.
+ * lululemon.mx queda sin moneda: su checkout de terceros puede cotizar en la moneda del visitante.
  */
 
 const MEXICAN_RETAILER_HOSTS = [
@@ -46,23 +46,41 @@ const MEXICAN_RETAILER_HOSTS = [
   'store.sony.com.mx',
 ] as const;
 
-function hostOf(rawUrl: string): string | null {
+/**
+ * Dominios globales cuya tienda mexicana vive bajo un prefijo de ruta fijo que siempre cotiza en MXN.
+ * Fuera de ese prefijo (otro país o la raíz) no se confirma moneda.
+ */
+const MEXICAN_STOREFRONT_PATHS: ReadonlyArray<{ host: string; pathPrefix: string }> = [
+  { host: 'zara.com', pathPrefix: '/mx/' },
+  { host: 'bershka.com', pathPrefix: '/mx/' },
+  { host: 'pullandbear.com', pathPrefix: '/mx/' },
+  { host: 'hm.com', pathPrefix: '/es_mx/' },
+  { host: 'samsung.com', pathPrefix: '/mx/' },
+];
+
+function parseUrl(rawUrl: string): { host: string; path: string } | null {
   try {
-    return new URL(rawUrl.trim()).hostname.replace(/^www\./i, '').toLowerCase();
+    const u = new URL(rawUrl.trim());
+    return { host: u.hostname.replace(/^www\./i, '').toLowerCase(), path: u.pathname.toLowerCase() };
   } catch {
     return null;
   }
 }
 
-function isMexicanRetailerHost(host: string): boolean {
-  return MEXICAN_RETAILER_HOSTS.some((suffix) => host === suffix || host.endsWith(`.${suffix}`));
+function hostMatches(host: string, domain: string): boolean {
+  return host === domain || host.endsWith(`.${domain}`);
+}
+
+function isMexicanRetailerUrl(host: string, path: string): boolean {
+  if (MEXICAN_RETAILER_HOSTS.some((suffix) => hostMatches(host, suffix))) return true;
+  return MEXICAN_STOREFRONT_PATHS.some((s) => hostMatches(host, s.host) && path.startsWith(s.pathPrefix));
 }
 
 /** MXN cuando el enlace es de un retailer mexicano soportado. Si no, null. */
 export function mexicanRetailerCurrency(rawUrl: string | null | undefined): 'MXN' | null {
   if (!rawUrl?.trim()) return null;
-  const host = hostOf(rawUrl);
-  if (!host || !isMexicanRetailerHost(host)) return null;
+  const parsed = parseUrl(rawUrl);
+  if (!parsed || !isMexicanRetailerUrl(parsed.host, parsed.path)) return null;
   return 'MXN';
 }
 

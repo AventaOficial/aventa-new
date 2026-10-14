@@ -27,15 +27,15 @@ const STORES: ReadonlyArray<{ domain: string; url: string; store: string; mxn: b
   { domain: 'calvinklein.mx', url: 'https://www.calvinklein.mx/bota-chelsea-combat-calvin-klein-hombre-negro-ym0ym01374-0gj/p', store: 'Calvin Klein', mxn: true },
   { domain: 'levi.com.mx', url: 'https://www.levi.com.mx/jeans-501-original-00501-0114/p', store: "Levi's", mxn: true },
   { domain: 'guess.mx', url: 'https://www.guess.mx/bolsa-satchel-logo/p', store: 'GUESS', mxn: true },
-  { domain: 'hm.com', url: 'https://www2.hm.com/es_mx/productpage.1234567001.html', store: 'H&M', mxn: false },
-  { domain: 'zara.com', url: 'https://www.zara.com/mx/es/chamarra-regular-fit-piel-p04416246.html', store: 'Zara', mxn: false },
-  { domain: 'bershka.com', url: 'https://www.bershka.com/mx/jeans-wide-leg-c0p123456789.html', store: 'Bershka', mxn: false },
-  { domain: 'pullandbear.com', url: 'https://www.pullandbear.com/mx/sudadera-basica-l12345678', store: 'Pull&Bear', mxn: false },
+  { domain: 'hm.com', url: 'https://www2.hm.com/es_mx/productpage.1234567001.html', store: 'H&M', mxn: true },
+  { domain: 'zara.com', url: 'https://www.zara.com/mx/es/chamarra-regular-fit-piel-p04416246.html', store: 'Zara', mxn: true },
+  { domain: 'bershka.com', url: 'https://www.bershka.com/mx/jeans-wide-leg-c0p123456789.html', store: 'Bershka', mxn: true },
+  { domain: 'pullandbear.com', url: 'https://www.pullandbear.com/mx/sudadera-basica-l12345678', store: 'Pull&Bear', mxn: true },
   { domain: 'sephora.com.mx', url: 'https://www.sephora.com.mx/products-9090528758.html', store: 'Sephora', mxn: true },
   { domain: 'ulta.com.mx', url: 'https://www.ulta.com.mx/labial-matte-ruby-woo/p', store: 'Ulta Beauty', mxn: true },
   { domain: 'sallymexico.com', url: 'https://www.sallymexico.com/alaciadora-optima-1-1-4-grey/p', store: 'Sally Beauty', mxn: true },
   { domain: 'fragancias.com.mx', url: 'https://www.fragancias.com.mx/perfume-sauvage-dior-100ml', store: 'Fragancias.com.mx', mxn: true },
-  { domain: 'samsung.com', url: 'https://www.samsung.com/mx/smartphones/galaxy-a56/buy/', store: 'Samsung', mxn: false },
+  { domain: 'samsung.com', url: 'https://www.samsung.com/mx/smartphones/galaxy-a56/buy/', store: 'Samsung', mxn: true },
   { domain: 'store.sony.com.mx', url: 'https://store.sony.com.mx/wh-1000xm6/p', store: 'Sony Store', mxn: true },
 ];
 
@@ -53,6 +53,22 @@ describe('tiendas oficiales MX de moda, belleza, deporte y tecnología', () => {
   it.each(STORES)('$domain: nombre de tienda y moneda', ({ url, store, mxn }) => {
     expect(inferStoreFromHostname(new URL(url).hostname)).toBe(store);
     expect(mexicanRetailerCurrency(url)).toBe(mxn ? 'MXN' : null);
+  });
+
+  it.each([
+    'https://www.zara.com/us/en/jacket-p04416246.html',
+    'https://www.zara.com/es/es/chamarra-p04416246.html',
+    'https://www.zara.com/chamarra-p04416246.html',
+    'https://www.zara.com/mxx/chamarra-p04416246.html',
+    'https://www2.hm.com/en_us/productpage.1234567001.html',
+    'https://www.bershka.com/us/jeans-c0p123456789.html',
+    'https://www.pullandbear.com/es/sudadera-l12345678',
+    'https://www.samsung.com/us/smartphones/galaxy-a56/buy/',
+    'https://www.samsung.com/smartphones/galaxy-a56/',
+    'https://evil.example/www.zara.com/mx/es/x-p1.html',
+    'https://zara.com.evil.com/mx/es/x-p1.html',
+  ])('un dominio global fuera de su ruta mexicana no confirma moneda: %s', (url) => {
+    expect(mexicanRetailerCurrency(url)).toBeNull();
   });
 
   it.each([
