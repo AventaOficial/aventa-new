@@ -31,6 +31,7 @@ import type { ModerationHubMode } from '@/lib/moderation/hubConfig';
 import { moderationUi } from '../moderation/moderationUi';
 import ModerationConfidenceChip from './ModerationConfidenceChip';
 import ModerationBotFactsCard from './ModerationBotFactsCard';
+import MultiBuyReview from '@/app/components/moderation/MultiBuyReview';
 import ModerationChecklist from './ModerationChecklist';
 import ModerationImageGallery from './ModerationImageGallery';
 import { setOfferCover } from '@/lib/moderation/setOfferCover';
@@ -671,6 +672,8 @@ export default function ModerationOfferDetail({
               </span>
             ) : null}
           </div>
+
+          <MultiBuyReview mode={mode} offerId={offer.id} botMeta={offer.bot_meta} readOnly={readOnly} />
 
           <div className={`flex flex-wrap gap-x-4 gap-y-1 text-xs ${ui.muted}`}>
             <span className="inline-flex items-center gap-1">

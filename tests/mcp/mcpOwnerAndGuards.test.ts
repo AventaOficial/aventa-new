@@ -235,10 +235,16 @@ describe('guardas estructurales MCP', () => {
     }
   });
 
-  it('sólo 4 herramientas registradas', () => {
+  it('sólo 5 herramientas registradas', () => {
     const server = src('lib/mcp/server.ts');
     const names = [...server.matchAll(/registerTool\(\s*'([a-z_]+)'/g)].map((m) => m[1]);
-    expect(names.sort()).toEqual(['check_offer_exists', 'get_submission_rules', 'get_submission_status', 'submit_deal_candidates']);
+    expect(names.sort()).toEqual([
+      'check_offer_exists',
+      'get_price_reference',
+      'get_submission_rules',
+      'get_submission_status',
+      'submit_deal_candidates',
+    ]);
     expect(server).not.toMatch(/registerResource|registerPrompt|\.resource\(|\.prompt\(/);
   });
 

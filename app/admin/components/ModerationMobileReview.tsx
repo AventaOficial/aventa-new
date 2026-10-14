@@ -18,6 +18,7 @@ import { setOfferCover } from '@/lib/moderation/setOfferCover';
 import { moderationUi } from '../moderation/moderationUi';
 import ModerationConfidenceChip from './ModerationConfidenceChip';
 import ModerationBotFactsCard from './ModerationBotFactsCard';
+import MultiBuyReview from '@/app/components/moderation/MultiBuyReview';
 import ModerationChecklist from './ModerationChecklist';
 import ModerationDecisionCard from './ModerationDecisionCard';
 import ModerationFixSheet, { type FixField } from './ModerationFixSheet';
@@ -467,6 +468,8 @@ export default function ModerationMobileReview({
               {catLabel ? ` · ${catLabel}` : ''}
             </p>
           </div>
+
+          <MultiBuyReview mode={mode} offerId={offer.id} botMeta={offer.bot_meta} readOnly={readOnly} />
 
           {offer.is_bot ? (
             <ModerationChecklist

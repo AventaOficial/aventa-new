@@ -10,6 +10,7 @@ import type { FocusModerationOffer } from '@/lib/moderation/focusTypes';
 import { computeMonetizationReadiness } from '@/lib/moderation/monetizationReadiness';
 import { cn } from '@/app/components/panel/utils';
 import FocusHunterComment from '@/app/components/moderation/FocusHunterComment';
+import MultiBuyReview from '@/app/components/moderation/MultiBuyReview';
 
 type Props = {
   open: boolean;
@@ -95,6 +96,8 @@ export default function FocusDetailsDrawer({ open, offer, mode, canEdit, onClose
           </section>
 
           <FocusHunterComment mode={mode} hunterComment={offer.hunter_comment} botMeta={offer.bot_meta} />
+
+          <MultiBuyReview mode={mode} offerId={offer.id} botMeta={offer.bot_meta} readOnly={canEdit === false} />
 
           <section className="space-y-2">
             <p className={cn('text-xs font-semibold uppercase tracking-wider', ui.label)}>Datos</p>

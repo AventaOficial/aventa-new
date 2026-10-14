@@ -19,6 +19,7 @@ import { reviewHunterComment, type HunterCommentReviewResult } from '@/lib/offer
 import { compareWithListPrice } from '@/lib/offers/listPriceComparison';
 import { buildBotOfferDescription } from '@/lib/bots/ingest/buildBotOfferDescription';
 import { OFFER_DESCRIPTION_MAX } from '@/lib/contracts/offers';
+import { buildPendingMultiBuy, multiBuyModeratorLine, type MultiBuyMeta } from '@/lib/offers/multiBuy';
 
 /** `moderator_comment` admite 500; el prefijo cabe con la nota MCP completa (280). */
 const MCP_INTERNAL_NOTE_MAX = 470;
@@ -30,6 +31,17 @@ export type EnqueueHunterOfferDeps = {
   ingest?: typeof ingestOfferObservation;
   lowQualityTitle?: (title: string) => boolean;
 };
+
+const MODERATOR_COMMENT_MAX = 500;
+
+/** La línea de la promoción va primero para que la nota del bot nunca la corte. */
+function buildModeratorComment(internalNote: string | null, multiBuy: MultiBuyMeta | null): string | null {
+  const promo = multiBuy ? multiBuyModeratorLine(multiBuy) : null;
+  if (!internalNote) return promo;
+  const note = `${MCP_INTERNAL_NOTE_PREFIX}${internalNote}`;
+  if (!promo) return note;
+  return `${promo} ${note}`.slice(0, MODERATOR_COMMENT_MAX);
+}
 
 async function settleItem(
   supabase: SupabaseClient,
@@ -229,6 +241,8 @@ export async function enqueueHunterOffer(
     },
     prepared.category ?? null,
   ).slice(0, OFFER_DESCRIPTION_MAX);
+  const multiBuy = candidate.multiBuy ? buildPendingMultiBuy(price, candidate.multiBuy.buy, candidate.multiBuy.pay) : null;
+  const moderatorComment = buildModeratorComment(internalNote, multiBuy);
   const result = await (deps.ingest ?? ingestOfferObservation)(supabase, {
     createdBy,
     source: 'mcp:hunter',
@@ -237,9 +251,10 @@ export async function enqueueHunterOffer(
     requireProductImage: true,
     recordSubmissionCount: false,
     offerExtras: {
-      ...(internalNote ? { moderator_comment: `${MCP_INTERNAL_NOTE_PREFIX}${internalNote}` } : {}),
+      ...(moderatorComment ? { moderator_comment: moderatorComment } : {}),
       bot_meta: {
         ...(internalNote ? { internal_note: internalNote } : {}),
+        ...(multiBuy ? { multi_buy: multiBuy } : {}),
         enrichment: {
           page_kind: prepared.pageKind,
           retailer: prepared.retailer,

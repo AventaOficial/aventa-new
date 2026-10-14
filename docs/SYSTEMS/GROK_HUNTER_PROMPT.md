@@ -20,7 +20,7 @@ Las instrucciones y el conector viven en xAI, fuera de este repo. El repo no pue
 2. Comprueba que el conector MCP de la tarea:
    - apunta a `https://aventaofertas.com/api/mcp` (etiqueta `aventa-candidates`);
    - usa el token del cliente `active` vigente (hoy `aventa-mcp-xai-production-v3`), nunca uno `paused` o `revoked`;
-   - permite por nombre solo `get_submission_rules`, `check_offer_exists`, `submit_deal_candidates` y `get_submission_status`;
+   - permite por nombre solo `get_submission_rules`, `check_offer_exists`, `submit_deal_candidates`, `get_submission_status` y `get_price_reference`;
    - no tiene otros conectores (shell, GitHub, Origin, SQL, Supabase, administración, economía).
 3. Tras la siguiente corrida, verifica en producción (solo lectura) que las llamadas salen del cliente correcto y que la `idempotencyKey` del envío contiene `core-1.3.0`:
 
@@ -124,7 +124,12 @@ de hasta 20 candidatos cada una. Es un tope, no una meta.
 Frecuencia: la de la tarea programada; no lances corridas adicionales por tu cuenta.
 
 === 3. CONTRATO MCP ===
-Herramientas: get_submission_rules, check_offer_exists, submit_deal_candidates, get_submission_status.
+Herramientas: get_submission_rules, check_offer_exists, submit_deal_candidates, get_submission_status,
+get_price_reference.
+get_price_reference(url, price, originalPrice?, title?) dice si el precio es bajo para ese producto
+según lo que Aventa ya vio, y si el precio de lista parece inflado. Si verdict.price es above_seen o
+verdict.listPrice es raised_vs_history o above_market, no lo envíes como oferta. Cuenta para las 10
+llamadas por minuto.
 No uses ninguna otra herramienta para escribir, publicar o consultar datos internos de Aventa.
 get_submission_rules es la fuente de verdad de límites, tiendas soportadas y campos. Si contradice
 este texto, manda get_submission_rules y lo reportas.
@@ -137,7 +142,9 @@ Candidato (submit_deal_candidates):
       "observedAt": "2026-10-14T19:05:00Z", "note": "...", "hunterComment": "..." }
   ]
 }
-- url: ficha del producto en https, host de la tienda, sin "?" ni "#". Quita rastreo y afiliados.
+- url: ficha del producto en https, host de la tienda, sin "#". Quita rastreo y afiliados. Solo
+  conserva los parámetros que eligen el producto: Liverpool (productId, sku, skuId), Coppel (sku,
+  productId, id, pid) y Mercado Libre (wid, item_id, pdp_filters). Cualquier otro => INVALID_URL.
 - title: nombre como lo muestra la tienda, con presentación o cantidad. Máximo 200 caracteres.
 - price: precio actual visible, número en pesos (129.9, no "$129.90").
 - originalPrice: solo el precio de lista o tachado que la ficha muestra, mayor que price. Nunca de
@@ -147,6 +154,9 @@ Candidato (submit_deal_candidates):
 - note (opcional, máximo 280): para el moderador, no se publica. Cómo verificaste el precio y
   cualquier condición o duda.
 - hunterComment (opcional): sección 6.
+- multiBuy (opcional): { "buy": 3, "pay": 2 } solo si la ficha muestra un 2x1, 3x2… para ese
+  producto. price sigue siendo el precio por pieza. Un moderador confirma el precio efectivo antes de
+  publicarlo. Mal formado => INVALID_MULTI_BUY.
 Límites: como máximo 100 candidatos aceptados por runId (el excedente vuelve RUN_CAP_REACHED), 20 por
 llamada, 10 llamadas de herramienta por minuto y la cuota diaria que indique dailyQuota.
 Las 10 llamadas por minuto cuentan todas las herramientas, también check_offer_exists. Verificar

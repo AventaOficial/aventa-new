@@ -88,7 +88,7 @@ describe('prompt maestro del Grok Hunter', () => {
     expect(60 / 6).toBeLessThanOrEqual(MCP_CALLS_PER_MINUTE);
   });
 
-  it('nombra exactamente las cuatro herramientas, todos los errores y todos los estados', () => {
+  it('nombra todas las herramientas, todos los errores y todos los estados', () => {
     for (const tool of MCP_TOOLS) expect(PROMPT, tool).toContain(tool);
     for (const code of MCP_ERROR_CODES) expect(PROMPT, code).toContain(code);
     for (const state of SUBMISSION_CANDIDATE_STATES) expect(sectionOf('5. PROTOCOLO DE EJECUCIÓN'), state).toContain(state);
