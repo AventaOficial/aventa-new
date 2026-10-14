@@ -58,6 +58,29 @@ export async function readHtmlCapped(
     await response.body?.cancel().catch(() => undefined);
     return { ok: false, failure: 'NOT_HTML' };
   }
+  return readTextCapped(response, maxBytes);
+}
+
+/** Endpoint JSON público de una tienda. Un cuerpo que no es JSON se descarta. */
+export async function readJsonCapped(response: Response, maxBytes: number): Promise<unknown> {
+  const type = (response.headers.get('content-type') ?? '').split(';')[0]!.trim().toLowerCase();
+  if (type !== 'application/json') {
+    await response.body?.cancel().catch(() => undefined);
+    return null;
+  }
+  const body = await readTextCapped(response, maxBytes);
+  if (!body.ok) return null;
+  try {
+    return JSON.parse(body.html) as unknown;
+  } catch {
+    return null;
+  }
+}
+
+async function readTextCapped(
+  response: Response,
+  maxBytes: number,
+): Promise<{ ok: true; html: string } | { ok: false; failure: 'TOO_LARGE' }> {
   const declared = Number(response.headers.get('content-length'));
   if (Number.isFinite(declared) && declared > maxBytes) {
     await response.body?.cancel().catch(() => undefined);

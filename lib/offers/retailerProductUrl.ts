@@ -44,6 +44,13 @@ export function isChedrauiProductUrl(rawUrl: string): boolean {
   return /\/[^/]+\/p\/?$/i.test(parsed.pathname);
 }
 
+/** https://www.liverpool.com.mx/tienda/pdp/{slug}/{id} */
+export function isLiverpoolProductUrl(rawUrl: string): boolean {
+  const parsed = hostOf(rawUrl);
+  if (!parsed || !hostIs(parsed.host, 'liverpool.com.mx')) return false;
+  return /^\/tienda\/pdp\/[^/]+\/\d{5,}\/?$/i.test(parsed.pathname);
+}
+
 export function isSupportedRetailerProductUrl(rawUrl: string): boolean {
   const trimmed = rawUrl.trim();
   if (!trimmed) return false;
@@ -61,6 +68,7 @@ const KNOWN_RETAILER = [
   'soriana.com',
   'chedraui.com.mx',
   'costco.com.mx',
+  'liverpool.com.mx',
 ];
 
 /** Clasifica la página sin fetch. Un PDP usa las reglas de producto ya existentes. */
@@ -69,7 +77,7 @@ export function classifyOfferPageKind(rawUrl: string): OfferPageKind {
   if (!parsed) return 'UNKNOWN';
   const path = parsed.pathname.replace(/\/+$/, '') || '/';
   if (path === '/') return 'HOME';
-  if (isSupportedRetailerProductUrl(rawUrl)) return 'PRODUCT';
+  if (isSupportedRetailerProductUrl(rawUrl) || isLiverpoolProductUrl(rawUrl)) return 'PRODUCT';
   const known = KNOWN_RETAILER.some((fragment) => parsed.host.includes(fragment) || hostIs(parsed.host, fragment));
   if (!known) return 'UNKNOWN';
   if (/^\/(s|search|buscar|busqueda|jm\/search)(\/|$)/i.test(parsed.pathname) || /\/search(\/|$)/i.test(parsed.pathname)) {

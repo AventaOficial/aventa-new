@@ -1,0 +1,19 @@
+{
+  "code": "668242",
+  "name": "Santa Clara Leche Deslactosada 6 pzas de 1 l",
+  "url": "/Grocery/Grocery/Leches-y-Bebidas/Santa-Clara-Leche-Deslactosada-6-pzas-de-1-l/p/668242",
+  "purchasable": true,
+  "hidePriceValue": false,
+  "price": { "currencyIso": "MXN", "formattedValue": "$189.00", "priceType": "BUY", "value": 189.0 },
+  "basePrice": { "currencyIso": "MXN", "formattedValue": "$259.00", "priceType": "BUY", "value": 259.0 },
+  "discountPrice": { "currencyIso": "MXN", "formattedValue": "$70.00", "priceType": "BUY", "value": 70.0 },
+  "images": [
+    { "format": "superZoom", "galleryIndex": 0, "imageType": "GALLERY", "url": "/medias/sys_master/products/hda/hc4/83423766380574.jpg" },
+    { "format": "zoom", "galleryIndex": 0, "imageType": "GALLERY", "url": "/medias/sys_master/products/hda/hc4/83423766380574.jpg" },
+    { "format": "product", "galleryIndex": 0, "imageType": "GALLERY", "url": "/medias/sys_master/products/h77/h8d/83423765921822.jpg" },
+    { "format": "thumbnail", "galleryIndex": 0, "imageType": "GALLERY", "url": "/medias/sys_master/products/hb9/hb9/83423766970398.jpg" },
+    { "format": "product", "galleryIndex": 1, "imageType": "GALLERY", "url": "/medias/sys_master/products/h11/h22/83423766216700.jpg" },
+    { "format": "zoom", "galleryIndex": 1, "imageType": "GALLERY", "url": "/medias/sys_master/products/h55/hdb/83423766216734.jpg" },
+    { "format": "zoom-webp", "galleryIndex": 1, "imageType": "GALLERY", "url": "/medias/sys_master/products/h55/hdb/83423766216734.webp" }
+  ]
+}
