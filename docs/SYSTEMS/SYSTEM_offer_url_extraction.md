@@ -116,10 +116,12 @@ Nunca mostrar “Listo” si `extraction_status === 'partial'` sin decir qué fa
 | **Amazon** (`.com.mx` + shorts) | ✅ | ✅ ASIN | ✅ HTML | ✅ colorImages/hiRes | `link.amazon` expand → `/dp/{ASIN}` |
 | **Mercado Libre** | ✅ | ✅ item/catalog | ✅ API+HTML | ✅ | Social/`meli.la`: CDN HTML permitido |
 | **Walmart MX** | ✅ | ✅ `/ip/{id}` → `wmt:` | ✅ JSON-LD + `__NEXT_DATA__` | ✅ | Short `walmart.page.link` |
-| **Liverpool** | ✅ | ✅ PDP sku → `lvp:` | ✅ JSON-LD + sscdn | ✅ | Short `liverpool.app.link` |
+| **Liverpool** | ✅ | ✅ PDP sku → `lvp:` | ✅ JSON-LD + sscdn + og + precio SSR | ✅ | Short `liverpool.app.link`; MCP reconoce `/tienda/pdp/{slug}/{id}` como PRODUCT |
+| **Costco MX** | ✅ | ⚠ `url:` | ✅ API pública `/rest/v2/mexico/products/{id}` (`retail_api`) | ✅ galería zoom | La PDP es SPA: el HTML no trae producto |
+| **Chedraui** | ✅ | ⚠ `url:` | ✅ VTEX `/api/catalog_system/pub/products/search/{slug}/p` (`retail_api`) | ✅ | Precio = `Price`; lista = `ListPrice` si es mayor |
 | **Coppel** | ✅ | ✅ SKU path → `cpl:` | ✅ JSON-LD + CDN | ✅ | Short `coppel.app.link` |
 | **Elektra** | ✅ | ✅ SKU path → `elk:` | ✅ JSON-LD + CDN | ✅ | elektra.mx / .com.mx |
-| **Otros retail MX** (allowlist) | ✅ | ⚠ hostname | ✅ JSON-LD/og genérico | ⚠ 1–N vía JSON-LD | Home Depot, Costco, … |
+| **Otros retail MX** (allowlist) | ✅ | ⚠ hostname | ✅ JSON-LD/og genérico | ⚠ 1–N vía JSON-LD | Home Depot, Soriana, … |
 | **AliExpress / Temu / Shein / eBay** | ✅ host | ⚠ | ⚠ genérico | ⚠ | Mismo path retail |
 | **Dominio desconocido** | ❌ | — | — | — | `invalid_url` (correcto) |
 
@@ -315,6 +317,8 @@ El resto del allowlist está en **generic** (funciona si la tienda expone JSON-L
 | `lib/offers/productExtraction/liverpoolExtract.ts` | Extractor Liverpool full |
 | `lib/offers/productExtraction/coppelExtract.ts` | Extractor Coppel full |
 | `lib/offers/productExtraction/elektraExtract.ts` | Extractor Elektra full |
+| `lib/offers/productExtraction/costcoExtract.ts` | Costco MX vía API de producto |
+| `lib/offers/productExtraction/chedrauiExtract.ts` | Chedraui vía catálogo VTEX |
 | `lib/offers/productExtraction/classifyExtraction.ts` | success/partial/failed + UX tips |
 | `lib/offers/productExtraction/retailerCapabilities.ts` | Matriz viva |
 | `app/components/ActionBar.tsx` | UX parse |

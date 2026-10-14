@@ -143,8 +143,10 @@ export function extractLiverpoolProduct(html: string, pageUrl: string): Liverpoo
     html.match(/<title>([^<]+)<\/title>/i)?.[1]?.trim() ||
     null;
 
+  const cleanTitle = typeof title === 'string' ? title.replace(/\s*\|\s*Liverpool\s*$/i, '').trim() : '';
+
   return {
-    title: typeof title === 'string' && title.trim() ? title.trim() : null,
+    title: cleanTitle || null,
     image: selected[0] ?? null,
     images: selected,
     store: 'Liverpool',

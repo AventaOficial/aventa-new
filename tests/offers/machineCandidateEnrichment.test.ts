@@ -9,6 +9,7 @@ import type { OfferExtractionOutcome } from '@/lib/offers/offerExtraction/extrac
 const SORIANA = 'https://www.soriana.com/cereal-kelloggs-zucaritas-600-g/11669769.html';
 const COSTCO = 'https://www.costco.com.mx/Mascotas/Alimentos-y-Premios/Canine-Club-Alimento-para-Perro-227-kg/p/20691';
 const CHEDRAUI = 'https://www.chedraui.com.mx/leche/p';
+const LIVERPOOL = 'https://www.liverpool.com.mx/tienda/pdp/tenis-superstar-para-hombre/1166231231';
 const AMAZON = 'https://www.amazon.com.mx/dp/B0TESTASI1';
 const ML = 'https://articulo.mercadolibre.com.mx/MLM-1234567890-audifonos';
 
@@ -61,6 +62,16 @@ describe('tipo de URL de retailer', () => {
     expect(classifyOfferPageKind(COSTCO)).toBe('PRODUCT');
     expect(classifyOfferPageKind('https://www.costco.com.mx/')).toBe('HOME');
     expect(classifyOfferPageKind('https://www.costco.com.mx/Mascotas/Alimentos-y-Premios')).toBe('CATEGORY');
+
+    expect(classifyOfferPageKind(LIVERPOOL)).toBe('PRODUCT');
+    expect(
+      classifyOfferPageKind('https://www.liverpool.com.mx/tienda/pdp/c%c3%a1mara-sin-espejo-ilce-7m4m-con-lente-28-a-70-mm-f-3-5/1193261082'),
+    ).toBe('PRODUCT');
+    expect(classifyOfferPageKind('https://www.liverpool.com.mx/')).toBe('HOME');
+    expect(classifyOfferPageKind('https://www.liverpool.com.mx/tienda/home')).toBe('CATEGORY');
+    expect(classifyOfferPageKind('https://www.liverpool.com.mx/tienda/pdp/tenis-superstar-para-hombre')).toBe('CATEGORY');
+    expect(classifyOfferPageKind('https://www.liverpool.com.mx/tienda?s=tenis')).toBe('CATEGORY');
+    expect(classifyOfferPageKind('https://liverpool.com.mx.evil.example/tienda/pdp/x/1166231231')).not.toBe('PRODUCT');
 
     expect(classifyOfferPageKind(AMAZON)).toBe('PRODUCT');
     expect(classifyOfferPageKind('https://www.amazon.com.mx/s')).toBe('SEARCH');

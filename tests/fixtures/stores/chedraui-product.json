@@ -1,0 +1,26 @@
+[
+  {
+    "productId": "3377849",
+    "productName": "Shampoo Savilé Biotina 700ml",
+    "brand": "Savilé",
+    "linkText": "shampoo-savile-biotina-700ml-3377849",
+    "link": "https://www.chedraui.com.mx/shampoo-savile-biotina-700ml-3377849/p",
+    "items": [
+      {
+        "itemId": "3377849",
+        "name": "Shampoo Savilé Biotina 700ml",
+        "images": [
+          { "imageUrl": "https://chedrauimx.vteximg.com.br/arquivos/ids/78310966/7506306249226_00.jpg?v=639264789597330000" },
+          { "imageUrl": "https://chedrauimx.vteximg.com.br/arquivos/ids/78310967/7506306249226_06.jpg?v=639264789598430000" }
+        ],
+        "sellers": [
+          {
+            "sellerId": "1",
+            "sellerDefault": true,
+            "commertialOffer": { "Price": 40.0, "ListPrice": 60.0, "PriceWithoutDiscount": 40.0, "IsAvailable": true }
+          }
+        ]
+      }
+    ]
+  }
+]

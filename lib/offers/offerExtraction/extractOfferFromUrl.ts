@@ -36,6 +36,8 @@ import { extractWalmartProduct } from '@/lib/offers/productExtraction/walmartExt
 import { extractLiverpoolProduct } from '@/lib/offers/productExtraction/liverpoolExtract';
 import { extractCoppelProduct } from '@/lib/offers/productExtraction/coppelExtract';
 import { extractElektraProduct } from '@/lib/offers/productExtraction/elektraExtract';
+import { costcoProductApiUrl, extractCostcoProductFromApi } from '@/lib/offers/productExtraction/costcoExtract';
+import { chedrauiProductApiUrl, extractChedrauiProductFromApi } from '@/lib/offers/productExtraction/chedrauiExtract';
 import {
   EMPTY_COMMERCIAL_FACTS,
   verifiedCommercialFactsFromHtml,
@@ -43,6 +45,7 @@ import {
 import {
   classifyHttpStatus,
   readHtmlCapped,
+  readJsonCapped,
   type PageFetchFailure,
 } from '@/lib/offers/offerExtraction/pageFetchFailure';
 import {
@@ -151,9 +154,9 @@ export type RetailerAdapterResult = {
   productFingerprint: string | null;
   /** Por qué la galería quedó vacía o corta (operador). */
   imageNote: string | null;
-  /** De dónde salieron los precios. */
-  priceSource: 'ml_api' | 'ml_html' | 'amazon_html' | 'retail_html' | 'none';
-  originalPriceSource: 'ml_api' | 'ml_html' | 'amazon_html' | 'retail_html' | 'none';
+  /** De dónde salieron los precios. `retail_api`: endpoint JSON público que usa la web de la tienda. */
+  priceSource: 'ml_api' | 'ml_html' | 'amazon_html' | 'retail_html' | 'retail_api' | 'none';
+  originalPriceSource: 'ml_api' | 'ml_html' | 'amazon_html' | 'retail_html' | 'retail_api' | 'none';
   blockedByHostPolicy: boolean;
 };
 
@@ -447,6 +450,55 @@ async function fetchHtml(
   }
 }
 
+const MAX_STORE_API_BYTES = 2 * 1024 * 1024;
+
+/** Null ante cualquier fallo: la extracción sigue con el HTML de la página. */
+async function fetchStoreApiJson(target: string): Promise<unknown> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  try {
+    const result = await fetchFollowingRedirectsSafely(target, {
+      timeoutMs: FETCH_TIMEOUT_MS,
+      requireHttps: true,
+      requireAllowlist: true,
+      signal: controller.signal,
+      headers: {
+        'User-Agent': USER_AGENT,
+        Accept: 'application/json',
+        'Accept-Language': 'es-MX,es;q=0.9,en;q=0.8',
+      },
+    });
+    if (!result.ok) return null;
+    if (classifyHttpStatus(result.response.status)) {
+      await result.response.body?.cancel().catch(() => undefined);
+      return null;
+    }
+    return await readJsonCapped(result.response, MAX_STORE_API_BYTES);
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+type StoreApiProduct = {
+  title: string | null;
+  image: string | null;
+  images: string[];
+  store: string;
+  suggestedDiscount: number | null;
+  suggestedOriginal: number | null;
+};
+
+/** Tiendas cuya PDP no trae el producto en el HTML y lo sirven en un endpoint JSON público. */
+async function fetchStoreApiProduct(pageHref: string): Promise<StoreApiProduct | null> {
+  const costcoApi = costcoProductApiUrl(pageHref);
+  if (costcoApi) return extractCostcoProductFromApi(await fetchStoreApiJson(costcoApi), pageHref);
+  const chedrauiApi = chedrauiProductApiUrl(pageHref);
+  if (chedrauiApi) return extractChedrauiProductFromApi(await fetchStoreApiJson(chedrauiApi), pageHref);
+  return null;
+}
+
 function imageNoteFor(params: {
   isMercadoLibre: boolean;
   mlApiHit: boolean;
@@ -605,7 +657,9 @@ export async function extractOfferFromUrl(input: string): Promise<OfferExtractio
         ? fetchMercadoLibrePublicOffer(workingHref).catch(() => null)
         : Promise.resolve(null);
 
-    const [htmlResult, mlFirst] = await Promise.all([htmlPromise, mlPromise]);
+    const storeApiPromise = fetchStoreApiProduct(workingHref).catch(() => null);
+
+    const [htmlResult, mlFirst, storeApiProduct] = await Promise.all([htmlPromise, mlPromise, storeApiPromise]);
 
     let html = htmlResult.ok ? htmlResult.html : '';
     let pageUrl = htmlResult.ok ? htmlResult.pageUrl : workingUrl;
@@ -775,6 +829,16 @@ export async function extractOfferFromUrl(input: string): Promise<OfferExtractio
         if (suggestedDiscount != null) priceSource = 'retail_html';
         if (suggestedOriginal != null) originalPriceSource = 'retail_html';
       }
+    }
+
+    if (storeApiProduct) {
+      data = { title: storeApiProduct.title, image: storeApiProduct.image, store: storeApiProduct.store };
+      candidates = collectCandidates(storeApiProduct.image, storeApiProduct.images);
+      suggestedDiscount = storeApiProduct.suggestedDiscount;
+      suggestedOriginal = storeApiProduct.suggestedOriginal;
+      priceSource = suggestedDiscount != null ? 'retail_api' : 'none';
+      originalPriceSource = suggestedOriginal != null ? 'retail_api' : 'none';
+      retailExtractHandled = true;
     }
 
     if (!retailExtractHandled) {

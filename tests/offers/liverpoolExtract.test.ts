@@ -53,7 +53,21 @@ describe('extractLiverpoolProduct', () => {
     );
     expect(r.suggestedDiscount).toBe(2969.1);
     expect(r.suggestedOriginal).toBe(3299);
-    expect(r.title).toMatch(/780NC/i);
+    expect(r.title).toBe('Audífonos Over-Ear Jbl LIVE 780NC inalámbricos');
+  });
+
+  it('og:title e imagen del CDN sp*.liverpool sin JSON-LD', () => {
+    const html = `
+      <meta property="og:title" content="Tenis Superstar para hombre | Liverpool"/>
+      <meta property="og:image" content="https://sp237.liverpool.com.mx/i/1166231295.jpg"/>
+      <span data-testid="discounted"><span>$<!-- -->1,586</span></span>
+      <span data-testid="original"><span class="line-through">$<!-- -->2,299</span></span>
+    `;
+    const r = extractLiverpoolProduct(html, 'https://www.liverpool.com.mx/tienda/pdp/tenis-superstar-para-hombre/1166231231');
+    expect(r.title).toBe('Tenis Superstar para hombre');
+    expect(r.image).toBe('https://sp237.liverpool.com.mx/i/1166231295.jpg');
+    expect(r.suggestedDiscount).toBe(1586);
+    expect(r.suggestedOriginal).toBe(2299);
   });
 
   it('CDN sscdn embebido aporta fotos', () => {
