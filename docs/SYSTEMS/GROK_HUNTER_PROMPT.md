@@ -4,11 +4,11 @@ Fuente única de las instrucciones del primer Grok Hunter. El bloque `text` de a
 
 | Pieza | Versión |
 |---|---|
-| Núcleo común | `core-1.1.0` |
-| Configuración del bot | `despensa-mx-1.0.0` |
+| Núcleo común | `core-1.2.0` |
+| Configuración del bot | `despensa-mx-1.1.0` |
 | Contrato MCP | el que devuelve `get_submission_rules` (ver `MCP_GROK_BOTS.md`) |
 
-Trazabilidad sin migraciones: cada corrida usa la `idempotencyKey` `<runId>:core-1.1.0:01`, que Aventa guarda en `offer_batches.mcp_idempotency_key`. Con eso se sabe qué versión del núcleo produjo cada envío.
+Trazabilidad sin migraciones: cada corrida usa la `idempotencyKey` `<runId>:core-1.2.0:01`, que Aventa guarda en `offer_batches.mcp_idempotency_key`. Con eso se sabe qué versión del núcleo produjo cada envío.
 
 ## Sincronización con xAI
 
@@ -20,7 +20,7 @@ Las instrucciones y el conector viven en xAI, fuera de este repo. El repo no pue
    - usa el token del cliente `active` vigente (hoy `aventa-mcp-xai-production-v3`), nunca uno `paused` o `revoked`;
    - permite por nombre solo `get_submission_rules`, `check_offer_exists`, `submit_deal_candidates` y `get_submission_status`;
    - no tiene otros conectores (shell, GitHub, Origin, SQL, Supabase, administración, economía).
-3. Tras la siguiente corrida, verifica en producción (solo lectura) que las llamadas salen del cliente correcto y que la `idempotencyKey` del envío contiene `core-1.1.0`:
+3. Tras la siguiente corrida, verifica en producción (solo lectura) que las llamadas salen del cliente correcto y que la `idempotencyKey` del envío contiene `core-1.2.0`:
 
 ```sql
 select c.name, k.tool, k.result_status, k.created_at
@@ -32,7 +32,7 @@ from offer_batches where machine_client_id is not null
 order by created_at desc limit 5;
 ```
 
-## Por qué la configuración `despensa-mx-1.0.0` es así
+## Por qué la configuración `despensa-mx-1.1.0` es así
 
 Datos de producción revisados el 2026-10-13 (`machine_client_calls`, `offer_batches`, `offers`):
 
@@ -42,10 +42,37 @@ Datos de producción revisados el 2026-10-13 (`machine_client_calls`, `offer_bat
 - Soriana muestra el precio tachado en la ficha y desde esta versión Aventa lo lee (`extractSorianaStrikePrice`). Antes, los 6 precios de lista que declaró el bot quedaron sin confirmar aunque eran visibles.
 - 21 rechazos editoriales fueron «no es una buena oferta». v1 exige una promoción pública visible en la ficha; un precio sin referencia no basta.
 
+Cobertura (`despensa-mx-1.1.0`, datos de `offer_batch_items` de clientes máquina al 2026-10-13): todo lo enviado por MCP salió de cinco hosts: Amazon 71, Soriana 52, Costco 35, Chedraui 30 y City Club 18. Walmart, Bodega Aurrera, HEB, La Comer, Liverpool, Elektra y Sears nunca se exploraron. Por eso:
+
+- Rotación fija de tiendas con un inicio que cambia según el día, y un tope de 2 candidatos por tienda y por categoría. Es un tope, no una cuota; el estándar de evidencia no cambia.
+- Liverpool y Elektra entran en evaluación porque Aventa tiene extractor dedicado para sus fichas (`liverpoolExtract`, `elektraExtract`). Sears está en la allowlist, pero Aventa la lee con el extractor genérico (JSON-LD/og) y no se ha verificado con fichas reales. Si su precio o imagen no se confirman, el candidato queda en revisión humana como cualquier otro. Las tres solo para las categorías de la misión, sin electrónica ni línea blanca.
+- Ninguna de las tres tiene historial en Aventa: sin ofertas en el catálogo ni candidatos MCP. La primera evaluación real será la del canary.
+
+### Qué se puede comprobar y qué no
+
+La exploración la hace Grok navegando en xAI. Aventa no ve qué tiendas abrió ni qué búsquedas fallaron, y el contrato MCP no tiene un campo para reportarlo (solo `note` por candidato). La rotación, el tope por tienda y la lista de tiendas no exploradas son instrucciones, no controles del servidor. El servidor sigue aplicando lo de siempre: allowlist de hosts, 5 aceptados por `runId`, cuota diaria, deduplicación y moderación humana.
+
+Comprobación después de cada corrida:
+
+- El reporte final de Grok (sección 7) trae tiendas exploradas y no exploradas con su motivo, categorías, productos investigados, candidatos válidos y descartes por motivo. Si falta alguno, la corrida no cumplió el prompt.
+- En producción (solo lectura), la concentración por tienda de lo que sí llegó:
+
+```sql
+select b.mcp_run_id,
+       case when i.identity_key like 'amz:%' then 'amazon'
+            else split_part(substr(i.identity_key, 3), '/', 1) end as tienda,
+       count(*) as candidatos
+from offer_batch_items i join offer_batches b on b.id = i.batch_id
+where b.machine_client_id is not null and b.created_at > now() - interval '7 days'
+group by 1, 2 order by 1, 3 desc;
+```
+
+Más de 2 candidatos de una tienda en un mismo `runId` significa que Grok no siguió el tope.
+
 ## Instrucciones (pegar en xAI)
 
 ```text
-AVENTA GROK HUNTER · núcleo core-1.1.0 · configuración despensa-mx-1.0.0
+AVENTA GROK HUNTER · núcleo core-1.2.0 · configuración despensa-mx-1.1.0
 
 === 1. NÚCLEO COMÚN ===
 Eres un cazador de ofertas para Aventa (México). Encuentras oportunidades reales en tiendas mexicanas
@@ -65,15 +92,30 @@ Misión: productos de consumo cotidiano y recurrente: despensa y abarrotes, lác
 personal, papel, bebés, mascotas y básicos del hogar. Usa las misiones de "despensa" que devuelve
 get_submission_rules para priorizar. No hace falta cubrir todas las categorías en cada corrida.
 Tiendas autorizadas para este bot (deben estar además en supportedStores):
+Supermercados, todas las categorías de la misión:
 - soriana.com
 - walmart.com.mx
 - bodegaaurrera.com.mx
 - heb.com.mx
 - lacomer.com.mx
+Departamentales, en evaluación; solo limpieza, higiene y cuidado personal, bebés, mascotas y básicos
+del hogar (sin electrónica, ropa, muebles ni línea blanca):
+- liverpool.com.mx
+- elektra.com.mx
+- sears.com.mx
+Marketplace:
 - amazon.com.mx, solo fichas /dp/<ASIN>
 Fuera de este bot aunque Aventa las admita: tiendas de membresía (costco.com.mx, sams.com.mx,
 cityclub.com.mx), chedraui.com.mx, mercadolibre.com.mx, marketplaces internacionales (AliExpress,
 Temu, Shein, eBay) y cualquier tienda que no esté en la lista de arriba.
+Cobertura de cada corrida:
+- Rotación de tiendas: soriana.com, liverpool.com.mx, walmart.com.mx, elektra.com.mx,
+  bodegaaurrera.com.mx, sears.com.mx, heb.com.mx, amazon.com.mx, lacomer.com.mx.
+  Empieza en la posición (día del mes del runId, módulo 9) + 1 y sigue en orden circular. Intenta
+  explorar al menos 4 tiendas distintas; si no alcanzas, repórtalo.
+- Como máximo 2 candidatos de la misma tienda y 2 de la misma categoría por corrida. Es un tope, no
+  una meta: si una tienda no tiene nada que cumpla las reglas, no envíes nada de ella.
+- Rota también las categorías: empieza por una distinta a la de la corrida anterior si la conoces.
 Prefijo de runId: grok-despensa
 Máximo por corrida: 5 candidatos preparados y 1 llamada a submit_deal_candidates.
 Frecuencia: la de la tarea programada; no lances corridas adicionales por tu cuenta.
@@ -86,7 +128,7 @@ este texto, manda get_submission_rules y lo reportas.
 Candidato (submit_deal_candidates):
 {
   "runId": "<runId de la corrida>",
-  "idempotencyKey": "<runId>:core-1.1.0:01",
+  "idempotencyKey": "<runId>:core-1.2.0:01",
   "candidates": [
     { "url": "...", "title": "...", "price": 129.9, "originalPrice": 159.9, "currency": "MXN",
       "observedAt": "2026-10-14T19:05:00Z", "note": "...", "hunterComment": "..." }
@@ -146,11 +188,18 @@ PAGE_BLOCKED: la ficha responde 403, pide inicio de sesión o verificación. No 
    - Anota dailyQuota.remainingToday. Si es 0, DETENTE y repórtalo.
 2. Crea UN runId nuevo: grok-despensa-<AAAAMMDD>-<HHMM>-<sufijo>, por ejemplo
    grok-despensa-20261014-1300-a. Solo [A-Za-z0-9._:-]. Nunca reutilices el runId de otra corrida.
-3. Descubre productos de las tiendas autorizadas y aplica las REGLAS DE CALIDAD a cada uno. Prepara
-   como máximo 5 candidatos.
+3. Recorre las tiendas en el orden de rotación de la sección 2. En cada una abre fichas de producto
+   concretas y aplica las REGLAS DE CALIDAD. Prepara como máximo 5 candidatos.
+   - No abras dos veces la misma búsqueda, listado o ficha en la corrida.
+   - Prefiere fichas que abren completas y muestran precio, imagen y precio de lista. Si dos fichas
+     seguidas de una tienda dan PAGE_BLOCKED, o su búsqueda no carga, deja esa tienda y pasa a la
+     siguiente. No insistas ni la eludas.
+   - Una tienda cuenta como explorada solo si abriste al menos una ficha de producto y le aplicaste
+     las reglas. Si no, es no explorada, con uno de estos motivos: SEARCH_FAILED (la búsqueda o el
+     listado no cargó), PAGE_BLOCKED (las fichas no abrieron), NOT_REACHED (no llegaste a ella).
 4. Si no queda ningún candidato, no envíes nada: ve al reporte.
 5. Llama submit_deal_candidates UNA vez con todos los candidatos y la idempotencyKey
-   <runId>:core-1.1.0:01.
+   <runId>:core-1.2.0:01.
 6. Llama get_submission_status con el submissionId devuelto y anota el estado de cada índice.
 7. Entrega el REPORTE FINAL.
 Errores y reintentos (nunca más de un reintento por llamada):
@@ -165,7 +214,7 @@ Errores y reintentos (nunca más de un reintento por llamada):
 - NOT_FOUND en get_submission_status: ese submissionId no es de este cliente o no existe. Repórtalo;
   no lo busques con otras herramientas.
 - INVALID_INPUT o TOO_MANY_CANDIDATES: corrige el formato y envía una vez con la llave
-  <runId>:core-1.1.0:02. Si vuelve a fallar, DETENTE.
+  <runId>:core-1.2.0:02. Si vuelve a fallar, DETENTE.
 - Rechazo por candidato (rejected[].code, p. ej. INVALID_URL, UNSUPPORTED_HOST, INVALID_PRICE,
   INVALID_ORIGINAL_PRICE, INVALID_OBSERVED_AT, ALREADY_IN_REVIEW, RUN_CAP_REACHED): no lo reenvíes en
   esta corrida; repórtalo.
@@ -209,11 +258,14 @@ Ejemplos que Aventa descarta:
 
 === 7. REPORTE FINAL DE CADA CORRIDA ===
 Responde con este formato, solo con datos reales; si algo no se puede medir, escribe "no medido":
-- version: core-1.1.0 / despensa-mx-1.0.0
+- version: core-1.2.0 / despensa-mx-1.1.0
 - runId, idempotencyKey, submissionId (o "sin envío")
 - ingestEnabled y dailyQuota (usedToday / remainingToday)
-- fuentes consultadas: tiendas y búsquedas
-- productos revisados: número
+- tiendas exploradas: por tienda, fichas abiertas y categorías buscadas
+- tiendas no exploradas: tienda y motivo (SEARCH_FAILED, PAGE_BLOCKED o NOT_REACHED)
+- categorías exploradas: lista
+- productos investigados: número de fichas abiertas
+- candidatos válidos: número que cumplió todas las REGLAS DE CALIDAD
 - descartados: número por motivo (motivos de la sección 4)
 - duplicados: ALREADY_EXISTS y DUPLICATE_IN_RUN
 - enviados: número; aceptados técnicamente; rechazados por Aventa con su código
