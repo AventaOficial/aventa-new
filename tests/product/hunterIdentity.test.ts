@@ -51,6 +51,18 @@ describe('identidad pública de Hunters', () => {
     expect(label).not.toMatch(/Supply|aventa-mcp|mc-1/);
   });
 
+  it('lote MCP: el hunter_code del cliente decide el nombre aunque todos compartan autor', () => {
+    const shared = { createdBy: 'bot', authorName: 'Aventa MCP Supply', machineClientId: 'mc-kai' };
+    expect(batchAuthorLabel({ ...shared, hunterCode: 'kai' })).toBe(`${hunterByCode('kai')?.displayName} · vía MCP`);
+    expect(batchAuthorLabel({ ...shared, hunterCode: 'eleonore' })).toBe('Éléonore "Noir" · vía MCP');
+    expect(batchAuthorLabel({ ...shared, hunterCode: null })).toBe('Ximena "Fuego" · vía MCP');
+    expect(batchAuthorLabel({ ...shared, hunterCode: 'desconocido' })).toBe('Ximena "Fuego" · vía MCP');
+  });
+
+  it('lote humano: un hunter_code suelto no lo convierte en hunter', () => {
+    expect(batchAuthorLabel({ createdBy: 'u1', authorName: 'Ana López', hunterCode: 'kai' })).toBe('Ana López');
+  });
+
   it('lote humano: conserva su autor y no se marca como MCP', () => {
     expect(batchAuthorLabel({ createdBy: 'u1', authorName: 'Ana López' })).toBe('Ana López');
     expect(batchAuthorLabel({ createdBy: 'u1', authorName: null })).toBe('Usuario');

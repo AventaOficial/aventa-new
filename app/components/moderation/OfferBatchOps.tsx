@@ -32,7 +32,7 @@ import {
 import type { OfferBatchEventRow, OfferBatchItemRow, OfferBatchRow } from '@/lib/offers/batch/service';
 import { batchAuthorLabel } from '@/lib/product/hunters/identity';
 
-type BatchListRow = OfferBatchRow & { author_name?: string | null; kinds?: string[] };
+type BatchListRow = OfferBatchRow & { author_name?: string | null; hunter_code?: string | null; kinds?: string[] };
 
 type ItemFilter = 'all' | 'ready' | 'review' | 'errors' | 'duplicates' | 'moderation' | 'published';
 
@@ -335,6 +335,7 @@ export default function OfferBatchOps({
                         createdBy: row.created_by,
                         authorName: row.author_name,
                         machineClientId: row.machine_client_id,
+                        hunterCode: row.hunter_code,
                       })}
                     </p>
                     <p className={cn('mt-0.5 text-xs', ui.muted)}>

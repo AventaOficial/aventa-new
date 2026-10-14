@@ -10,8 +10,20 @@ export async function GET(request: Request) {
   const batches = await listOfferBatches(auth.supabase, 40);
   const ids = batches.map((row) => row.id);
   const authorIds = [...new Set(batches.map((row) => row.created_by).filter(Boolean))];
+  const clientIds = [...new Set(batches.map((row) => row.machine_client_id).filter(Boolean))] as string[];
   const names = new Map<string, string>();
+  const hunterByClient = new Map<string, string>();
   const kindsByBatch = new Map<string, string[]>();
+
+  if (clientIds.length > 0) {
+    const { data: clients } = await auth.supabase
+      .from('machine_clients')
+      .select('id, hunter_code')
+      .in('id', clientIds);
+    for (const row of (clients ?? []) as { id: string; hunter_code: string | null }[]) {
+      if (row.hunter_code?.trim()) hunterByClient.set(row.id, row.hunter_code.trim());
+    }
+  }
 
   if (authorIds.length > 0) {
     const { data: profiles } = await auth.supabase
@@ -50,6 +62,7 @@ export async function GET(request: Request) {
     batches: batches.map((row) => ({
       ...row,
       author_name: names.get(row.created_by) ?? null,
+      hunter_code: row.machine_client_id ? (hunterByClient.get(row.machine_client_id) ?? null) : null,
       kinds: kindsByBatch.get(row.id) ?? [],
     })),
   });
