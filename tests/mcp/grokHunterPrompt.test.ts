@@ -23,7 +23,7 @@ const PROMPT = (() => {
   const section = DOC.split('## Instrucciones (pegar en xAI)')[1] ?? '';
   return section.split('```text')[1]?.split('```')[0] ?? '';
 })();
-const CORE = 'core-1.0.0';
+const CORE = 'core-1.1.0';
 const CONFIG = 'despensa-mx-1.0.0';
 
 function sectionOf(title: string): string {
@@ -109,6 +109,12 @@ describe('prompt maestro del Grok Hunter', () => {
     expect(quality).toContain('(NOT_AN_OPPORTUNITY)');
     expect(quality).toContain('(CONDITIONAL_PRICE)');
     expect(quality).toMatch(/membresía, cupón, tarjeta/);
+  });
+
+  it('decide con canSubmit de check_offer_exists, no sólo con exists', () => {
+    const quality = sectionOf('4. REGLAS DE CALIDAD');
+    expect(quality).toContain('Si canSubmit=false, descarta (ALREADY_EXISTS)');
+    expect(quality).toMatch(/previouslyRejected=true[\s\S]*promoción nueva/);
   });
 
   it('ante un timeout repite la misma llave y el mismo payload, una sola vez', () => {

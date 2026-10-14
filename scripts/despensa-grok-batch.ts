@@ -129,8 +129,8 @@ async function main() {
   const candidates = [];
   for (const c of report.submissions.flatMap((s) => s.candidates)) {
     if (candidates.length >= max) break;
-    const exists = await callTool('check_offer_exists', { url: c.url });
-    if (exists.exists === true) continue;
+    const check = await callTool('check_offer_exists', { url: c.url });
+    if (check.exists === true || check.canSubmit === false) continue;
     candidates.push(c);
   }
   if (candidates.length === 0) fail('No quedan candidatos nuevos para enviar.', 0);

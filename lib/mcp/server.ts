@@ -170,8 +170,12 @@ export function buildMcpServer(ctx: McpRequestContext): McpServer {
   server.registerTool(
     'check_offer_exists',
     {
-      title: 'Verificar si una oferta ya está publicada',
-      description: 'Indica si el producto ya existe en el catálogo público de Aventa. Úsalo antes de enviar para no duplicar.',
+      title: 'Verificar si una oferta ya existe',
+      description:
+        'Usa la misma identidad de producto que submit_deal_candidates. exists: visible en el catálogo público. ' +
+        'status: published, in_review (pendiente o candidato en proceso), not_visible (activa pero oculta) o none. ' +
+        'canSubmit=false significa que el envío se rechazaría como duplicado o en revisión: no lo envíes. ' +
+        'previouslyRejected=true significa que una propuesta anterior del mismo producto fue rechazada: envíalo solo si es una promoción nueva con precio verificado.',
       inputSchema: { url: z.string().describe('URL https del producto.') },
       annotations: { readOnlyHint: true, openWorldHint: false },
     },

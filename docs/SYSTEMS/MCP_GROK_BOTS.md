@@ -107,7 +107,7 @@ Exactamente 4 herramientas. No hay resources, prompts ni otras herramientas.
 |---|---|---|
 | `submit_deal_candidates` | `candidates:submit` | Crea un lote MCP. Nunca escribe `offers`. |
 | `get_submission_status` | `candidates:read` | Estado de un envío propio. |
-| `check_offer_exists` | `catalog:read` | Sólo `{ exists }` sobre el catálogo público. |
+| `check_offer_exists` | `catalog:read` | `{ exists, status, matchedBy, canSubmit, previouslyRejected }` con la misma identidad que el envío (§8). |
 | `get_submission_rules` | `candidates:read` | Contrato público. |
 
 Scope faltante: error de herramienta `FORBIDDEN_SCOPE` (auditado). Herramienta inexistente: error del SDK, sin efectos.
@@ -228,7 +228,26 @@ Un ítem `APPROVED` con oferta vinculada se reporta según `offers`, la fuente d
 
 ## 8. Catálogo público
 
-`check_offer_exists` normaliza la URL igual que el envío y busca por identidad de ingesta, huella de producto y URL exacta. Sólo cuenta `approved`/`published`, no borrada, no vencida y que pase `isPublicCatalogOffer`. Devuelve únicamente `{ "exists": boolean }`. Una tienda no soportada responde `false`.
+`check_offer_exists` normaliza la URL igual que el envío (`normalizeCandidateUrl`: sin query ni fragmento, así que el rastreo no cambia la identidad) y consulta las mismas dos identidades que deciden el envío:
+
+1. Ofertas activas (`pending`/`approved`/`published`, no borradas) por identidad de ingesta (ASIN, id de Mercado Libre, SKU o host+ruta canónicos), huella de producto y URL exacta. Es la regla del índice `idx_offers_active_ingestion_identity`.
+2. Quién retiene la identidad del lote (`offer_batch_items_open_identity_uidx`), clasificado por `lib/offers/batch/identityHolder.ts`, el mismo módulo que usa `createOfferBatch`.
+
+Respuesta (sin ids ni datos internos):
+
+| Campo | Significado |
+|---|---|
+| `exists` | Visible en el catálogo público: activa, no vencida y pasa `isPublicCatalogOffer`. |
+| `status` | `published`, `in_review` (oferta `pending` o candidato en proceso), `not_visible` (activa pero vencida u oculta) o `none`. |
+| `matchedBy` | `product_identity`, `url` o `null`. |
+| `canSubmit` | `false` si el envío se rechazaría como `ALREADY_IN_REVIEW` o terminaría como `DUPLICATE_OFFER`. |
+| `previouslyRejected` | Hubo una propuesta rechazada del mismo producto. Se puede enviar si es una promoción nueva. |
+
+Una tienda no soportada responde `status: none` y `canSubmit: false`. Se trata de una consulta previa: la autoridad sigue siendo el envío, con sus índices únicos e idempotencia.
+
+**Retenedores caducados.** `APPROVED` en `offer_batch_items` sólo significa «creó una oferta». Moderación cambia la oferta, no el ítem. Si la oferta del ítem ya no está activa (rechazada o borrada), el ítem deja de retener la identidad. `createOfferBatch`, ante la violación del índice único, marca esos ítems `REJECTED` (`rejection_reason = offer_no_longer_active`, con un update condicionado a `status = 'APPROVED'`) y reintenta el insert una sola vez. Si algún retenedor sigue vivo, o si la consulta o la liberación fallan, responde `ALREADY_IN_REVIEW` (falla cerrado). El índice único sigue eligiendo a un único ganador cuando hay envíos simultáneos. Así quedaron bloqueados por error Ariel, la mayonesa McCormick y las toallitas KleenBebé (piloto `grok-v3-pilot-20261013-1758`): retenedores `APPROVED` del 2026-10-06 con la oferta rechazada.
+
+Límite conocido: la clave del lote conserva `www.` y la del writer no. Dos URLs que sólo difieren en `www.` no chocan en el lote, pero el writer las marca `DUPLICATE_OFFER` y `check_offer_exists` las detecta por la identidad de ingesta.
 
 ## 9. Rate limit y cuota
 
@@ -671,7 +690,7 @@ Requiere: PR #100 fusionado, despliegue de producción `READY` con ese commit y 
 Ambas cosas viven fuera de este repo, en xAI (Grok):
 
 - **Conector MCP**: URL `https://aventaofertas.com/api/mcp`, con encabezado `Authorization: Bearer <token del cliente aventa-mcp-xai-production-v3>`. El token se toma del gestor de secretos y nunca se pega en tickets, chats ni en este repo. Cada tarea programada que use el conector debe apuntar a ese mismo conector. Un token de un cliente `paused` o `revoked` no envía nada.
-- **Instrucciones de la tarea programada**: el bloque `text` de `docs/SYSTEMS/GROK_HUNTER_PROMPT.md` (núcleo `core-1.0.0`, configuración `despensa-mx-1.0.0`), completo y sin cambios. Ese documento es la única fuente; sustituye a las instrucciones que antes vivían aquí y en §5. Allí está también la comprobación de sincronización con xAI.
+- **Instrucciones de la tarea programada**: el bloque `text` de `docs/SYSTEMS/GROK_HUNTER_PROMPT.md` (núcleo `core-1.1.0`, configuración `despensa-mx-1.0.0`), completo y sin cambios. Ese documento es la única fuente; sustituye a las instrucciones que antes vivían aquí y en §5. Allí está también la comprobación de sincronización con xAI.
 
 ### Estado verificado el 2026-10-13 (20:15 UTC, solo lectura)
 
@@ -729,18 +748,18 @@ Orden obligatorio. Cada paso necesita evidencia del anterior; si algo falla, se 
 
 Requisitos:
 - el conector de xAI con el token del cliente v3 y solo las 4 herramientas;
-- el prompt `core-1.0.0` / `despensa-mx-1.0.0` pegado en la tarea;
+- el prompt `core-1.1.0` / `despensa-mx-1.0.0` pegado en la tarea;
 - el código que lee el tachado de Soriana desplegado en producción, para que el precio de lista del candidato se pueda confirmar;
 - moderación disponible para revisar el candidato;
 - la autorización explícita del Owner.
 
 1. `get_submission_rules`: debe devolver `ingestEnabled: true`, y la fila nueva de `machine_client_calls` debe ser del cliente v3.
 2. Elegir 1 producto de despensa en `soriana.com` que cumpla las reglas de calidad del prompt: ficha limpia, comprable, con imagen, precio visible en MXN y precio tachado mayor, sin condiciones.
-3. `check_offer_exists(url)`: debe devolver `exists: false`. Si es `true`, elegir otro producto.
-4. `submit_deal_candidates` con `runId` `grok-despensa-canary-<AAAAMMDD>-01`, `idempotencyKey` `<runId>:core-1.0.0:01` y un solo candidato. Se espera `accepted: [{ index: 0 }]`.
+3. `check_offer_exists(url)`: debe devolver `canSubmit: true`. Si es `false`, elegir otro producto.
+4. `submit_deal_candidates` con `runId` `grok-despensa-canary-<AAAAMMDD>-01`, `idempotencyKey` `<runId>:core-1.1.0:01` y un solo candidato. Se espera `accepted: [{ index: 0 }]`.
 5. `get_submission_status(submissionId)`: se espera `accepted`, es decir, oferta `pending` y no publicada.
 6. Verificar en la base con las consultas de arriba:
-   - `offer_batches.mcp_run_id` coincide con el `runId` y `mcp_idempotency_key` contiene `core-1.0.0`;
+   - `offer_batches.mcp_run_id` coincide con el `runId` y `mcp_idempotency_key` contiene `core-1.1.0`;
    - el ítem está `APPROVED` con `offer_id`;
    - `offers.status = 'pending'` y `source_currency = 'MXN'`;
    - `bot_meta.price_policy.kind = 'list_price_comparison'` y `offers.original_price` igual al tachado de la ficha;

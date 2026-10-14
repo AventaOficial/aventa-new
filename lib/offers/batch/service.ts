@@ -6,6 +6,7 @@ import { findDuplicateOfferByUrl } from '@/lib/offers/findDuplicateOffer';
 import { createCommunityOfferPending } from '@/lib/offers/createCommunityOffer';
 import { OFFER_DESCRIPTION_MAX, OFFER_MAX_IMAGES } from '@/lib/contracts/offers';
 import { inferStoreFromHostname } from '@/lib/inferStoreFromHostname';
+import { findIdentityHolders, releaseStaleHolder } from '@/lib/offers/batch/identityHolder';
 import {
   batchAffiliatePlan,
   offerBatchIdentityKey,
@@ -300,6 +301,18 @@ function isUniqueViolation(error: { code?: string; message?: string } | null | u
   return /duplicate key value violates unique constraint/i.test(error.message ?? '');
 }
 
+/** true solo si había retenedores y todos tenían ya su oferta inactiva (y se liberaron). */
+async function releaseStaleIdentity(supabase: SupabaseClient, identityKey: string): Promise<boolean> {
+  const found = await findIdentityHolders(supabase, identityKey);
+  if (!found.ok) {
+    console.error('[offer-batch] identity holder lookup failed');
+    return false;
+  }
+  if (found.holders.length === 0 || found.holders.some((h) => h.state !== 'stale')) return false;
+  const released = await Promise.all(found.holders.map((h) => releaseStaleHolder(supabase, h.item.id)));
+  return released.every(Boolean);
+}
+
 /** Linaje de un candidato Hunter. No sustituye a `decision`. */
 export type OfferBatchItemLineage = {
   runId: string;
@@ -435,7 +448,10 @@ export async function createOfferBatch(params: {
   let inserted = 0;
   const conflictIdentityKeys: string[] = [];
   for (const row of rows) {
-    const { error: itemError } = await supabase.from('offer_batch_items').insert(row);
+    let { error: itemError } = await supabase.from('offer_batch_items').insert(row);
+    if (itemError && isUniqueViolation(itemError) && (await releaseStaleIdentity(supabase, row.identity_key))) {
+      ({ error: itemError } = await supabase.from('offer_batch_items').insert(row));
+    }
     if (!itemError) {
       inserted++;
       continue;

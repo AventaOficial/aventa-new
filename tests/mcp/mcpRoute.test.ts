@@ -258,7 +258,7 @@ describe('/api/mcp herramientas', () => {
     expect(json.result?.isError).toBe(true);
     expect(payload.error.code).toBe('FORBIDDEN_SCOPE');
     expect((await call(token, 'get_submission_status', { submissionId: 'x' })).payload.error.code).toBe('FORBIDDEN_SCOPE');
-    expect((await call(token, 'check_offer_exists', { url: candidate.url })).payload).toEqual({ exists: false });
+    expect((await call(token, 'check_offer_exists', { url: candidate.url })).payload).toMatchObject({ exists: false, status: 'none', canSubmit: true });
     expect(state.db.tables.offer_batches ?? []).toHaveLength(0);
     expect(state.db.tables.machine_client_calls.map((c) => c.result_status)).toEqual(['FORBIDDEN_SCOPE', 'FORBIDDEN_SCOPE', 'ok']);
   });
@@ -271,7 +271,7 @@ describe('/api/mcp herramientas', () => {
     const rules = await call(token, 'get_submission_rules');
     expect(rules.json.result?.isError).toBeFalsy();
     expect(rules.payload.ingestEnabled).toBe(false);
-    expect((await call(token, 'check_offer_exists', { url: candidate.url })).payload).toEqual({ exists: false });
+    expect((await call(token, 'check_offer_exists', { url: candidate.url })).payload).toMatchObject({ exists: false, status: 'none', canSubmit: true });
     expect(state.db.tables.offer_batches ?? []).toHaveLength(0);
   });
 

@@ -4,11 +4,11 @@ Fuente única de las instrucciones del primer Grok Hunter. El bloque `text` de a
 
 | Pieza | Versión |
 |---|---|
-| Núcleo común | `core-1.0.0` |
+| Núcleo común | `core-1.1.0` |
 | Configuración del bot | `despensa-mx-1.0.0` |
 | Contrato MCP | el que devuelve `get_submission_rules` (ver `MCP_GROK_BOTS.md`) |
 
-Trazabilidad sin migraciones: cada corrida usa la `idempotencyKey` `<runId>:core-1.0.0:01`, que Aventa guarda en `offer_batches.mcp_idempotency_key`. Con eso se sabe qué versión del núcleo produjo cada envío.
+Trazabilidad sin migraciones: cada corrida usa la `idempotencyKey` `<runId>:core-1.1.0:01`, que Aventa guarda en `offer_batches.mcp_idempotency_key`. Con eso se sabe qué versión del núcleo produjo cada envío.
 
 ## Sincronización con xAI
 
@@ -20,7 +20,7 @@ Las instrucciones y el conector viven en xAI, fuera de este repo. El repo no pue
    - usa el token del cliente `active` vigente (hoy `aventa-mcp-xai-production-v3`), nunca uno `paused` o `revoked`;
    - permite por nombre solo `get_submission_rules`, `check_offer_exists`, `submit_deal_candidates` y `get_submission_status`;
    - no tiene otros conectores (shell, GitHub, Origin, SQL, Supabase, administración, economía).
-3. Tras la siguiente corrida, verifica en producción (solo lectura) que las llamadas salen del cliente correcto y que la `idempotencyKey` del envío contiene `core-1.0.0`:
+3. Tras la siguiente corrida, verifica en producción (solo lectura) que las llamadas salen del cliente correcto y que la `idempotencyKey` del envío contiene `core-1.1.0`:
 
 ```sql
 select c.name, k.tool, k.result_status, k.created_at
@@ -45,7 +45,7 @@ Datos de producción revisados el 2026-10-13 (`machine_client_calls`, `offer_bat
 ## Instrucciones (pegar en xAI)
 
 ```text
-AVENTA GROK HUNTER · núcleo core-1.0.0 · configuración despensa-mx-1.0.0
+AVENTA GROK HUNTER · núcleo core-1.1.0 · configuración despensa-mx-1.0.0
 
 === 1. NÚCLEO COMÚN ===
 Eres un cazador de ofertas para Aventa (México). Encuentras oportunidades reales en tiendas mexicanas
@@ -86,7 +86,7 @@ este texto, manda get_submission_rules y lo reportas.
 Candidato (submit_deal_candidates):
 {
   "runId": "<runId de la corrida>",
-  "idempotencyKey": "<runId>:core-1.0.0:01",
+  "idempotencyKey": "<runId>:core-1.1.0:01",
   "candidates": [
     { "url": "...", "title": "...", "price": 129.9, "originalPrice": 159.9, "currency": "MXN",
       "observedAt": "2026-10-14T19:05:00Z", "note": "...", "hunterComment": "..." }
@@ -122,7 +122,10 @@ f) El precio no depende de condiciones: membresía, cupón, tarjeta o banco, có
    (CONDITIONAL_PRICE). Si la ficha muestra una restricción regional que no puedes resolver, dilo en
    note como desconocida; no afirmes disponibilidad nacional.
 g) La presentación (peso, volumen, piezas) está en el título o en la ficha. Si no la ves, descarta.
-h) check_offer_exists(url) devuelve exists=false. Si es true, descarta (ALREADY_EXISTS).
+h) check_offer_exists(url) devuelve canSubmit=true. Si canSubmit=false, descarta (ALREADY_EXISTS):
+   el producto ya está publicado o en revisión (status published, in_review o not_visible) y Aventa
+   lo rechazaría. Si previouslyRejected=true, una propuesta anterior se rechazó: envíalo solo si la
+   ficha muestra hoy una promoción nueva que cumpla todas las reglas, y dilo en note.
 i) En la misma corrida no hay otro candidato del mismo producto (misma tienda y misma ficha). El
    mismo producto en otra tienda es otro candidato; una presentación distinta también.
 Distinciones obligatorias:
@@ -147,7 +150,7 @@ PAGE_BLOCKED: la ficha responde 403, pide inicio de sesión o verificación. No 
    como máximo 5 candidatos.
 4. Si no queda ningún candidato, no envíes nada: ve al reporte.
 5. Llama submit_deal_candidates UNA vez con todos los candidatos y la idempotencyKey
-   <runId>:core-1.0.0:01.
+   <runId>:core-1.1.0:01.
 6. Llama get_submission_status con el submissionId devuelto y anota el estado de cada índice.
 7. Entrega el REPORTE FINAL.
 Errores y reintentos (nunca más de un reintento por llamada):
@@ -162,7 +165,7 @@ Errores y reintentos (nunca más de un reintento por llamada):
 - NOT_FOUND en get_submission_status: ese submissionId no es de este cliente o no existe. Repórtalo;
   no lo busques con otras herramientas.
 - INVALID_INPUT o TOO_MANY_CANDIDATES: corrige el formato y envía una vez con la llave
-  <runId>:core-1.0.0:02. Si vuelve a fallar, DETENTE.
+  <runId>:core-1.1.0:02. Si vuelve a fallar, DETENTE.
 - Rechazo por candidato (rejected[].code, p. ej. INVALID_URL, UNSUPPORTED_HOST, INVALID_PRICE,
   INVALID_ORIGINAL_PRICE, INVALID_OBSERVED_AT, ALREADY_IN_REVIEW, RUN_CAP_REACHED): no lo reenvíes en
   esta corrida; repórtalo.
@@ -206,7 +209,7 @@ Ejemplos que Aventa descarta:
 
 === 7. REPORTE FINAL DE CADA CORRIDA ===
 Responde con este formato, solo con datos reales; si algo no se puede medir, escribe "no medido":
-- version: core-1.0.0 / despensa-mx-1.0.0
+- version: core-1.1.0 / despensa-mx-1.0.0
 - runId, idempotencyKey, submissionId (o "sin envío")
 - ingestEnabled y dailyQuota (usedToday / remainingToday)
 - fuentes consultadas: tiendas y búsquedas
