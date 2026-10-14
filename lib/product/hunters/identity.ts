@@ -70,6 +70,14 @@ export const HUNTER_PUBLIC_FILES: Record<string, HunterAssetSet> = {
     fullBodyUrl: null,
     expressions: {},
   },
+  kai: {
+    avatarUrl: '/hunters/kai/avatar.jpg',
+    portraitUrl: null,
+    coverUrl: '/hunters/kai/cover.jpg',
+    icon: null,
+    fullBodyUrl: null,
+    expressions: {},
+  },
   eleonore: {
     avatarUrl: '/hunters/eleonore/avatar.jpg',
     portraitUrl: null,
@@ -93,7 +101,7 @@ const PRODUCT_VOICE: Record<string, Pick<HunterPublicIdentity, 'role' | 'special
     accent: '#f97316',
   },
   kai: {
-    role: 'Cazador Estratégico',
+    role: 'Explorador urbano',
     specialty: 'Tecnología: laptops, celulares, audio, gaming y gadgets con descuentos de verdad.',
     voice: 'Reviso precios de tecnología todos los días y solo comparto los descuentos que valen la pena.',
     accent: '#0ea5e9',

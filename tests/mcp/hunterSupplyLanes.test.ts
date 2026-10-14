@@ -64,21 +64,30 @@ describe('hunters de suministro', () => {
     expect(toSupplyHunterCode(42)).toBeNull();
   });
 
-  it('Éléonore usa sus imágenes y Kai no tiene arte inventado', () => {
+  it('Éléonore y Kai usan sus imágenes, sin ícono inventado', () => {
     const eleonore = hunterByCode('eleonore')!;
     expect(eleonore.avatarUrl).toBe('/hunters/eleonore/avatar.jpg');
     expect(eleonore.coverUrl).toBe('/hunters/eleonore/cover.jpg');
-    for (const file of ['avatar.jpg', 'cover.jpg']) {
-      expect(existsSync(join(process.cwd(), 'public/hunters/eleonore', file))).toBe(true);
-    }
     expect(eleonore.specialty).toMatch(/moda/i);
     const kai = hunterByCode('kai')!;
-    expect(kai.avatarUrl).toBeNull();
+    expect(kai.avatarUrl).toBe('/hunters/kai/avatar.jpg');
+    expect(kai.coverUrl).toBe('/hunters/kai/cover.jpg');
+    expect(kai.icon).toBeNull();
     expect(kai.specialty).toMatch(/tecnolog/i);
+    for (const code of ['eleonore', 'kai']) {
+      for (const file of ['avatar.jpg', 'cover.jpg']) {
+        expect(existsSync(join(process.cwd(), 'public/hunters', code, file))).toBe(true);
+      }
+    }
   });
 
   it('perfil público para los tres; otro hunter del canon sigue sin proyección', () => {
-    expect(supplyHunterProjection('kai-shin')).toMatchObject({ code: 'kai', status: 'active' });
+    expect(supplyHunterProjection('kai-shin')).toMatchObject({
+      code: 'kai',
+      status: 'active',
+      avatarUrl: '/hunters/kai/avatar.jpg',
+      coverUrl: '/hunters/kai/cover.jpg',
+    });
     expect(supplyHunterProjection('eleonore-noir')).toMatchObject({ code: 'eleonore', avatarUrl: '/hunters/eleonore/avatar.jpg' });
     expect(supplyHunterProjection('ximena-fuego')).toMatchObject({ code: 'ximena' });
     expect(supplyHunterProjection('livia-samba')).toBeNull();
