@@ -1,5 +1,6 @@
 import { extractAmazonAsin } from '@/lib/offers/offerUrlFingerprint';
 import { extractMercadoLibreItemId } from '@/lib/offers/resolveMercadoLibreItem';
+import { productPageQueryKey } from '@/lib/offers/urlResolution/productPageQuery';
 import { classifyPastedUrl, isEmbeddedAssetUrl } from './classifyPastedUrl';
 
 export { isEmbeddedAssetUrl };
@@ -60,7 +61,8 @@ export function offerBatchIdentityKey(url: string): string {
   if (ml) return `ml:${ml}`;
   try {
     const u = new URL(url);
-    return `u:${u.hostname.toLowerCase()}${u.pathname.replace(/\/+$/, '')}`.toLowerCase();
+    const base = `u:${u.hostname.toLowerCase()}${u.pathname.replace(/\/+$/, '')}`.toLowerCase();
+    return `${base}${productPageQueryKey(url)}`;
   } catch {
     return url.trim().toLowerCase();
   }

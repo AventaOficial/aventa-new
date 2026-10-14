@@ -1,5 +1,7 @@
 import { createHash } from 'node:crypto';
 import { offerBatchIdentityKey } from '@/lib/offers/batchPaste/extractOfferUrls';
+import { isValidMultiBuy } from '@/lib/offers/multiBuy';
+import { productPageQuery } from '@/lib/offers/urlResolution/productPageQuery';
 import { isAllowedOfferParseHost } from '@/lib/server/fetchUrlSafety';
 import {
   MCP_CURRENCY,
@@ -33,6 +35,8 @@ export type ValidCandidate = {
   hunterComment: string | null;
   /** El bot envió un `hunterComment` que no es texto plano; se descarta sin guardar el texto. */
   hunterCommentInvalid?: boolean;
+  /** Promoción NxM declarada; `price` sigue siendo el precio por pieza. */
+  multiBuy?: { buy: number; pay: number };
   observedAt: string;
 };
 
@@ -54,7 +58,11 @@ function isIpLiteral(host: string): boolean {
   return /^\d{1,3}(\.\d{1,3}){3}$/.test(host) || host.includes(':') || host.startsWith('[');
 }
 
-/** URL https de tienda permitida, sin credenciales, puerto, query, fragmento ni IP literal. */
+/**
+ * URL https de tienda permitida, sin credenciales, puerto, fragmento ni IP literal.
+ * La query sólo admite los parámetros que eligen el producto en esa tienda; cualquier otro
+ * (rastreo, afiliado, compartir) rechaza la URL.
+ */
 export function normalizeCandidateUrl(raw: unknown): { ok: true; url: string } | { ok: false; code: 'INVALID_URL' | 'UNSUPPORTED_HOST' } {
   if (typeof raw !== 'string') return { ok: false, code: 'INVALID_URL' };
   const value = raw.trim();
@@ -74,8 +82,11 @@ export function normalizeCandidateUrl(raw: unknown): { ok: true; url: string } |
     return { ok: false, code: 'INVALID_URL' };
   }
   if (!isAllowedOfferParseHost(host)) return { ok: false, code: 'UNSUPPORTED_HOST' };
-  // La query puede cargar etiquetas de afiliado ajenas; la identidad del producto nunca depende de ella.
-  if (value.includes('?') || value.includes('#')) return { ok: false, code: 'INVALID_URL' };
+  if (value.includes('#')) return { ok: false, code: 'INVALID_URL' };
+  const query = productPageQuery(url);
+  if (!query.ok || (value.includes('?') && query.params.length === 0)) return { ok: false, code: 'INVALID_URL' };
+  url.search = '';
+  for (const [key, val] of query.params) url.searchParams.append(key, val);
   return { ok: true, url: url.href };
 }
 
@@ -117,6 +128,16 @@ function cleanObservedAt(raw: unknown, now: Date): string | null {
   return new Date(t).toISOString();
 }
 
+/** null: no declaró promoción. false: la declaró mal. Sólo admite `{ buy, pay }` enteros con pay < buy. */
+function cleanMultiBuy(raw: unknown): { buy: number; pay: number } | null | false {
+  if (raw === undefined || raw === null) return null;
+  if (typeof raw !== 'object' || Array.isArray(raw)) return false;
+  const m = raw as Record<string, unknown>;
+  if (Object.keys(m).some((k) => k !== 'buy' && k !== 'pay')) return false;
+  if (!isValidMultiBuy(m.buy, m.pay)) return false;
+  return { buy: m.buy, pay: m.pay as number };
+}
+
 function validateOne(raw: unknown, index: number, now: Date): ValidCandidate | CandidateRejection {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return { index, code: 'INVALID_CANDIDATE' };
   const c = raw as Record<string, unknown>;
@@ -137,6 +158,8 @@ function validateOne(raw: unknown, index: number, now: Date): ValidCandidate | C
   const hunterComment = cleanHunterComment(c.hunterComment);
   const observedAt = cleanObservedAt(c.observedAt, now);
   if (!observedAt) return { index, code: 'INVALID_OBSERVED_AT' };
+  const multiBuy = cleanMultiBuy(c.multiBuy);
+  if (multiBuy === false) return { index, code: 'INVALID_MULTI_BUY' };
   return {
     index,
     url: url.url,
@@ -147,6 +170,7 @@ function validateOne(raw: unknown, index: number, now: Date): ValidCandidate | C
     note: note.value,
     hunterComment: hunterComment.value,
     ...(hunterComment.invalid ? { hunterCommentInvalid: true } : {}),
+    ...(multiBuy ? { multiBuy } : {}),
     observedAt,
   };
 }

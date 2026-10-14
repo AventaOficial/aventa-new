@@ -7,6 +7,7 @@
  */
 
 import { OFFER_HUNTER_COMMENT_MAX } from '@/lib/contracts/offers';
+import { MULTI_BUY_MAX_BUY, MULTI_BUY_MIN_BUY } from '@/lib/offers/multiBuy';
 
 export const MCP_SCOPES = ['candidates:submit', 'candidates:read', 'catalog:read'] as const;
 export type McpScope = (typeof MCP_SCOPES)[number];
@@ -16,6 +17,7 @@ export const MCP_TOOLS = [
   'get_submission_status',
   'check_offer_exists',
   'get_submission_rules',
+  'get_price_reference',
 ] as const;
 export type McpToolName = (typeof MCP_TOOLS)[number];
 
@@ -24,6 +26,7 @@ export const MCP_TOOL_SCOPE: Readonly<Record<McpToolName, McpScope>> = {
   get_submission_status: 'candidates:read',
   check_offer_exists: 'catalog:read',
   get_submission_rules: 'candidates:read',
+  get_price_reference: 'catalog:read',
 };
 
 export const MACHINE_CLIENT_STATUSES = ['active', 'paused', 'revoked'] as const;
@@ -53,6 +56,11 @@ export const MCP_MAX_PRICE = 10_000_000;
 export const MCP_OBSERVED_AT_FUTURE_SKEW_MS = 10 * 60 * 1000;
 /** observedAt más viejo que esto ya no es una pista útil. */
 export const MCP_OBSERVED_AT_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
+/** Ventana de historial que usa get_price_reference. */
+export const MCP_PRICE_REFERENCE_WINDOW_DAYS = 180;
+/** Promoción NxM: lleva `buy`, paga `pay`. */
+export const MCP_MULTI_BUY_MIN_BUY = MULTI_BUY_MIN_BUY;
+export const MCP_MULTI_BUY_MAX_BUY = MULTI_BUY_MAX_BUY;
 
 export const MCP_ERROR_CODES = [
   'FORBIDDEN_SCOPE',
@@ -77,6 +85,7 @@ export const CANDIDATE_REJECTION_CODES = [
   'INVALID_CURRENCY',
   'INVALID_NOTE',
   'INVALID_OBSERVED_AT',
+  'INVALID_MULTI_BUY',
   'DUPLICATE_IN_REQUEST',
   'ALREADY_IN_REVIEW',
   'RUN_CAP_REACHED',

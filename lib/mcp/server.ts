@@ -5,12 +5,16 @@ import { z } from 'zod';
 import { clientHasScope, type MachineClientContext } from '@/lib/mcp/auth';
 import { recordMachineCall } from '@/lib/mcp/audit';
 import { checkOfferExists } from '@/lib/mcp/catalog';
+import { getPriceReference } from '@/lib/mcp/priceReference';
 import {
   MCP_CURRENCY,
   MCP_HUNTER_COMMENT_MAX,
   MCP_MAX_CANDIDATES_PER_CALL,
   MCP_NOTE_MAX,
+  MCP_MULTI_BUY_MAX_BUY,
+  MCP_MULTI_BUY_MIN_BUY,
   MCP_PILOT_MAX_ACCEPTED_PER_RUN,
+  MCP_PRICE_REFERENCE_WINDOW_DAYS,
   MCP_TITLE_MAX,
   MCP_TOOL_SCOPE,
   type McpErrorCode,
@@ -103,6 +107,16 @@ const candidateDocSchema = z
           'No te menciones como bot ni IA. Si no cumple, Aventa descarta solo el comentario y el candidato sigue. ' +
           'Omítelo si no hay nada útil que decir.',
       ),
+    multiBuy: z
+      .object({
+        buy: z.number().int().describe(`Piezas que llevas, ${MCP_MULTI_BUY_MIN_BUY}-${MCP_MULTI_BUY_MAX_BUY}.`),
+        pay: z.number().int().describe('Piezas que pagas, al menos 1 y menos que buy.'),
+      })
+      .optional()
+      .describe(
+        'Opcional. Sólo si la ficha muestra una promoción NxM (2x1, 3x2…) para este producto. price sigue siendo el precio por pieza. ' +
+          'Aventa calcula el precio efectivo y un moderador lo confirma antes de publicarlo. Mal formado => INVALID_MULTI_BUY.',
+      ),
     observedAt: z.string().describe('Momento de la observación, ISO 8601 con zona horaria.'),
   })
   .describe('Candidato. Es una pista: Aventa lo verifica y un humano decide.');
@@ -112,7 +126,7 @@ const candidateItemSchema = z.union([candidateDocSchema, z.unknown()]);
 
 /**
  * Servidor MCP por request, ligado al cliente autenticado.
- * Exactamente 4 herramientas. Ninguna escribe en `offers`, modera, publica ni toca economía.
+ * Exactamente 5 herramientas. Ninguna escribe en `offers`, modera, publica ni toca economía.
  */
 export function buildMcpServer(ctx: McpRequestContext): McpServer {
   const server = new McpServer(
@@ -180,6 +194,28 @@ export function buildMcpServer(ctx: McpRequestContext): McpServer {
       annotations: { readOnlyHint: true, openWorldHint: false },
     },
     async (args) => runTool(ctx, 'check_offer_exists', () => checkOfferExists(ctx.supabase, args.url)),
+  );
+
+  server.registerTool(
+    'get_price_reference',
+    {
+      title: 'Referencia de precio',
+      description:
+        '¿Este precio es bajo para este producto? Compara price y originalPrice contra lo que Aventa ya vio del mismo producto ' +
+        `en los últimos ${MCP_PRICE_REFERENCE_WINDOW_DAYS} días y contra la referencia pública de mercado cuando existe. ` +
+        'verdict.price: lowest_seen, below_typical, within_seen, above_seen o insufficient_history. ' +
+        'verdict.listPrice: consistent, raised_vs_history (lista inflada), above_market (lista inflada), unknown o not_provided. ' +
+        'verdict.market: below_market, within_market, above_market o no_reference. ' +
+        'Si price es above_seen o la lista parece inflada, no lo envíes como oferta. No hace fetch ni crea nada.',
+      inputSchema: {
+        url: z.string().describe('URL https del producto, igual que en submit_deal_candidates.'),
+        price: z.number().describe('Precio que ves hoy en MXN, mayor que 0.'),
+        originalPrice: z.number().optional().describe('Precio de lista que muestra la tienda en MXN, mayor que price.'),
+        title: z.string().optional().describe('Título del producto; ayuda a encontrar la referencia de mercado.'),
+      },
+      annotations: { readOnlyHint: true, openWorldHint: false },
+    },
+    async (args) => runTool(ctx, 'get_price_reference', () => getPriceReference(ctx.supabase, args)),
   );
 
   server.registerTool(

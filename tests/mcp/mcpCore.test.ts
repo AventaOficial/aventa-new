@@ -26,6 +26,7 @@ import { checkOfferExists } from '@/lib/mcp/catalog';
 import { MCP_TOOLS, mapBatchItemToCandidateState } from '@/lib/mcp/contract';
 import { buildSubmissionRules } from '@/lib/mcp/rules';
 import { getSubmissionStatus, submitDealCandidates } from '@/lib/mcp/submissions';
+import { offerBatchIdentityKey } from '@/lib/offers/batchPaste/extractOfferUrls';
 import {
   generateMachineToken,
   hashMachineToken,
@@ -214,6 +215,55 @@ describe('MCP candidatos: URL', () => {
     'https://articulo.mercadolibre.com.mx/MLM-123456789-x?matt_tool=1',
   ])('query o fragmento => INVALID_URL: %s', (url) => {
     expect(normalizeCandidateUrl(url)).toEqual({ ok: false, code: 'INVALID_URL' });
+  });
+
+  it.each([
+    [
+      'https://www.liverpool.com.mx/tienda/pdp/tenis/1139462938?skuId=1139462946',
+      'https://www.liverpool.com.mx/tienda/pdp/tenis/1139462938?skuId=1139462946',
+    ],
+    [
+      'https://www.coppel.com/pantalla-55?sku=2345678&pid=7654321',
+      'https://www.coppel.com/pantalla-55?pid=7654321&sku=2345678',
+    ],
+    [
+      'https://www.mercadolibre.com.mx/p/MLM12345678?pdp_filters=item_id:MLM987654321',
+      'https://www.mercadolibre.com.mx/p/MLM12345678?pdp_filters=item_id%3AMLM987654321',
+    ],
+  ])('acepta parámetros de producto de la tienda: %s', (url, expected) => {
+    expect(normalizeCandidateUrl(url)).toEqual({ ok: true, url: expected });
+  });
+
+  it.each([
+    'https://www.liverpool.com.mx/tienda/pdp/tenis/1139462938?skuId=1139462946&utm_source=x',
+    'https://www.liverpool.com.mx/tienda/pdp/tenis/1139462938?skuId=1&skuId=2',
+    'https://www.liverpool.com.mx/tienda/pdp/tenis/1139462938?skuId=',
+    'https://www.liverpool.com.mx/tienda/pdp/tenis/1139462938?skuId=<x>',
+    'https://www.coppel.com/pantalla-55?sku=2345678#ficha',
+    'https://www.amazon.com.mx/dp/B0TESTAAAA?th=1',
+    'https://www.walmart.com.mx/ip/x/00075?sku=1',
+    'https://www.fahorro.com/producto.html?skuId=1',
+  ])('parámetro ajeno a la ficha de esa tienda => INVALID_URL: %s', (url) => {
+    expect(normalizeCandidateUrl(url)).toEqual({ ok: false, code: 'INVALID_URL' });
+  });
+
+  it.each([
+    'https://www.farmaciasguadalajara.com/panales-talla-3',
+    'https://www.fahorro.com/panales-talla-3.html',
+    'https://www.farmaciasanpablo.com.mx/bebes/panales/p/123456',
+    'https://www.benavides.com.mx/panales-talla-3/p',
+  ])('acepta farmacias permitidas: %s', (url) => {
+    expect(normalizeCandidateUrl(url)).toEqual({ ok: true, url });
+  });
+
+  it('la identidad del lote distingue la variante elegida por query y no cambia sin query', () => {
+    const base = 'https://www.liverpool.com.mx/tienda/pdp/tenis/1139462938';
+    expect(offerBatchIdentityKey(base)).toBe('u:www.liverpool.com.mx/tienda/pdp/tenis/1139462938');
+    expect(offerBatchIdentityKey(`${base}?skuId=1139462946`)).toBe(
+      'u:www.liverpool.com.mx/tienda/pdp/tenis/1139462938?skuid=1139462946',
+    );
+    expect(offerBatchIdentityKey(`${base}?skuId=1139462946`)).not.toBe(offerBatchIdentityKey(`${base}?skuId=1139462947`));
+    expect(offerBatchIdentityKey('https://www.walmart.com.mx/ip/x/00075?sku=1')).toBe('u:www.walmart.com.mx/ip/x/00075');
   });
 
   it.each([

@@ -206,6 +206,12 @@ export const MX_COMMERCE_REGISTERED_DOMAINS = [
   'superama.com.mx',
   'superama.com',
 
+  // Farmacias (cuidado personal / bebés)
+  'farmaciasguadalajara.com',
+  'fahorro.com',
+  'farmaciasanpablo.com.mx',
+  'benavides.com.mx',
+
   // Especialistas / DIY / tech
   'homedepot.com.mx',
   'sodimac.com.mx',

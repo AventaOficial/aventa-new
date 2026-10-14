@@ -169,11 +169,11 @@ describe('/api/mcp transporte', () => {
     expect(json.result.serverInfo.name).toBe('aventa-candidates');
   });
 
-  it('tools/list expone exactamente las 4 herramientas', async () => {
+  it('tools/list expone exactamente las 5 herramientas', async () => {
     const res = await POST(req(rpc('tools/list'), seedClient()));
     const json = (await res.json()) as { result: { tools: Array<{ name: string; inputSchema: unknown }> } };
     expect(json.result.tools.map((t) => t.name).sort()).toEqual(
-      ['check_offer_exists', 'get_submission_rules', 'get_submission_status', 'submit_deal_candidates'].sort(),
+      ['check_offer_exists', 'get_price_reference', 'get_submission_rules', 'get_submission_status', 'submit_deal_candidates'].sort(),
     );
   });
 

@@ -17,6 +17,10 @@ const MEXICAN_RETAILER_HOSTS = [
   'elektra.mx',
   'bodegaaurrera.com.mx',
   'sams.com.mx',
+  'farmaciasguadalajara.com',
+  'fahorro.com',
+  'farmaciasanpablo.com.mx',
+  'benavides.com.mx',
 ] as const;
 
 function hostOf(rawUrl: string): string | null {
