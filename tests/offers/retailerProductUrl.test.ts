@@ -23,6 +23,10 @@ describe('AliExpress product URL support', () => {
     });
   });
 
+  it('preserves existing Liverpool product classification', () => {
+    expect(isSupportedRetailerProductUrl('https://www.liverpool.com.mx/tienda/pdp/tenis/123456')).toBe(true);
+  });
+
   it('does not classify AliExpress home/search pages or spoof domains as products', () => {
     expect(classifyOfferPageKind('https://es.aliexpress.com/')).toBe('HOME');
     expect(classifyOfferPageKind('https://es.aliexpress.com/search?spm=tracking')).toBe('SEARCH');
