@@ -33,5 +33,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Contract gate + build
+      - name: Contract gate + build (+ extensión)
         run: npm run ci:verify
+
+      # E2E comunitario (staging): workflow «E2E» en push a master — no usa prod ni descongela dinero.

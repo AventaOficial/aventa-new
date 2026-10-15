@@ -14,12 +14,16 @@ on:
         default: ''
   push:
     branches:
+      - master
       - community-launch-closure
 
 jobs:
   community:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      # En push a master/closure: app local + staging. En dispatch: el input elige destino.
+      E2E_TARGET: ${{ github.event_name == 'push' && 'local' || inputs.target }}
     # Redis desechable del runner (API REST de Upstash vía SRH); solo lo usa target=local.
     services:
       redis:
@@ -42,7 +46,7 @@ jobs:
       - run: npx playwright install --with-deps chromium
 
       - name: Destino de la preview
-        if: ${{ inputs.target == 'preview' }}
+        if: ${{ env.E2E_TARGET == 'preview' }}
         env:
           INPUT_BASE_URL: ${{ inputs.base_url }}
         run: |
@@ -53,7 +57,7 @@ jobs:
           echo "E2E_BASE_URL_OVERRIDE=$INPUT_BASE_URL" >> "$GITHUB_ENV"
 
       - name: App local de este commit contra Supabase staging
-        if: ${{ inputs.target == 'local' }}
+        if: ${{ env.E2E_TARGET == 'local' }}
         env:
           E2E_SUPABASE_URL: ${{ secrets.E2E_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.E2E_SUPABASE_URL }}
@@ -103,5 +107,5 @@ jobs:
         if: always()
         run: node scripts/e2e-summary.mjs
       - name: Errores del servidor local
-        if: ${{ failure() && inputs.target == 'local' }}
+        if: ${{ failure() && env.E2E_TARGET == 'local' }}
         run: grep -iE "error|unhandled|abort" next-start.log | grep -viE "key|token|secret|password" | tail -n 40 || true
