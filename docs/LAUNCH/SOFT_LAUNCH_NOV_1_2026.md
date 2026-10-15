@@ -10,16 +10,20 @@
 | Migraciones PR143 en prod | `docs/SECURITY/PR143_PRODUCTION_APPLY_20261015.md` |
 | `GET https://aventaofertas.com/api/health` | 200, `feedViewOk: true`, ~1416 ofertas en catálogo |
 | Feed recientes prod | API devuelve ofertas |
-| Ofertas vivas aprobadas/publicadas | **333** (SQL prod) |
+| Ofertas `approved` (SQL prod, 15-oct PM) | **651** |
+| Cola `pending` moderación (SQL prod) | **0** |
 | OOS en vivo con health `out_of_stock` | **0** |
 | Staging health + feed | OK (`staging.aventaofertas.com`) |
+| **Vercel Production (`aventa-new`) — flags dinero** | `MONEY_PATH_FROZEN=true`, `REWARDS_PROGRAM_ACTIVE=true` (Fase A reconocimiento), `REWARDS_PAYOUT_ENABLED=false` |
+| **Ledger prod** | `payout_intents=0` (lectura SQL) |
+| **CI cierre** | Rama `launch/closure-20261015`: `ci:verify` + extensión + E2E en push a `master` |
 
 ## Pendiente del equipo (antes del 1 nov)
 
 | # | Tarea | Responsable | Notas |
 |---|--------|-------------|-------|
-| 1 | Confirmar en **Vercel → aventa-new → Production**: `REWARDS_PROGRAM_ACTIVE` ausente o `false`; `MONEY_PATH_FROZEN` **`true` explícito** | Owner | Sin esto prod sigue fail-closed, pero conviene dejarlo explícito |
-| 2 | **Moderación:** cola `pending` en prod (**217** al 15-oct) | Moderación | Definir meta: vaciar críticos o lanzar con SLA claro |
+| 1 | Confirmar flags Vercel Production | Owner | **Hecho 15-oct:** freeze ON, programa ON (Fase A), payouts OFF — ver tabla arriba |
+| 2 | **Moderación:** cola `pending` | Moderación | **0** al re-chequeo 15-oct PM; mantener SLA en lanzamiento |
 | 3 | **Supabase Pro** + restore probado | Owner | Ledger `AVENTA_LAUNCH_READINESS.md` |
 | 4 | Smoke **móvil** manual (15 min) | QA/Owner | Home Top/Recientes, Subir, Plaza, `/me/recompensas` (copy pausado), guía sin tab bar encima |
 | 5 | Comunicación pública | Marketing | “Recompensas monetarias aún no disponibles” alineado con la app |
