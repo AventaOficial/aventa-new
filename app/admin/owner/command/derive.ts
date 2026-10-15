@@ -300,8 +300,8 @@ export function deriveHealth(
       signals: [],
       team: 'finanzas',
       updatedAt: null,
-      href: '/equipo/contabilidad',
-      cta: 'Ver finanzas',
+      href: '/admin/owner/vista/pagos',
+      cta: 'Ver pagos',
     });
   } else if (base.systemHealth.moneyPathFrozen) {
     out.push({
@@ -315,8 +315,8 @@ export function deriveHealth(
       ],
       team: 'finanzas',
       updatedAt: base.generatedAt,
-      href: '/equipo/contabilidad',
-      cta: 'Ver (solo lectura)',
+      href: '/admin/owner/vista/pagos',
+      cta: 'Ver pagos',
     });
   } else {
     const tagsOk = base.affiliation.amazonTagConfigured && base.affiliation.mercadolibreTagConfigured;
@@ -329,8 +329,8 @@ export function deriveHealth(
       signals: [`Programas activos ${base.affiliation.programsActive}/${base.affiliation.programsTotal}`],
       team: 'finanzas',
       updatedAt: base.generatedAt,
-      href: '/equipo/contabilidad',
-      cta: 'Ver finanzas',
+      href: '/admin/owner/vista/ingresos',
+      cta: 'Ver ingresos',
     });
   }
 

@@ -23,7 +23,7 @@ export const TEAM_VIEWS: Record<TeamId, TeamVista> = {
     title: 'Equipo de finanzas',
     subtitle: 'Pagos, lotes y estado del flujo de dinero.',
     toolHref: '/equipo/contabilidad',
-    toolLabel: 'Abrir contabilidad',
+    toolLabel: 'Operar contabilidad',
     people: { title: 'Lotes recientes' },
   },
   growth: {

@@ -6,9 +6,10 @@ import { cn } from '@/app/components/panel/utils';
 import type { SourceState } from '../types';
 import { CEO_CARD_DRILLDOWN } from '../drilldowns';
 import { Card, CardError, CardHeader, CardLoading, Chip, NA, ViewLink } from './kit';
+import { openPayoutIntents, payoutIntentCounts } from '@/lib/owner/executiveFinance';
 import { formatCount } from './model';
 
-const NO_AMOUNTS = 'Este panel solo muestra conteos de pagos por estado; no expone montos.';
+const NO_AMOUNTS = 'Este panel solo cuenta intents. No expone montos y un PAID de recompensa no entra aquí.';
 
 export default function PayoutsCard({
   source,
@@ -21,24 +22,26 @@ export default function PayoutsCard({
 }) {
   const cmd = source.data;
   const byStatus = cmd?.finance.payoutIntentsByStatus ?? null;
-  const get = (...keys: string[]) => (byStatus ? keys.reduce((acc, k) => acc + (byStatus[k] ?? 0), 0) : null);
-  const reserved = get('RESERVED');
-  const review = get('SUBMITTED', 'UNKNOWN');
-  const ready = get('SUCCEEDED');
-  const open = reserved != null && review != null ? reserved + review : null;
+  const intents = payoutIntentCounts(byStatus);
+  const reserved = intents.reserved;
+  const sent = intents.submitted;
+  const incidents = intents.failed != null && intents.unknown != null ? intents.failed + intents.unknown : null;
+  const provider = intents.providerResolved;
+  const open = openPayoutIntents(byStatus);
   const frozen = cmd?.finance.moneyPathFrozen ?? null;
   const batch = cmd?.finance.latestPayoutBatch ?? null;
 
   const rows = [
-    { label: 'Pendientes', value: reserved, dot: 'bg-red-500', hint: 'Pagos reservados, aún no enviados.' },
-    { label: 'En revisión', value: review, dot: 'bg-amber-400', hint: 'Pagos enviados o por confirmar con el proveedor.' },
-    { label: 'Listos', value: ready, dot: 'bg-emerald-400', hint: 'Pagos completados según el proveedor (no es evidencia bancaria).' },
+    { label: 'Reservados', value: reserved, dot: 'bg-red-500', hint: 'Intents reservados, aún no enviados. No son recompensas PAID.' },
+    { label: 'Enviados', value: sent, dot: 'bg-amber-400', hint: 'El proveedor fue contactado. Todavía no es un pago confirmado.' },
+    { label: 'Incidencia', value: incidents, dot: 'bg-rose-400', hint: 'FAILED o UNKNOWN. UNKNOWN no es éxito.' },
+    { label: 'Proveedor', value: provider, dot: 'bg-emerald-400', hint: 'SUCCEEDED: referencia del proveedor, no evidencia bancaria.' },
   ];
 
   return (
     <Card labelledBy="ceo-payouts" className={className} href={CEO_CARD_DRILLDOWN.payouts}>
-      <CardHeader id="ceo-payouts" title="Pagos pendientes" icon={Wallet} action={
-          <ViewLink href={CEO_CARD_DRILLDOWN.payouts} label="Ver pagos pendientes">
+      <CardHeader         id="ceo-payouts" title="Pagos" icon={Wallet} action={
+          <ViewLink href={CEO_CARD_DRILLDOWN.payouts} label="Ver pagos a cazadores">
             Ver<span className="hidden @[13rem]:inline"> pagos</span>
           </ViewLink>
         }
@@ -51,7 +54,7 @@ export default function PayoutsCard({
         )
       ) : (
         <>
-          <p className="mt-2 flex items-baseline gap-1.5 text-[28px] font-semibold leading-none tracking-tight tabular-nums text-white" title="Pagos abiertos: pendientes + en revisión">
+          <p className="mt-2 flex items-baseline gap-1.5 text-[28px] font-semibold leading-none tracking-tight tabular-nums text-white" title="Intents abiertos: reservados, enviados o con resultado desconocido. No incluye PAID ni SUCCEEDED.">
             {open == null ? <NA why="Los pagos no se pudieron leer." /> : formatCount(open)}
             <span className="text-[12px] font-medium tracking-normal text-white/50">abiertos</span>
           </p>
@@ -95,8 +98,8 @@ export default function PayoutsCard({
           <div className="mt-auto pt-2 lg:hidden">
             <p className="rounded-xl border border-white/[0.06] bg-white/[0.02] px-2.5 py-1.5 text-[10px] leading-snug text-white/45">
               {frozen
-                ? 'Pagos congelados por protección del flujo de dinero. Solo conteos; los montos se consultan en Contabilidad.'
-                : 'Conteos de pagos por estado; los montos se consultan en Contabilidad.'}
+                ? 'Flujo congelado. Estos conteos no son montos ni pagos confirmados.'
+                : 'Conteos de intents. Una recompensa PAID no aparece aquí como pago abierto.'}
             </p>
           </div>
         </>

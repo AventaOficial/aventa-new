@@ -47,7 +47,7 @@ export default function RevenueCard({
         id="ceo-revenue"
         title={
           <>
-            Ingresos<span className="hidden @[16rem]:inline"> confirmados</span>
+            Ingresos<span className="hidden @[16rem]:inline"> del libro</span>
           </>
         }
         icon={CircleDollarSign}
@@ -62,7 +62,7 @@ export default function RevenueCard({
       ) : (
         <>
           <div className="mt-2 flex flex-wrap items-center gap-2">
-            <p className="text-[28px] font-semibold leading-none tracking-tight tabular-nums text-white" title="Ingresos confirmados de producción (sin registros de prueba).">
+            <p className="text-[28px] font-semibold leading-none tracking-tight tabular-nums text-white" title="Libro productivo del período. No es comisión reconocida por la tienda ni dinero recibido.">
               {range === '30d' ? (
                 <NA why="Los ingresos solo se calculan para hoy, 7 días y mes en curso; no hay ventana de 30 días." />
               ) : real == null ? (

@@ -37,6 +37,8 @@ export type EstimatedEconomy = {
   productionLedgerRows: number;
   /** Filas QA/synthetic excluidas. */
   syntheticLedgerRowsExcluded: number;
+  /** Filas sin señales suficientes para tratarlas como producción. No entran al libro. */
+  legacyUnverifiedLedgerRows: number;
   confirmedProvenance: MoneyProvenanceKind;
   estimatedProvenance: MoneyProvenanceKind;
   day: EconomyPeriodSnapshot;
@@ -255,7 +257,7 @@ function resolveConfidence(
 
 export async function buildEstimatedEconomy(ref = new Date()): Promise<EstimatedEconomy> {
   const { rows: rawRows, available, note } = await fetchLedgerRows();
-  const { production, syntheticExcluded } = filterProductionLedgerRows(
+  const { production, syntheticExcluded, legacyUnverified } = filterProductionLedgerRows(
     available ? rawRows : [],
   );
   const rows = production;
@@ -347,6 +349,7 @@ export async function buildEstimatedEconomy(ref = new Date()): Promise<Estimated
     ledgerAvailable: available,
     productionLedgerRows: rows.length,
     syntheticLedgerRowsExcluded: syntheticExcluded,
+    legacyUnverifiedLedgerRows: legacyUnverified,
     confirmedProvenance,
     estimatedProvenance,
     day: {
