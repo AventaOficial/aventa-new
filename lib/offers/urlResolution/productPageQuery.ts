@@ -1,3 +1,5 @@
+import { ALIEXPRESS_REGISTERED_DOMAINS } from '@/lib/offers/commerceHostAllowlist';
+import { isHostUnderAnyRegisteredDomain } from '@/lib/server/hostnameAllowlist';
 import {
   isOfferCoppelHost,
   isOfferLiverpoolHost,
@@ -29,6 +31,14 @@ export type ProductPageQuery =
  * compartir), valor raro o clave repetida falla: puede cargar una etiqueta de afiliado ajena.
  */
 export function productPageQuery(url: URL): ProductPageQuery {
+  // AliExpress identifies the product in /item/{numeric-id}.html. Its long query is
+  // tracking/affiliate noise, not product identity; strip it instead of rejecting the PDP.
+  if (
+    isHostUnderAnyRegisteredDomain(url.hostname, ALIEXPRESS_REGISTERED_DOMAINS) &&
+    /^\\/item\\/\\d{8,}\\.html$/i.test(url.pathname)
+  ) {
+    return { ok: true, params: [] };
+  }
   const allowed = productPageParamsForHost(url.hostname);
   const kept = new Map<string, [string, string]>();
   for (const [key, value] of url.searchParams) {
