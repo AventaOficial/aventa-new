@@ -37,6 +37,16 @@ curl.exe -sS "https://aventaofertas.com/api/feed/home?limit=5&view=latest&type=r
 - **GO soft launch** si: checks verificados + moderación con plan + env prod con dinero OFF + backup en curso o aceptado como riesgo documentado.
 - **NO-GO** si: feed roto, health `feedViewOk: false`, o se anuncian pagos sin `MONEY_REWARDS_GO_LIVE.md` completo.
 
+## Cierre de producto (semana del 15 oct)
+
+| # | Entrega | Estado |
+|---|---------|--------|
+| A | Modal recompensas opaco (`SheetFrame` sin `--me-card` en portal) | PR pendiente |
+| B | Moderación: inteligencia de duplicados + ofertas parecidas en modo Focus | PR pendiente |
+| C | MCP `check_offer_exists.catalogPrice` + prompt Grok (historial/precio) | PR + pegar prompt en xAI |
+| D | Prueba económica con amigos | `MONEY_REWARDS_STAGING_ACTIVATION.md` en **staging** primero; prod solo con GO |
+| E | Objetivo 10k usuarios mes 1 | Medir adquisición/activación/retención; no es criterio de GO técnico |
+
 ## Después del 1 nov (paso 5)
 
 Ver `docs/LAUNCH/MONEY_REWARDS_STAGING_ACTIVATION.md` — primero staging, nunca saltar a prod sin GO de finanzas.

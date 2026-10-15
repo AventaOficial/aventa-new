@@ -14,7 +14,7 @@ export async function GET(request: Request) {
   if (!offerId) return NextResponse.json({ error: 'offer_required' }, { status: 400 });
 
   const supabase = createServerClient();
-  const { assessment, incoming, candidate, retrieval } = await assessIncomingOffer(supabase, offerId);
+  const { assessment, incoming, candidate, relatedMatches, retrieval } = await assessIncomingOffer(supabase, offerId);
 
   function offerView(row: typeof incoming) {
     if (!row) return null;
@@ -47,11 +47,18 @@ export async function GET(request: Request) {
     );
   }
 
+  const related = relatedMatches.map(({ assessment: rowAssessment, candidate: row }) => ({
+    relation: rowAssessment.relation,
+    confidence: rowAssessment.confidence,
+    candidate: offerView(row),
+  }));
+
   return NextResponse.json({
     retrieval,
     relation: assessment.relation,
     confidence: assessment.confidence,
     signals: assessment.signals,
+    relatedMatches: related,
     price: assessment.price
       ? {
           status: assessment.price.status,
