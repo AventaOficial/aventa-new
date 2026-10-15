@@ -81,3 +81,48 @@ docs/SYSTEMS/AVENTA_OFFER_CORPUS_v1.md
 docs/hse/competitive/
 docs/SYSTEMS/RESEARCH_supply_intelligence_engine.md
 docs/SYSTEMS/CURSOR_MARKETPLACE_AUDIT.md
+
+# Security: ignore generated operational reports, not versioned migrations or runtime inputs.
+# NOTE: .gitignore does not untrack files already committed; tracked artifacts require a reviewed removal PR.
+# The database-atlas snapshots are currently imported by lib/databaseAtlas/build.ts; keep them versioned
+# until a separately tested replacement removes that runtime/build dependency.
+/scripts/_m31_prod_counts.sql
+/scripts/_m31_prod_counts.txt
+/scripts/_m31_reward_prod.txt
+/scripts/_m31_staging_final.sql
+/scripts/_m31_staging_final.txt
+/scripts/_dq_prod_reports/
+/scripts/_m31_reports/
+/scripts/_m41_reports/
+/scripts/_m42_reports/
+/scripts/_m43_reports/
+/scripts/_m44_reports/
+/scripts/_m45_reports/
+/scripts/_m52_reports/
+/scripts/_m53_reports/
+/scripts/_m54_reports/
+/scripts/_m55_reports/
+/scripts/_m56_reports/
+/scripts/_distribution_e2e_reports/
+/scripts/_distribution_soak_reports/*.json
+/scripts/_distribution_soak_reports/*.txt
+/scripts/_distribution_soak_reports/*.log
+/scripts/_caza_bridge_ml_reports/
+/scripts/_caza_fase1_reports/
+/scripts/_caza_phase2_1_reports/
+/scripts/_caza_phase4_1_reports/
+/scripts/_day2_reports/
+/scripts/_day3_reports/
+/scripts/_day4_reports/
+/scripts/_day5_reports/
+/scripts/_day6_reports/
+/scripts/_s64_reports/
+/scripts/_s67_reports/
+/scripts/_s681_reports/
+/scripts/_s68_reports/
+/scripts/_s71_reports/
+/scripts/_s721_reports/
+/scripts/_s72_reports/
+/scripts/_s7_reports/
+/scripts/_s9_reports/
+/scripts/_wave3_reports/
