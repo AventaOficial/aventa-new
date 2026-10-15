@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import {
   BadgePercent,
@@ -330,8 +331,11 @@ function SheetFrame({
   children: ReactNode;
   footer?: ReactNode;
 }) {
-  return (
-    <div className="fixed inset-0 z-[80] flex items-end justify-center sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="rewards-sheet-title">
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
+  const sheet = (
+    <div className="fixed inset-0 z-[100] flex items-end justify-center sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="rewards-sheet-title">
       <button type="button" className="absolute inset-0 bg-black/45" aria-label="Cerrar" onClick={onClose} />
       <div className="relative flex max-h-[min(92vh,820px)] w-full flex-col overflow-hidden rounded-t-3xl border border-[var(--me-line)] bg-[var(--me-card)] text-[var(--me-ink)] shadow-2xl sm:max-w-2xl sm:rounded-3xl">
         <div className="flex items-start justify-between gap-3 px-5 pt-5 sm:px-6">
@@ -348,6 +352,9 @@ function SheetFrame({
       </div>
     </div>
   );
+
+  if (!mounted) return null;
+  return createPortal(sheet, document.body);
 }
 
 function statusTone(row: RewardRow): string {

@@ -186,7 +186,7 @@ export async function getHomeFeed({
             query = query.lt('created_at', cursorDate);
           }
         } else if (view === 'top') {
-          query = query.gte('up_votes', 1).order('score_final', { ascending: false });
+          query = query.gte('up_votes', 1).order('up_votes', { ascending: false });
         } else {
           query = query.order('ranking_blend', { ascending: false });
         }

@@ -66,7 +66,7 @@ const list = [
 const ids = (xs: { id?: string | null }[]) => xs.map((x) => x.id);
 
 describe('las reglas de Despensa solo afectan Día a día', () => {
-  it('Top conserva el orden del servidor y solo exige un voto', () => {
+  it('Top exige al menos un voto y ordena de mayor a menor por votos', () => {
     expect(ids(processHomeFeedList(list, 'top', 10))).toEqual(['gadget', 'arroz', 'panales']);
   });
 

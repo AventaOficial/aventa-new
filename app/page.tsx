@@ -388,7 +388,7 @@ function HomeContent() {
           items.map((item) => mapOfferToCard(item as FeedApiItemShape)),
           'top',
           12,
-        ).sort((a, b) => (b.ranking_blend ?? b.upvotes ?? 0) - (a.ranking_blend ?? a.upvotes ?? 0));
+        ).sort((a, b) => (b.upvotes ?? 0) - (a.upvotes ?? 0));
 
       try {
         const week = await fetchHomeFeedFromAPI({
@@ -575,7 +575,7 @@ function HomeContent() {
       ...testers.filter((t) => !highlightOffers.some((o) => o.id === t.id)),
     ];
     return merged
-      .sort((a, b) => (b.ranking_blend ?? b.upvotes ?? 0) - (a.ranking_blend ?? a.upvotes ?? 0))
+      .sort((a, b) => (b.upvotes ?? 0) - (a.upvotes ?? 0))
       .slice(0, 10);
   })();
   const mergedOffers = [...publishedNow, ...offers.filter((o) => !publishedNow.some((p) => p.id === o.id))];

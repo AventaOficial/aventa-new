@@ -126,7 +126,11 @@ export function processHomeFeedList<T extends VitalesItem & { upvotes?: number; 
   preferredNeedIds?: ReadonlySet<string>,
   budget?: DespensaBudget | null,
 ): T[] {
-  if (viewMode === 'top') return raw.filter((o) => (o.upvotes ?? 0) >= 1);
+  if (viewMode === 'top') {
+    return raw
+      .filter((o) => (o.upvotes ?? 0) >= 1)
+      .sort((a, b) => (b.upvotes ?? 0) - (a.upvotes ?? 0));
+  }
   if (viewMode === 'vitales') {
     return applyVitalesFeedTransform(raw, effectiveLimit, maxSameProduct, { preferredNeedIds, budget });
   }
