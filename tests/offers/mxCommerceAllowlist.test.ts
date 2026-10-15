@@ -22,9 +22,18 @@ describe('inferStoreFromHostname — retail MX', () => {
     expect(inferStoreFromHostname('ebay.to')).toBe('eBay');
   });
 
+  it('reconoce AliExpress y Temu por host oficial', () => {
+    expect(inferStoreFromHostname('www.aliexpress.com')).toBe('AliExpress');
+    expect(inferStoreFromHostname('www.aliexpress.us')).toBe('AliExpress');
+    expect(inferStoreFromHostname('www.temu.com')).toBe('Temu');
+    expect(inferStoreFromHostname('temu.to')).toBe('Temu');
+  });
+
   it('no confunde suffix parcial', () => {
     expect(inferStoreFromHostname('notliverpool.com.mx')).toBeNull();
     expect(inferStoreFromHostname('evil-coppel.com')).toBeNull();
+    expect(inferStoreFromHostname('aliexpress.com.evil.test')).toBeNull();
+    expect(inferStoreFromHostname('temu.com.evil.test')).toBeNull();
   });
 });
 
