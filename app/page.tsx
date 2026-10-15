@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { Clock, ShoppingBasket, Star, User, Zap } from 'lucide-react';
 import ClientLayout from './ClientLayout';
 import Hero, { SearchField } from './components/Hero';
+import HomeRetailerLogoStrip from './components/HomeRetailerLogoStrip';
 import OfferCard from './components/OfferCard';
 import OfferCardSkeleton from './components/OfferCardSkeleton';
 import FeaturedOfferCard from './components/FeaturedOfferCard';
@@ -660,6 +661,7 @@ function HomeContent() {
             season={season?.modules.includes('hero') ? season.hero : null}
           />
         </div>
+        <HomeRetailerLogoStrip selectedStore={storeFilter} onSelectStore={setStoreFilter} />
         <SeasonLayer season={season} onSearch={setSearchQuery} />
 
         <section className="mx-auto max-w-[1400px] px-4 max-[400px]:px-3 md:px-8 lg:px-10 pt-1 pb-32 md:pb-12">
