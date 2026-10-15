@@ -264,7 +264,13 @@ test('moderation-forbidden', async ({ request }) => {
 test('paused-rewards', async ({ page }) => {
   await signIn(page, process.env.E2E_USER_EMAIL ?? '', process.env.E2E_USER_PASSWORD ?? '');
   await page.goto('/me/recompensas');
-  await expect(page.getByText('Las recompensas monetarias y los pagos no están disponibles.')).toBeVisible();
+  // Con MONEY_PATH_FROZEN en CI: sin cobro. El hero de “pausa” solo aparece si el cazador ya cumplió requisitos.
+  await expect(
+    page.getByText(
+      /recompensas monetarias.*no están disponibles|no hay recompensas monetarias ni pagos disponibles|todavía no puede pagarse|desbloquea el programa/i,
+    ),
+  ).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Cobrar$/i })).toHaveCount(0);
 });
 
 test('no-money-movement', async ({ request }) => {
