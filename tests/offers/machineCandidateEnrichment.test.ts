@@ -12,6 +12,7 @@ const CHEDRAUI = 'https://www.chedraui.com.mx/leche/p';
 const LIVERPOOL = 'https://www.liverpool.com.mx/tienda/pdp/tenis-superstar-para-hombre/1166231231';
 const AMAZON = 'https://www.amazon.com.mx/dp/B0TESTASI1';
 const ML = 'https://articulo.mercadolibre.com.mx/MLM-1234567890-audifonos';
+const ALIEXPRESS = 'https://es.aliexpress.com/item/1005008053909443.html';
 
 function outcome(images: string[], over: Partial<OfferExtractionOutcome['body']> = {}): OfferExtractionOutcome {
   return {
@@ -78,6 +79,7 @@ describe('tipo de URL de retailer', () => {
     expect(classifyOfferPageKind('https://www.amazon.com.mx/b')).toBe('CATEGORY');
 
     expect(classifyOfferPageKind(ML)).toBe('PRODUCT');
+    expect(classifyOfferPageKind(ALIEXPRESS)).toBe('PRODUCT');
     expect(classifyOfferPageKind('https://listado.mercadolibre.com.mx/search')).toBe('SEARCH');
     expect(classifyOfferPageKind('https://www.mercadolibre.com.mx/ofertas')).toBe('CATEGORY');
     expect(classifyOfferPageKind('https://example.com/producto')).toBe('UNKNOWN');
@@ -92,6 +94,16 @@ describe('enriquecimiento antes de moderación', () => {
     expect(prepared.product).toBe(false);
     expect(prepared.imageFailure).toBe('NO_PRODUCT_IMAGE_SOURCE');
     expect(prepared.imageUrl).toBeNull();
+  });
+
+  it('AliExpress se reconoce como producto y sí activa extracción', async () => {
+    const image = 'https://ae-pic-a1.aliexpress-media.com/kf/test.jpg';
+    const extract = vi.fn(async () => outcome([image]));
+    const prepared = await prepareMachineCandidateOffer(ALIEXPRESS, extract);
+    expect(extract).toHaveBeenCalledOnce();
+    expect(prepared.product).toBe(true);
+    expect(prepared.imageUrl).toBe(image);
+    expect(prepared.imageFailure).toBeNull();
   });
 
   it('un producto guarda la imagen extraída y no inventa otra', async () => {
