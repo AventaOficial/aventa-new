@@ -31,7 +31,7 @@ export async function attachOfferCreatorProfiles<T extends RowWithAuthor>(
     if (error) {
       console.error('[search] creator profiles unavailable', error.message);
     } else {
-      for (const row of (data ?? []) as { id: string } & OfferCreatorProfile[]) {
+      for (const row of (data ?? []) as Array<{ id: string } & OfferCreatorProfile>) {
         byId.set(row.id, {
           display_name: row.display_name,
           avatar_url: row.avatar_url,
