@@ -104,7 +104,9 @@ docs/SYSTEMS/CURSOR_MARKETPLACE_AUDIT.md
 /scripts/_m55_reports/
 /scripts/_m56_reports/
 /scripts/_distribution_e2e_reports/
-/scripts/_distribution_soak_reports/
+/scripts/_distribution_soak_reports/*.json
+/scripts/_distribution_soak_reports/*.txt
+/scripts/_distribution_soak_reports/*.log
 /scripts/_caza_bridge_ml_reports/
 /scripts/_caza_fase1_reports/
 /scripts/_caza_phase2_1_reports/
@@ -114,3 +116,13 @@ docs/SYSTEMS/CURSOR_MARKETPLACE_AUDIT.md
 /scripts/_day4_reports/
 /scripts/_day5_reports/
 /scripts/_day6_reports/
+/scripts/_s64_reports/
+/scripts/_s67_reports/
+/scripts/_s681_reports/
+/scripts/_s68_reports/
+/scripts/_s71_reports/
+/scripts/_s721_reports/
+/scripts/_s72_reports/
+/scripts/_s7_reports/
+/scripts/_s9_reports/
+/scripts/_wave3_reports/
