@@ -325,6 +325,8 @@ export default function OperacionesPageContent() {
   const [pulseError, setPulseError] = useState<string | null>(null);
   const [showTesterOffers, setShowTesterOffers] = useState(false);
   const [testerOffersSaving, setTesterOffersSaving] = useState(false);
+  const [topCarouselWeekMonth, setTopCarouselWeekMonth] = useState(false);
+  const [topCarouselSaving, setTopCarouselSaving] = useState(false);
   const [goNoGo, setGoNoGo] = useState<GoNoGoResponse | null>(null);
   const [goNoGoError, setGoNoGoError] = useState<string | null>(null);
   const [queueFlushing, setQueueFlushing] = useState(false);
@@ -375,7 +377,7 @@ export default function OperacionesPageContent() {
           return;
         }
 
-        const [pulseRes, intRes, testerRes, goNoGoRes] = await Promise.all([
+        const [pulseRes, intRes, testerRes, carouselRes, goNoGoRes] = await Promise.all([
           fetch('/api/admin/operations-pulse', {
             headers: { Authorization: `Bearer ${token}` },
           }),
@@ -383,6 +385,7 @@ export default function OperacionesPageContent() {
             headers: { Authorization: `Bearer ${token}` },
           }),
           fetch('/api/app-config?key=show_tester_offers'),
+          fetch('/api/app-config?key=top_carousel_week_month'),
           fetch('/api/admin/go-no-go', {
             headers: { Authorization: `Bearer ${token}` },
           }),
@@ -403,6 +406,8 @@ export default function OperacionesPageContent() {
         setIntegrity((intBody?.result ?? null) as IntegrityResult | null);
         const testerBody = await testerRes.json().catch(() => ({}));
         setShowTesterOffers(testerBody?.value === true);
+        const carouselBody = await carouselRes.json().catch(() => ({}));
+        setTopCarouselWeekMonth(carouselBody?.value === true);
         const goNoGoBody = await goNoGoRes.json().catch(() => ({}));
         if (!goNoGoRes.ok) {
           setGoNoGoError(goNoGoBody?.error ?? 'No se pudo obtener semáforo Go/No-Go');
@@ -515,9 +520,14 @@ export default function OperacionesPageContent() {
     }
   };
 
-  const setTesterOffersEnabled = async (enabled: boolean) => {
+  const patchAppConfigBoolean = async (
+    key: 'show_tester_offers' | 'top_carousel_week_month',
+    enabled: boolean,
+    onOk: (value: boolean) => void,
+    setSaving: (v: boolean) => void,
+  ) => {
     const supabase = createClient();
-    setTesterOffersSaving(true);
+    setSaving(true);
     try {
       const {
         data: { session },
@@ -530,13 +540,24 @@ export default function OperacionesPageContent() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ key: 'show_tester_offers', value: enabled }),
+        body: JSON.stringify({ key, value: enabled }),
       });
-      if (res.ok) setShowTesterOffers(enabled);
+      if (res.ok) onOk(enabled);
     } finally {
-      setTesterOffersSaving(false);
+      setSaving(false);
     }
   };
+
+  const setTesterOffersEnabled = (enabled: boolean) =>
+    void patchAppConfigBoolean('show_tester_offers', enabled, setShowTesterOffers, setTesterOffersSaving);
+
+  const setTopCarouselWeekMonthEnabled = (enabled: boolean) =>
+    void patchAppConfigBoolean(
+      'top_carousel_week_month',
+      enabled,
+      setTopCarouselWeekMonth,
+      setTopCarouselSaving,
+    );
 
   if (isOwner === null) {
     return (
@@ -620,6 +641,54 @@ export default function OperacionesPageContent() {
                   : showTesterOffers
                     ? 'Desactivar ofertas tester'
                     : 'Activar ofertas tester'}
+              </button>
+            </div>
+          </section>
+
+          <section
+            id="carrusel-top"
+            className="rounded-2xl border border-[#e5e5e7] dark:border-[#262626] bg-white dark:bg-[#141414] p-5 md:p-6 mb-6 shadow-sm scroll-mt-24"
+          >
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-start gap-3 min-w-0">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-violet-100 dark:bg-violet-900/40">
+                  <LayoutDashboard className="h-5 w-5 text-violet-700 dark:text-violet-300" />
+                </div>
+                <div className="min-w-0">
+                  <h2 className="font-semibold text-gray-900 dark:text-gray-100 text-base">
+                    Carrusel Top (Semana y Mes)
+                  </h2>
+                  <p className="text-xs text-gray-600 dark:text-gray-400 mt-1 leading-relaxed">
+                    El carrusel horizontal en <strong>Top → Hoy</strong> siempre está activo («Mejores de hoy»). En
+                    Semana y Mes está{' '}
+                    <strong
+                      className={
+                        topCarouselWeekMonth
+                          ? 'text-violet-700 dark:text-violet-300'
+                          : 'text-emerald-700 dark:text-emerald-300'
+                      }
+                    >
+                      {topCarouselWeekMonth ? 'ACTIVADO' : 'DESACTIVADO'}
+                    </strong>{' '}
+                    por defecto para reducir ruido visual.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                disabled={topCarouselSaving}
+                onClick={() => setTopCarouselWeekMonthEnabled(!topCarouselWeekMonth)}
+                className={`shrink-0 inline-flex min-h-12 items-center justify-center rounded-2xl px-5 text-sm font-bold disabled:opacity-50 ${
+                  topCarouselWeekMonth
+                    ? 'bg-violet-600 text-white hover:bg-violet-700'
+                    : 'bg-gray-200 dark:bg-[#262626] text-gray-800 dark:text-gray-100 hover:bg-gray-300 dark:hover:bg-[#333]'
+                }`}
+              >
+                {topCarouselSaving
+                  ? 'Guardando…'
+                  : topCarouselWeekMonth
+                    ? 'Desactivar carrusel Semana/Mes'
+                    : 'Activar carrusel Semana/Mes'}
               </button>
             </div>
           </section>

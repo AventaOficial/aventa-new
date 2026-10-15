@@ -68,6 +68,10 @@ import { PersonalInterestRail, type InterestRailOffer } from './components/feed/
 import { DespensaBudgetCard } from './components/feed/DespensaBudgetCard';
 import { useDespensaBudget } from './components/feed/useDespensaBudget';
 import type { DespensaBudget } from '@/lib/despensa/budget';
+import {
+  shouldShowTopFeaturedCarousel,
+  topFeaturedCarouselHeading,
+} from '@/lib/offers/topFeaturedCarousel';
 
 type TimeFilter = 'day' | 'week' | 'month';
 type ViewMode = HomeTab;
@@ -176,7 +180,7 @@ function HomeContent() {
   const [storeFilter, setStoreFilter] = useState<string | null>(null);
   const [storeList, setStoreList] = useState<string[]>([]);
   const [highlightOffers, setHighlightOffers] = useState<Offer[]>([]);
-  const [highlightPeriod, setHighlightPeriod] = useState<'week' | 'month'>('week');
+  const [topCarouselWeekMonth, setTopCarouselWeekMonth] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [limit, setLimit] = useState(HOME_FEED_PAGE_SIZE);
   const [hasMoreCursor, setHasMoreCursor] = useState(false);
@@ -212,11 +216,17 @@ function HomeContent() {
 
   useEffect(() => {
     if (pathname !== '/') return;
-    fetch('/api/app-config?key=show_tester_offers')
-      .then((r) => r.json())
-      .then((data) => setShowTesterOffers(data?.value === true))
+    Promise.all([
+      fetch('/api/app-config?key=show_tester_offers').then((r) => r.json()),
+      fetch('/api/app-config?key=top_carousel_week_month').then((r) => r.json()),
+    ])
+      .then(([tester, carousel]) => {
+        setShowTesterOffers(tester?.value === true);
+        setTopCarouselWeekMonth(carousel?.value === true);
+      })
       .catch(() => {
         setShowTesterOffers(false);
+        setTopCarouselWeekMonth(false);
       });
   }, [pathname, showToast]);
 
@@ -381,6 +391,10 @@ function HomeContent() {
       setHighlightOffers([]);
       return;
     }
+    if (!shouldShowTopFeaturedCarousel(timeFilter, topCarouselWeekMonth)) {
+      setHighlightOffers([]);
+      return;
+    }
     let cancelled = false;
     const loadHighlights = async () => {
       const toCards = (items: FeedApiItemShape[]) =>
@@ -391,32 +405,15 @@ function HomeContent() {
         ).sort((a, b) => (b.upvotes ?? 0) - (a.upvotes ?? 0));
 
       try {
-        const week = await fetchHomeFeedFromAPI({
+        const feed = await fetchHomeFeedFromAPI({
           limit: 12,
           viewMode: 'top',
-          timeFilter: 'week',
+          timeFilter,
           categoryFilter: null,
           storeFilter,
         });
-        let list = toCards(week.items);
-        let period: 'week' | 'month' = 'week';
-        if (list.length < 3) {
-          const month = await fetchHomeFeedFromAPI({
-            limit: 12,
-            viewMode: 'top',
-            timeFilter: 'month',
-            categoryFilter: null,
-            storeFilter,
-          });
-          const monthList = toCards(month.items);
-          if (monthList.length > list.length) {
-            list = monthList;
-            period = 'month';
-          }
-        }
         if (cancelled) return;
-        setHighlightPeriod(period);
-        setHighlightOffers(list.slice(0, 10));
+        setHighlightOffers(toCards(feed.items).slice(0, 10));
       } catch {
         if (!cancelled) setHighlightOffers([]);
       }
@@ -425,7 +422,7 @@ function HomeContent() {
     return () => {
       cancelled = true;
     };
-  }, [viewMode, debouncedQuery, storeFilter]);
+  }, [viewMode, debouncedQuery, storeFilter, timeFilter, topCarouselWeekMonth]);
 
   useEffect(() => {
     fetchOffersRef.current = fetchOffers;
@@ -567,8 +564,13 @@ function HomeContent() {
   const testerOffers =
     !debouncedQuery.trim() && showTesterOffers ? testersForTab(viewMode) : [];
   const publishedNow = !debouncedQuery.trim() ? justPublished : [];
+  const showTopFeaturedCarousel =
+    viewMode === 'top' &&
+    !debouncedQuery.trim() &&
+    shouldShowTopFeaturedCarousel(timeFilter, topCarouselWeekMonth);
+
   const featuredOffers = (() => {
-    if (viewMode !== 'top' || debouncedQuery.trim()) return [];
+    if (!showTopFeaturedCarousel) return [];
     const testers = showTesterOffers ? testersForTab('top') : [];
     const merged = [
       ...highlightOffers,
@@ -804,10 +806,10 @@ function HomeContent() {
         {viewMode === 'personalized' ? (
           <PersonalInterestRail offers={interestRail} token={session?.access_token ?? null} />
         ) : null}
-        {viewMode === 'top' && !loading && !feedError && featuredOffers.length > 0 ? (
+        {showTopFeaturedCarousel && !loading && !feedError && featuredOffers.length > 0 ? (
           <div className="mb-5">
             <h2 className="mb-3 text-lg font-semibold tracking-tight text-[#1d1d1f] dark:text-[#fafafa]">
-              {highlightPeriod === 'month' ? 'Mejores del mes' : 'Mejores de la semana'}
+              {topFeaturedCarouselHeading(timeFilter)}
             </h2>
             <div className="relative">
               <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide snap-x snap-mandatory md:gap-4">
