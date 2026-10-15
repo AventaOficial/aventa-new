@@ -953,6 +953,7 @@ function HomeContent() {
                     dailyNeed={offer.dailyNeed}
                     isTesterOffer={offer.id.startsWith('tester-')}
                     offerScope={offer.offerScope ?? null}
+                    searchPriceAlternate={debouncedQuery.trim() ? offer.searchPriceAlternate : null}
                     canModerate={Boolean(session?.access_token) && canModerate && !offer.id.startsWith('tester-')}
                     onModerated={(id) => {
                       setOffers((prev) => prev.filter((row) => row.id !== id));

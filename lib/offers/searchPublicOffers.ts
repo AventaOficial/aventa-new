@@ -3,6 +3,13 @@ import { createInteractiveServerClient } from '@/lib/supabase/server';
 import { buildOfferSearchOrFilter } from '@/lib/offers/inferOfferTags';
 import { sanitizeSearchQuery } from '@/lib/offers/searchQuery';
 import { loadMachineAuthorIds, machineAuthorNotInList } from '@/lib/offers/machineAuthors';
+import { attachOfferCreatorProfiles } from '@/lib/offers/attachOfferCreatorProfiles';
+import { withOfferHunterCodes } from '@/lib/offers/offerHunterCodes';
+import {
+  applySearchPriceAlternates,
+  organizeSearchHits,
+  type SearchPriceAlternate,
+} from '@/lib/offers/organizeSearchHits';
 
 export type PublicSearchHit = {
   id: string;
@@ -29,6 +36,16 @@ export type PublicSearchHit = {
   ranking_momentum: number | null;
   ranking_blend: number | null;
   rank?: number;
+  profiles?: {
+    display_name: string | null;
+    avatar_url: string | null;
+    leader_badge?: string | null;
+    ml_tracking_tag?: string | null;
+    amazon_tracking_tag?: string | null;
+    slug?: string | null;
+  } | null;
+  hunter_code?: string | null;
+  search_price_alternate?: SearchPriceAlternate | null;
 };
 
 export type SearchEngine = 'fts' | 'ilike' | 'empty' | 'unavailable';
@@ -97,6 +114,17 @@ async function attachVotes(supabase: SupabaseClient, hits: PublicSearchHit[]): P
       ranking_blend: num(row.ranking_blend),
     };
   });
+}
+
+async function presentSearchHits(
+  supabase: SupabaseClient,
+  hits: PublicSearchHit[],
+): Promise<PublicSearchHit[]> {
+  if (hits.length === 0) return hits;
+  const { hits: grouped, priceAlternateByLeaderId } = organizeSearchHits(hits);
+  let withProfiles = await attachOfferCreatorProfiles(supabase, grouped);
+  withProfiles = await withOfferHunterCodes(supabase, withProfiles);
+  return applySearchPriceAlternates(withProfiles, priceAlternateByLeaderId);
 }
 
 async function searchWithIlike(
@@ -180,13 +208,17 @@ export async function searchPublicOffers(input: {
     const saturated = machineAuthors != null && data.length >= RPC_MAX_LIMIT;
     if (machineAuthors) hits = hits.filter((hit) => isCommunityHit(hit, excluded));
     if (hits.length >= limit || (hits.length > 0 && !saturated)) {
-      return { hits: await attachVotes(supabase, hits.slice(0, limit)), engine: 'fts' };
+      const voted = await attachVotes(supabase, hits);
+      const presented = await presentSearchHits(supabase, voted);
+      return { hits: presented.slice(0, limit), engine: 'fts' };
     }
   }
 
   const fallback = await searchWithIlike(supabase, { query, limit, categories, store, machineAuthors });
+  const voted = await attachVotes(supabase, fallback);
+  const presented = await presentSearchHits(supabase, voted);
   return {
-    hits: await attachVotes(supabase, fallback),
+    hits: presented.slice(0, limit),
     engine: fallback.length > 0 ? 'ilike' : 'empty',
   };
 }
