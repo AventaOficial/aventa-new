@@ -4,36 +4,31 @@ minVersion = "v8.25.0"
 # Narrow, line-level exceptions for identifiers proven by code context to be
 # non-authentication values (idempotency/product keys) and a deliberately invalid
 # JWT-shaped test fixture. These are not directory-wide or commit-wide allowlists.
-[[rules]]
-id = "generic-api-key"
+[[allowlists]]
+description = "Non-secret deterministic identifiers in legacy staging diagnostics and tests"
+targetRules = ["generic-api-key"]
+condition = "AND"
+regexTarget = "line"
+regexes = [
+  '''(?i)(?:idempotency_key|candidateKey|"key"\s*:|key\s*:|presentation_key|identity_key|PENDING_LEGAL_CONSENT_KEY)''',
+]
+paths = [
+  '''^scripts/_day2_reports/day2-report-latest\.json$''',
+  '''^scripts/_s9_reports/.*\.json$''',
+  '''^scripts/m4-1-payout-intent-staging-canary\.ts$''',
+  '''^tests/despensa/priceIntelligence\.test\.ts$''',
+  '''^lib/bots/ingest/workerCardScoreDiagnostics\.ts$''',
+  '''^lib/legal/constants\.ts$''',
+]
 
-  [[rules.allowlists]]
-  description = "Non-secret deterministic identifiers in legacy staging diagnostics and tests"
-  condition = "AND"
-  regexTarget = "line"
-  regexes = [
-    '''(?i)(?:idempotency_key|candidateKey|"key"\s*:|key\s*:|presentation_key|identity_key)''',
-    '''PENDING_LEGAL_CONSENT_KEY''',
-  ]
-  paths = [
-    '''^scripts/_day2_reports/day2-report-latest\.json$''',
-    '''^scripts/_s9_reports/.*\.json$''',
-    '''^scripts/m4-1-payout-intent-staging-canary\.ts$''',
-    '''^tests/despensa/priceIntelligence\.test\.ts$''',
-    '''^lib/bots/ingest/workerCardScoreDiagnostics\.ts$''',
-    '''^lib/legal/constants\.ts$''',
-  ]
-
-[[rules]]
-id = "jwt"
-
-  [[rules.allowlists]]
-  description = "Intentionally invalid short JWT-shaped fixture in a contract test"
-  condition = "AND"
-  regexTarget = "line"
-  regexes = [
-    '''const jwt = ''',
-  ]
-  paths = [
-    '''^tests/cazaOfertas/orchestrator\.contract\.test\.ts$''',
-  ]
+[[allowlists]]
+description = "Intentionally invalid short JWT-shaped fixture in a contract test"
+targetRules = ["jwt"]
+condition = "AND"
+regexTarget = "line"
+regexes = [
+  '''const jwt = ''',
+]
+paths = [
+  '''^tests/cazaOfertas/orchestrator\.contract\.test\.ts$''',
+]
