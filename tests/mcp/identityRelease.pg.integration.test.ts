@@ -222,7 +222,7 @@ describe.skipIf(!enabled)('PostgreSQL aislado: un retenedor caducado no bloquea;
 
     expect(await checkOfferExists(supabase, url)).toEqual({
       ok: true,
-      data: { exists: false, status: 'none', matchedBy: null, canSubmit: true, previouslyRejected: true },
+      data: { exists: false, status: 'none', matchedBy: null, canSubmit: true, previouslyRejected: true, catalogPrice: null },
     });
 
     const key = `${RUN}-history-retry`;

@@ -114,7 +114,10 @@ describe('casos históricos (fixtures sintéticos): check y submit coinciden', (
     const oldItem = seedItem(db, url, 'APPROVED', oldOffer);
 
     const check = await checkOfferExists(memorySupabase(db), url, NOW);
-    expect(check).toEqual({ ok: true, data: { exists: false, status: 'none', matchedBy: null, canSubmit: true, previouslyRejected: true } });
+    expect(check).toEqual({
+      ok: true,
+      data: { exists: false, status: 'none', matchedBy: null, canSubmit: true, previouslyRejected: true, catalogPrice: null },
+    });
 
     const r = await submit(db, url, `hist-${oldItem}`);
     expect(r.data.rejected).toEqual([]);
@@ -230,7 +233,10 @@ describe('nueva promoción del mismo producto', () => {
     const db = freshDb();
     seedOffer(db, URL, { status: 'rejected' });
     const check = await checkOfferExists(memorySupabase(db), URL, NOW);
-    expect(check).toEqual({ ok: true, data: { exists: false, status: 'none', matchedBy: null, canSubmit: true, previouslyRejected: true } });
+    expect(check).toEqual({
+      ok: true,
+      data: { exists: false, status: 'none', matchedBy: null, canSubmit: true, previouslyRejected: true, catalogPrice: null },
+    });
     const r = await submit(db, URL, 'promo-new-key', { price: 79 });
     expect(r.data.accepted).toEqual([{ index: 0 }]);
     expect(blockedAsDuplicate(db, r)).toBe(false);

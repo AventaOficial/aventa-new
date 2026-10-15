@@ -181,8 +181,10 @@ f) El precio no depende de condiciones: membresía, cupón, tarjeta o banco, có
 g) La presentación (peso, volumen, piezas) está en el título o en la ficha. Si no la ves, descarta.
 h) check_offer_exists(url) devuelve canSubmit=true. Si canSubmit=false, descarta (ALREADY_EXISTS):
    el producto ya está publicado o en revisión (status published, in_review o not_visible) y Aventa
-   lo rechazaría. Si previouslyRejected=true, una propuesta anterior se rechazó: envíalo solo si la
-   ficha muestra hoy una promoción nueva que cumpla todas las reglas, y dilo en note.
+   lo rechazaría. Si status=published y catalogPrice no es null, compara tu price con catalogPrice y
+   con get_price_reference: no envíes si tu precio no es claramente mejor (verdict.price above_seen o
+   within_seen sin mejora). Si previouslyRejected=true, una propuesta anterior se rechazó: envíalo solo
+   si la ficha muestra hoy una promoción nueva que cumpla todas las reglas, y dilo en note.
 i) En la misma corrida no hay otro candidato del mismo producto (misma tienda y misma ficha). El
    mismo producto en otra tienda es otro candidato; una presentación distinta también.
 Distinciones obligatorias:

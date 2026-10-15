@@ -209,7 +209,14 @@ describe('adversarial MCP: lecturas acotadas', () => {
 
   it('check_offer_exists marca la pending como en revisión sin revelar ids ni datos internos', async () => {
     const { payload, raw } = await call('check_offer_exists', { url: candidate.url });
-    expect(payload).toEqual({ exists: false, status: 'in_review', matchedBy: 'product_identity', canSubmit: false, previouslyRejected: false });
+    expect(payload).toEqual({
+      exists: false,
+      status: 'in_review',
+      matchedBy: 'product_identity',
+      canSubmit: false,
+      previouslyRejected: false,
+      catalogPrice: null,
+    });
     expect(raw).not.toContain('pending-offer');
     expect(raw).not.toContain(HUMAN);
   });

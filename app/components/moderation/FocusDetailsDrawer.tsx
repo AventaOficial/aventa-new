@@ -12,6 +12,8 @@ import { cn } from '@/app/components/panel/utils';
 import FocusHunterComment from '@/app/components/moderation/FocusHunterComment';
 import MultiBuyReview from '@/app/components/moderation/MultiBuyReview';
 import HunterLaneReview from '@/app/components/moderation/HunterLaneReview';
+import OfferIntelligencePanel from '@/app/admin/components/OfferIntelligencePanel';
+import FocusSimilarOffers from '@/app/components/moderation/FocusSimilarOffers';
 
 type Props = {
   open: boolean;
@@ -98,6 +100,13 @@ export default function FocusDetailsDrawer({ open, offer, mode, canEdit, onClose
 
           <FocusHunterComment mode={mode} hunterComment={offer.hunter_comment} botMeta={offer.bot_meta} />
 
+          <OfferIntelligencePanel offerId={offer.id} />
+          <FocusSimilarOffers
+            store={offer.store}
+            title={offer.title}
+            offerUrl={offer.offer_url}
+            mode={mode}
+          />
           <MultiBuyReview mode={mode} offerId={offer.id} botMeta={offer.bot_meta} readOnly={canEdit === false} />
           <HunterLaneReview
             mode={mode}

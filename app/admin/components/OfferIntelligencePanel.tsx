@@ -23,6 +23,12 @@ type Candidate = {
   status: string | null;
 };
 
+type RelatedMatch = {
+  relation: string;
+  confidence: number | null;
+  candidate: Candidate | null;
+};
+
 type Payload = {
   retrieval?: 'ok' | 'unavailable';
   relation: string;
@@ -31,6 +37,7 @@ type Payload = {
   price: PricePayload | null;
   incoming: Candidate | null;
   candidate: Candidate | null;
+  relatedMatches?: RelatedMatch[];
 };
 
 function amountLabel(price: number | null, currency: string | null): string {
@@ -127,7 +134,35 @@ export default function OfferIntelligencePanel({ offerId }: { offerId: string })
       </section>
     );
   }
-  if (data.relation === 'NO_MATCH' || !data.candidate) return null;
+  const related = (data.relatedMatches ?? []).filter((row) => row.candidate?.id);
+  if ((data.relation === 'NO_MATCH' || !data.candidate) && related.length === 0) return null;
+
+  if (!data.candidate && related.length > 0) {
+    return (
+      <section className="border-b border-black/10 px-4 py-3 text-sm dark:border-white/10">
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-black/50 dark:text-white/50">
+          Posibles duplicados
+        </p>
+        <p className="mt-1 text-black/70 dark:text-white/70">
+          {related.length} oferta(s) en Aventa podrían ser el mismo producto. Revisa antes de publicar.
+        </p>
+        <ul className="mt-2 space-y-2">
+          {related.slice(0, 5).map((row) => (
+            <li key={row.candidate?.id} className="rounded-lg border border-black/10 px-2 py-1.5 text-xs dark:border-white/10">
+              <p className="font-medium">{row.candidate?.title ?? 'Sin título'}</p>
+              <p className="text-black/60 dark:text-white/60">
+                {row.relation.replaceAll('_', ' ')}
+                {row.candidate?.price != null ? ` · $${row.candidate.price}` : ''}
+                {row.candidate?.store ? ` · ${row.candidate.store}` : ''}
+              </p>
+            </li>
+          ))}
+        </ul>
+      </section>
+    );
+  }
+
+  if (!data.candidate) return null;
 
   const compared = data.price?.status === 'compared' && data.price.absoluteDifferenceMinor && data.candidate.currency;
   const money =
@@ -179,6 +214,24 @@ export default function OfferIntelligencePanel({ offerId }: { offerId: string })
         ) : null}
       </div>
       {open ? <OfferComparison incoming={data.incoming} existing={data.candidate} direction={data.price?.direction ?? null} uncertain={data.relation === 'UNCERTAIN_MATCH'} /> : null}
+      {related.length > 1 ? (
+        <div className="mt-3 border-t border-black/10 pt-2 dark:border-white/10">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-black/50 dark:text-white/50">
+            Otras coincidencias ({related.length})
+          </p>
+          <ul className="mt-2 space-y-1.5">
+            {related
+              .filter((row) => row.candidate?.id !== data.candidate?.id)
+              .slice(0, 4)
+              .map((row) => (
+                <li key={row.candidate?.id} className="text-xs text-black/70 dark:text-white/70">
+                  {row.candidate?.title ?? 'Oferta'} · {row.relation.replaceAll('_', ' ')}
+                  {row.candidate?.price != null ? ` · $${row.candidate.price}` : ''}
+                </li>
+              ))}
+          </ul>
+        </div>
+      ) : null}
     </section>
   );
 }

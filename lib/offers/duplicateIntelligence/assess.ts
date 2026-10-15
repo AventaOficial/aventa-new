@@ -83,6 +83,7 @@ export async function assessIncomingOffer(
   assessment: DuplicateAssessment;
   incoming: OfferRow | null;
   candidate: OfferRow | null;
+  relatedMatches: Array<{ assessment: DuplicateAssessment; candidate: OfferRow }>;
   retrieval: 'ok' | 'unavailable';
 }> {
   const { data, error } = await supabase
@@ -108,6 +109,7 @@ export async function assessIncomingOffer(
       }),
       incoming: null,
       candidate: null,
+      relatedMatches: [],
       retrieval: 'unavailable',
     };
   }
@@ -120,6 +122,7 @@ export async function assessIncomingOffer(
       assessment: classifyOfferMatch({ incoming, candidate: null }),
       incoming: incomingRow,
       candidate: null,
+      relatedMatches: [],
       retrieval: 'ok',
     };
   }
@@ -130,23 +133,28 @@ export async function assessIncomingOffer(
       assessment: classifyOfferMatch({ incoming, candidate: null }),
       incoming: incomingRow,
       candidate: null,
+      relatedMatches: [],
       retrieval: 'unavailable',
     };
   }
   let best: DuplicateAssessment | null = null;
   let bestRow: OfferRow | null = null;
+  const relatedMatches: Array<{ assessment: DuplicateAssessment; candidate: OfferRow }> = [];
   for (const candidateRow of candidates) {
     const assessment = classifyOfferMatch({ incoming, candidate: snapshot(candidateRow) });
     if (assessment.relation === 'NO_MATCH') continue;
+    relatedMatches.push({ assessment, candidate: candidateRow });
     if (!best || (assessment.confidence ?? 0) > (best.confidence ?? 0)) {
       best = assessment;
       bestRow = candidateRow;
     }
   }
+  relatedMatches.sort((a, b) => (b.assessment.confidence ?? 0) - (a.assessment.confidence ?? 0));
   return {
     assessment: best ?? classifyOfferMatch({ incoming, candidate: null }),
     incoming: incomingRow,
     candidate: bestRow,
+    relatedMatches,
     retrieval: 'ok',
   };
 }

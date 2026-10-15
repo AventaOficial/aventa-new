@@ -12,9 +12,10 @@ type CatalogRow = {
   offer_url: string | null;
   bot_meta: unknown;
   expires_at: string | null;
+  price: number | null;
 };
 
-const COLUMNS = 'status, deleted_at, offer_url, bot_meta, expires_at';
+const COLUMNS = 'status, deleted_at, offer_url, bot_meta, expires_at, price';
 
 /**
  * published: oferta activa visible en el catálogo.
@@ -34,6 +35,8 @@ export type CheckOfferExistsResult = {
   canSubmit: boolean;
   /** Hubo una propuesta rechazada del mismo producto. Solo enviar si la promoción es nueva. */
   previouslyRejected: boolean;
+  /** Precio publicado en catálogo para esta identidad (sin ids). Usa get_price_reference para comparar tu precio. */
+  catalogPrice: number | null;
 };
 
 function isLiveCatalogRow(row: CatalogRow, now: Date): boolean {
@@ -45,8 +48,29 @@ function isLiveCatalogRow(row: CatalogRow, now: Date): boolean {
   return true;
 }
 
-function result(status: OfferExistenceStatus, matchedBy: CheckOfferExistsResult['matchedBy'], previouslyRejected = false): CheckOfferExistsResult {
-  return { exists: status === 'published', status, matchedBy, canSubmit: status === 'none', previouslyRejected };
+function catalogPriceFromRows(rows: CatalogRow[], now: Date): number | null {
+  const live = rows.filter((r) => isLiveCatalogRow(r, now));
+  const prices = live
+    .map((r) => (typeof r.price === 'number' && Number.isFinite(r.price) && r.price > 0 ? r.price : null))
+    .filter((n): n is number => n != null);
+  if (prices.length === 0) return null;
+  return Math.min(...prices);
+}
+
+function result(
+  status: OfferExistenceStatus,
+  matchedBy: CheckOfferExistsResult['matchedBy'],
+  previouslyRejected = false,
+  catalogPrice: number | null = null,
+): CheckOfferExistsResult {
+  return {
+    exists: status === 'published',
+    status,
+    matchedBy,
+    canSubmit: status === 'none',
+    previouslyRejected,
+    catalogPrice: status === 'published' ? catalogPrice : null,
+  };
 }
 
 const INTERNAL = { ok: false as const, code: 'INTERNAL_ERROR' as const, message: 'No se pudo consultar el catálogo.' };
@@ -82,7 +106,9 @@ export async function checkOfferExists(
       .limit(5);
     if (error) return INTERNAL;
     const active = (data ?? []) as CatalogRow[];
-    if (active.some((r) => isLiveCatalogRow(r, now))) return { ok: true, data: result('published', matchedBy) };
+    if (active.some((r) => isLiveCatalogRow(r, now))) {
+      return { ok: true, data: result('published', matchedBy, false, catalogPriceFromRows(active, now)) };
+    }
     if (active.some((r) => r.status === 'pending')) return { ok: true, data: result('in_review', matchedBy) };
     if (active.length > 0) return { ok: true, data: result('not_visible', matchedBy) };
   }
