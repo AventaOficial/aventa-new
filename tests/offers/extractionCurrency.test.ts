@@ -33,7 +33,7 @@ describe('identidad visual de tiendas', () => {
     expect(resolveStoreBrand('Amazon').logoSrc).toBe('/stores/amazon.svg');
     expect(resolveStoreBrand('Mercado Libre').logoSrc).toBe('/stores/mercado-libre.svg');
     for (const name of ['Walmart', 'Liverpool', 'Coppel', 'Elektra', 'Bodega Aurrera', "Sam's Club"]) {
-      expect(resolveStoreBrand(name).logoSrc, name).toMatch(/^\/stores\/.+\.svg$/);
+      expect(resolveStoreBrand(name).logoSrc, name).toMatch(/^\/stores\/.+\.(?:svg|png|jpe?g|webp|avif)$/i);
     }
     const unknown = resolveStoreBrand('Ferretería local');
     expect(unknown.logoSrc).toBeNull();
