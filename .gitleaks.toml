@@ -13,7 +13,7 @@ targetRules = ["generic-api-key"]
 condition = "AND"
 regexTarget = "line"
 regexes = [
-  '''(?i)(?:idempotency_key|candidateKey|"key"\s*:|key\s*:|presentation_key|identity_key|PENDING_LEGAL_CONSENT_KEY)''',
+  '''(?i)(?:idempotency_key|candidateKey|"key"\s*:|key\s*[=:]|presentation_key|identity_key|PENDING_LEGAL_CONSENT_KEY)''',
 ]
 paths = [
   '''^scripts/_day2_reports/day2-report-latest\.json$''',
