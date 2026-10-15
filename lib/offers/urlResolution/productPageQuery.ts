@@ -35,7 +35,7 @@ export function productPageQuery(url: URL): ProductPageQuery {
   // tracking/affiliate noise, not product identity; strip it instead of rejecting the PDP.
   if (
     isHostUnderAnyRegisteredDomain(url.hostname, ALIEXPRESS_REGISTERED_DOMAINS) &&
-    /^\\/item\\/\\d{8,}\\.html$/i.test(url.pathname)
+    /^\/item\/\d{8,}\.html$/i.test(url.pathname)
   ) {
     return { ok: true, params: [] };
   }
