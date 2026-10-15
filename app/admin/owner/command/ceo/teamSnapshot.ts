@@ -1,6 +1,7 @@
 import type { OwnerDashboardPayload } from '@/lib/owner/buildOwnerDashboard';
 import type { OwnerCommandPayload } from '@/lib/owner/buildOwnerCommand';
 import type { CeoPriority, TeamId } from '../types';
+import { payoutIntentCounts } from '@/lib/owner/executiveFinance';
 import { formatCount } from './model';
 
 export type TeamMetric = { label: string; value: string | null; why: string };
@@ -9,9 +10,13 @@ export type TeamSnapshot = { metrics: TeamMetric[]; alert: TeamAlert | null };
 
 const n = (v: number | null | undefined) => (v == null ? null : formatCount(v));
 
-function payouts(cmd: OwnerCommandPayload | null, ...keys: string[]): number | null {
-  const by = cmd?.finance.payoutIntentsByStatus;
-  return by ? keys.reduce((acc, k) => acc + (by[k] ?? 0), 0) : null;
+function payouts(cmd: OwnerCommandPayload | null, key: 'reserved' | 'submitted' | 'failed' | 'providerResolved'): number | null {
+  const counts = payoutIntentCounts(cmd?.finance.payoutIntentsByStatus);
+  if (key === 'failed') {
+    if (counts.failed == null || counts.unknown == null) return null;
+    return counts.failed + counts.unknown;
+  }
+  return counts[key];
 }
 
 /** Cuatro cifras básicas por equipo, solo de fuentes que el dashboard ya lee. */
@@ -44,12 +49,16 @@ export function teamSnapshot(
       return {
         alert,
         metrics: [
-          { label: 'Pagos pendientes', value: n(payouts(cmd, 'RESERVED')), why: 'Pagos no disponibles.' },
-          { label: 'En revisión', value: n(payouts(cmd, 'SUBMITTED', 'UNKNOWN')), why: 'Pagos no disponibles.' },
-          { label: 'Listos', value: n(payouts(cmd, 'SUCCEEDED')), why: 'Pagos no disponibles.' },
+          { label: 'Intents reservados', value: n(payouts(cmd, 'reserved')), why: 'Pagos no disponibles.' },
+          { label: 'Enviados', value: n(payouts(cmd, 'submitted')), why: 'Pagos no disponibles.' },
+          { label: 'Incidencias', value: n(payouts(cmd, 'failed')), why: 'Pagos no disponibles.' },
           {
             label: 'Flujo de dinero',
-            value: cmd ? (cmd.finance.moneyPathFrozen ? 'Congelado' : 'Activo') : null,
+            value: cmd
+              ? cmd.finance.moneyPathFrozen || cmd.finance.economicGate.payout !== 'ALLOWED'
+                ? 'Bloqueado'
+                : 'Sin bloqueo'
+              : null,
             why: 'Estado del flujo de dinero no disponible.',
           },
         ],

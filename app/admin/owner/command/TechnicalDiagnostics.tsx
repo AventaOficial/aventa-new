@@ -21,7 +21,7 @@ const METRIC_SOURCES: { metric: string; source: string; kind: 'REAL' | 'CALCULAT
   { metric: 'Moderadores', source: 'moderation_logs.user_id + profiles.display_name; equipo: user_roles', kind: 'REAL' },
   { metric: 'Hunter', source: 'hunter_supply_runs (rango y último run)', kind: 'REAL' },
   { metric: 'Operación', source: 'app_config.system_integrity_last, daily_system_metrics, write_jobs_queue', kind: 'REAL' },
-  { metric: 'Ingresos confirmados', source: 'snapshot base economy.day/week/month (sin ventana 30d)', kind: 'REAL' },
+  { metric: 'Libro productivo', source: 'snapshot base economy.day/week/month (sin ventana 30d). No es la comisión settlement ni un cobro.', kind: 'REAL' },
   { metric: 'Pagos / Recompensas', source: 'payout_intents, creator_rewards, payout_batches (solo lectura)', kind: 'REAL' },
   { metric: 'Presencia en vivo', source: 'no existe tabla de presencia', kind: 'UNAVAILABLE' },
   { metric: 'Salud / Prioridades / Metas', source: 'reglas deterministas en command/derive.ts', kind: 'CALCULATED' },

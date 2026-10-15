@@ -19,8 +19,8 @@ export default function RevenueSection({ data }: { data: OwnerDashboardPayload }
         subtitle="Confirmed production ≠ estimated opportunity"
         variant="dark"
         action={
-          <Link href="/admin/commissions" className="text-xs font-medium text-violet-400 hover:text-violet-300">
-            Ledger →
+          <Link href="/admin/owner/vista/ingresos" className="text-xs font-medium text-violet-400 hover:text-violet-300">
+            Ver ingresos
           </Link>
         }
       />

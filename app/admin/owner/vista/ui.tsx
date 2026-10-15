@@ -27,6 +27,7 @@ export function KpiCard({
   delta,
   up,
   bar,
+  title,
 }: {
   icon: ComponentType<{ className?: string }>;
   tint: string;
@@ -36,9 +37,10 @@ export function KpiCard({
   delta?: string;
   up?: boolean;
   bar?: number;
+  title?: string;
 }) {
   return (
-    <article className={cn(CARD, 'p-3')}>
+    <article className={cn(CARD, 'p-3')} title={title}>
       <span className={cn('inline-flex h-8 w-8 items-center justify-center rounded-xl', tint)} aria-hidden>
         <Icon className="h-4 w-4" />
       </span>

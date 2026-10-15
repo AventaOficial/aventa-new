@@ -103,6 +103,7 @@ describe('derive', () => {
     const h = deriveHealth(makeBase(), null, '2026-10-03', NOW.getTime());
     const money = h.find((c) => c.id === 'MONETIZATION');
     expect(money?.level).toBe('FROZEN');
+    expect(money?.href).toBe('/admin/owner/vista/pagos');
     expect(money?.summary).toMatch(/Frozen — Money path protegido/);
     expect(h.find((c) => c.id === 'GROWTH')?.level).toBe('UNKNOWN');
   });

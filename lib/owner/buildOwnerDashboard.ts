@@ -2,6 +2,8 @@ import { createServerClient } from '@/lib/supabase/server';
 import { getAffiliateProgramsRuntimeStatus } from '@/lib/affiliate/programCatalog';
 import { getWriteQueueBacklog } from '@/lib/server/writeQueue';
 import { buildEstimatedEconomy, filterProductionLedgerRows, sumLedgerCentsInRange, type EstimatedEconomy } from '@/lib/owner/estimatedEconomy';
+import { loadEconomicSnapshot } from '@/lib/economy/readModel/loadEconomicSnapshot';
+import { projectExecutiveEconomicMonth, type ExecutiveEconomicMonth } from '@/lib/owner/executiveFinance';
 import { isProductionFinancialRecord, isSyntheticFinancialRecord } from '@/lib/finance/financialRecordClass';
 import {
   daysAgoUtc,
@@ -228,6 +230,8 @@ export type OwnerDashboardPayload = {
   };
   dataGaps: string[];
   economy: EstimatedEconomy;
+  /** Lectura canónica del mes calendario. No se suma con economy. */
+  economicMonth: ExecutiveEconomicMonth | null;
   offerHealth: OfferHealthSummary;
 };
 
@@ -805,6 +809,7 @@ export async function buildOwnerDashboard(): Promise<OwnerDashboardPayload> {
     supplyTruthToday,
     supplyTruthH24,
     supplyTruthD7,
+    economicMonth,
   ] = await Promise.all([
     buildPeriodKpis(todayW.start, todayW.end, true),
     buildPeriodKpis(yesterdayW.start, yesterdayW.end, false),
@@ -834,6 +839,7 @@ export async function buildOwnerDashboard(): Promise<OwnerDashboardPayload> {
     sumVerifiedDealsSince(startOfUtcDay(now)),
     sumVerifiedDealsSince(new Date(now.getTime() - 24 * 3600_000)),
     sumVerifiedDealsSince(new Date(now.getTime() - 7 * 24 * 3600_000)),
+    readExecutiveEconomicMonth(),
   ]);
 
   const monthViews = await countOfferEventsBetween(monthW.startIso, monthW.endIso, 'view');
@@ -1140,8 +1146,17 @@ export async function buildOwnerDashboard(): Promise<OwnerDashboardPayload> {
     recommendedAction: pickRecommendedAction(alerts, pending, circuitBottleneck),
     dataGaps,
     economy,
+    economicMonth,
     offerHealth,
   };
+}
+
+async function readExecutiveEconomicMonth(): Promise<ExecutiveEconomicMonth | null> {
+  try {
+    return projectExecutiveEconomicMonth(await loadEconomicSnapshot());
+  } catch {
+    return null;
+  }
 }
 
 import { formatDiff as formatDiffImpl } from '@/lib/owner/formatDiff';
