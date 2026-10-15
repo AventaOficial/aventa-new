@@ -1,7 +1,5 @@
 'use client';
 
-import { resolveStoreBrand } from '@/lib/stores/storeBrand';
-
 const FEATURED_STORES = [
   { name: 'Liverpool', logo: '/stores/liverpool.svg' },
   { name: 'Bodega Aurrera', logo: '/stores/bodega-aurrera.svg' },
