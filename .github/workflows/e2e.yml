@@ -68,6 +68,9 @@ jobs:
           UPSTASH_REDIS_REST_URL: http://127.0.0.1:8079
           UPSTASH_REDIS_REST_TOKEN: e2e_local_only
           MONEY_PATH_FROZEN: 'true'
+          REWARDS_PROGRAM_ACTIVE: 'false'
+          REWARDS_PAYOUT_ENABLED: 'false'
+          COMMISSION_PROGRAM_ACTIVE: 'false'
           DIGEST_TIMEZONE: America/Mexico_City
           NEXT_PUBLIC_APP_URL: http://127.0.0.1:3000
         run: |
