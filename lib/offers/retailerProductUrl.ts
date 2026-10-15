@@ -50,7 +50,7 @@ export function isChedrauiProductUrl(rawUrl: string): boolean {
 export function isLiverpoolProductUrl(rawUrl: string): boolean {
   const parsed = hostOf(rawUrl);
   if (!parsed || !hostIs(parsed.host, 'liverpool.com.mx')) return false;
-  return /^\/item\/\d{8,}\.html$/i.test(parsed.pathname);
+  return /^\/tienda\/pdp\/[^/]+\/\d{5,}\/?$/i.test(parsed.pathname);
 }
 
 /** https://es.aliexpress.com/item/1005008053909443.html */
