@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { offerBatchIdentityKey } from '@/lib/offers/batchPaste/extractOfferUrls';
 import { isValidMultiBuy } from '@/lib/offers/multiBuy';
 import { productPageQuery } from '@/lib/offers/urlResolution/productPageQuery';
+import { isAliExpressProductUrl } from '@/lib/offers/retailerProductUrl';
 import { isAllowedOfferParseHost } from '@/lib/server/fetchUrlSafety';
 import {
   MCP_CURRENCY,
@@ -84,7 +85,7 @@ export function normalizeCandidateUrl(raw: unknown): { ok: true; url: string } |
   if (!isAllowedOfferParseHost(host)) return { ok: false, code: 'UNSUPPORTED_HOST' };
   if (value.includes('#')) return { ok: false, code: 'INVALID_URL' };
   const query = productPageQuery(url);
-  if (!query.ok || (value.includes('?') && query.params.length === 0)) return { ok: false, code: 'INVALID_URL' };
+  if (!query.ok || (value.includes('?') && query.params.length === 0 && !isAliExpressProductUrl(value))) return { ok: false, code: 'INVALID_URL' };
   url.search = '';
   for (const [key, val] of query.params) url.searchParams.append(key, val);
   return { ok: true, url: url.href };

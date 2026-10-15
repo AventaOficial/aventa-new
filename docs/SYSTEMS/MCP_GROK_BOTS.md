@@ -195,7 +195,7 @@ Reglas:
 
 - 1 a 20 candidatos. Más de 20: `TOO_MANY_CANDIDATES`.
 - `runId` **obligatorio durante el piloto** (1-128 caracteres `[A-Za-z0-9._:-]`, uno por corrida). Sin él: `INVALID_INPUT`. Como máximo **5 candidatos aceptados por `runId`** sumando todas sus llamadas; lo que no cabe vuelve por índice como `RUN_CAP_REACHED` (§9).
-- `url`: https, host en la allowlist de comercio existente (`isAllowedOfferParseHost`), sin credenciales, sin puerto, sin IP literal, sin punto final en el host, sin barras invertidas, **sin query (`?`) y sin fragmento (`#`)**, aunque estén vacíos. La identidad del producto sólo depende de host + path (o ASIN / id de Mercado Libre), y la query podría cargar etiquetas de afiliado ajenas. Un host conocido escondido en query o fragmento no cuenta (`UNSUPPORTED_HOST`). `check_offer_exists` aplica la misma regla.
+- `url`: HTTPS, host en la allowlist de comercio existente (`isAllowedOfferParseHost`), sin credenciales, puerto, IP literal, punto final en el host, barras invertidas ni fragmento (`#`). Las fichas AliExpress `/item/{id}.html` aceptan query de seguimiento, pero Aventa la elimina antes de guardar porque la identidad del producto está en el path; otras tiendas siguen rechazando query salvo parámetros de identidad explícitamente permitidos. Un host conocido escondido en query o fragmento no cuenta (`UNSUPPORTED_HOST`). `check_offer_exists` aplica la misma normalización.
 - `title` (obligatorio, ≤ 200) y `note` (opcional, ≤ 280): texto plano normalizado NFC. Se rechazan `<`, `>`, entidades HTML, controles C0/C1, zero-width, overrides bidi y BOM.
 - `price` > 0. `originalPrice`, si viene, debe ser mayor que `price`.
 - `currency` = `MXN`.
