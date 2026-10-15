@@ -82,12 +82,10 @@ docs/hse/competitive/
 docs/SYSTEMS/RESEARCH_supply_intelligence_engine.md
 docs/SYSTEMS/CURSOR_MARKETPLACE_AUDIT.md
 
-# Security: internal operational artifacts and environment-specific snapshots must not be added.
+# Security: ignore generated operational reports, not versioned migrations or runtime inputs.
 # NOTE: .gitignore does not untrack files already committed; tracked artifacts require a reviewed removal PR.
-/docs/supabase-migrations/
-/lib/databaseAtlas/production.snapshot.json
-/lib/databaseAtlas/staging.snapshot.json
-/lib/databaseAtlas/production.fks.json
+# The database-atlas snapshots are currently imported by lib/databaseAtlas/build.ts; keep them versioned
+# until a separately tested replacement removes that runtime/build dependency.
 /scripts/_m31_prod_counts.sql
 /scripts/_m31_prod_counts.txt
 /scripts/_m31_reward_prod.txt
