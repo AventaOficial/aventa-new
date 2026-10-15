@@ -40,6 +40,29 @@ describe('allowlist del parser', () => {
     expect(isAllowedOfferParseHost('es.aliexpress.com')).toBe(true);
   });
 
+  it('acepta enlaces canónicos de AliExpress y Temu y rechaza dominios impostores', () => {
+    for (const host of [
+      'aliexpress.com',
+      'www.aliexpress.com',
+      'es.aliexpress.com',
+      'aliexpress.us',
+      'aliexpress.ru',
+      'temu.com',
+      'www.temu.com',
+      'temu.to',
+    ]) {
+      expect(isAllowedOfferParseHost(host), host).toBe(true);
+      expect(
+        assertSafeOfferFetchUrl(new URL(`https://${host}/item/example`), {
+          requireHttps: true,
+          requireAllowlist: true,
+        }).blocked,
+      ).toBe(false);
+    }
+    expect(isAllowedOfferParseHost('aliexpress.com.evil.test')).toBe(false);
+    expect(isAllowedOfferParseHost('temu.com.evil.test')).toBe(false);
+  });
+
   it('acepta retail MX cotizado', () => {
     expect(isAllowedOfferParseHost('www.liverpool.com.mx')).toBe(true);
     expect(isAllowedOfferParseHost('www.coppel.com')).toBe(true);
