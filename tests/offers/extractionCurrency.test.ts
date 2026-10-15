@@ -29,12 +29,29 @@ describe('moneda confirmada de extracción', () => {
 });
 
 describe('identidad visual de tiendas', () => {
-  it('Amazon conserva su recurso y las tiendas de extracción tienen marca local', () => {
+  it('usa los logos originales existentes y conserva fallback para tiendas desconocidas', () => {
     expect(resolveStoreBrand('Amazon').logoSrc).toBe('/stores/amazon.svg');
     expect(resolveStoreBrand('Mercado Libre').logoSrc).toBe('/stores/mercado-libre.svg');
-    for (const name of ['Walmart', 'Liverpool', 'Coppel', 'Elektra', 'Bodega Aurrera', "Sam's Club"]) {
-      expect(resolveStoreBrand(name).logoSrc, name).toMatch(/^\/stores\/.+\.svg$/);
+
+    const originalLogos: Array<[string, string]> = [
+      ['Costco', '/stores/Costco-logo.jpg'],
+      ['Liverpool', '/stores/liverpool.avif'],
+      ['Bodega Aurrera', '/stores/bodega-aurrera-logo_freelogovectors.net_.png'],
+      ['Chedraui', '/stores/chedraui-logo-png_seeklogo-29285.png'],
+    ];
+
+    for (const [name, expectedPath] of originalLogos) {
+      const brand = resolveStoreBrand(name);
+      expect(brand.logoSrc, name).toBe(expectedPath);
+      expect(() => readFileSync(`public${expectedPath}`), name).not.toThrow();
     }
+
+    for (const name of ['Walmart', 'Coppel', 'Elektra', "Sam's Club"]) {
+      const logoSrc = resolveStoreBrand(name).logoSrc;
+      expect(logoSrc, name).toMatch(/^\/stores\/.+\.(?:svg|png|jpe?g|webp|avif)$/i);
+      expect(() => readFileSync(`public${logoSrc}`), name).not.toThrow();
+    }
+
     const unknown = resolveStoreBrand('Ferretería local');
     expect(unknown.logoSrc).toBeNull();
     expect(unknown.name).toBe('Ferretería local');
