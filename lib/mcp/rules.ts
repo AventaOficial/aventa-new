@@ -62,7 +62,7 @@ export function buildSubmissionRules(client: MachineClientContext, quota: McpQuo
       required: ['url', 'title', 'price', 'currency', 'observedAt'],
       optional: ['originalPrice', 'note', 'hunterComment'],
       notes: [
-        'url: https, tienda soportada, sin credenciales, puerto, IP, query (?) ni fragmento (#).',
+        'url: HTTPS, tienda soportada, sin credenciales, puerto, IP ni fragmento (#). Se elimina la query de seguimiento en fichas de producto AliExpress con /item/{id}.html; en otras tiendas la query se rechaza salvo parámetros de identidad explícitamente permitidos.',
         'title, note y hunterComment: texto plano, sin HTML ni caracteres de control.',
         'note es contexto para el equipo. hunterComment es un borrador para el comprador: una o dos frases en español con datos verificables. Si no hay nada útil, omítelo.',
         'hunterComment no puede afirmar «precio histórico», «el más barato», «últimas unidades», urgencia, ahorros ni comparaciones con otras tiendas, ni mencionarse como bot o IA. Solo menciona descuento o porcentaje si la tienda muestra un precio de lista mayor. Si no cumple (incluido pasar del tope de caracteres o traer HTML), Aventa descarta solo el comentario y el candidato sigue su curso.',
