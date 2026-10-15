@@ -13,7 +13,6 @@ export async function GET() {
       offersCount: snapshot.offersCount,
       feedViewOk: snapshot.feedViewOk,
       checkedAt: snapshot.checkedAt,
-      ...(snapshot.message ? { message: snapshot.message } : {}),
     },
     { status: httpStatus }
   );
