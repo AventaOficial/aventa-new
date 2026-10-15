@@ -127,6 +127,24 @@ export default function Hero({ searchQuery: controlledQuery = '', onSearchChange
             </div>
           </div>
         </div>
+      
+        <div
+          aria-label="Tiendas destacadas"
+          className="flex items-center justify-center gap-4 overflow-x-auto px-4 pb-4 pt-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:gap-6 md:gap-8"
+        >
+          {[
+            { name: 'Liverpool', src: '/stores/liverpool.avif', className: 'h-7 w-[92px] sm:h-8 sm:w-[108px]' },
+            { name: 'Bodega Aurrera', src: '/stores/bodega-aurrera-logo_freelogovectors.net_.png', className: 'h-7 w-[92px] sm:h-8 sm:w-[108px]' },
+            { name: 'Chedraui', src: '/stores/chedraui-logo-png_seeklogo-29285.png', className: 'h-8 w-[60px] sm:h-9 sm:w-[68px]' },
+            { name: 'Costco', src: '/stores/Costco-logo.jpg', className: 'h-7 w-[92px] sm:h-8 sm:w-[108px]' },
+            { name: 'Compra verificada', src: '/stores/OIP.webp', className: 'h-8 w-8 sm:h-9 sm:w-9' },
+          ].map((store) => (
+            <div key={store.name} title={store.name} className="flex shrink-0 items-center justify-center">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={store.src} alt={store.name} loading="lazy" className={`${store.className} object-contain`} />
+            </div>
+          ))}
+        </div>
       </div>
     </header>
   );
