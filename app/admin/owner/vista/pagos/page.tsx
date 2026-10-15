@@ -68,7 +68,7 @@ export default function PagosVistaPage() {
       }
     >
       <p className="text-[12px] leading-relaxed text-white/50">
-        Los conteos de abajo son históricos: no usan el período del mosaico. {REWARD_COUNT_SOURCE}
+        Los conteos de abajo son históricos: no usan el período del mosaico. Esta vista no mueve dinero. {REWARD_COUNT_SOURCE}
       </p>
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">

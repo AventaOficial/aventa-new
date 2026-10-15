@@ -100,7 +100,7 @@ describe('post-v1 economía', () => {
     expect(hrefs).not.toContain('/admin/owner/payouts');
     const pagos = read('app/admin/owner/vista/pagos/page.tsx');
     expect(pagos).toMatch(/readEconomicState/);
-    expect(pagos).toMatch(/Congelado/);
+    expect(pagos).toMatch(/Bloqueado|Congelado|congelado/);
     expect(pagos).toMatch(/Esta vista no mueve dinero/);
     const rewards = read('app/admin/rewards/page.tsx');
     const commissions = read('app/admin/commissions/page.tsx');

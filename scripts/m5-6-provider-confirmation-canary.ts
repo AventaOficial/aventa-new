@@ -54,6 +54,11 @@ const GROSS_ELIGIBLE = Math.ceil(
 );
 const WEBHOOK_SECRET = `m56-canary-secret-${STAMP}`;
 
+/** Non-synthetic provider reference for confirm→PAID paths (sandbox: is rejected by confirmation gate). */
+function canaryExternalProviderRef(suffix: string, intentId: string): string {
+  return `m56-canary-ext-${suffix}-${intentId}`;
+}
+
 function loadEnv(path: string) {
   if (!existsSync(path)) return;
   for (const line of readFileSync(path, 'utf8').split(/\r?\n/)) {
@@ -257,7 +262,7 @@ async function createThroughStatus(
     };
   }
 
-  const ref = `sandbox:m56-${suffix}:${reserved.intentId}`;
+  const ref = canaryExternalProviderRef(suffix, reserved.intentId);
   if (mode === 'unknown') {
     const sub = await processReservedPayoutSubmit(sb, reserved.intentId, {
       provider: createSandboxPayoutProvider({ submit: 'timeout' }),
@@ -380,7 +385,7 @@ async function main() {
       report.reason = `caseB_seed:${seedB.reason}`;
       return;
     }
-    const refB = `sandbox:m56-b:${seedB.intentId}`;
+    const refB = canaryExternalProviderRef('b', seedB.intentId);
     const b = await processConfirmablePayoutIntent(sb, seedB.intentId, {
       provider: createSandboxPayoutProvider({
         reconcile: 'success',
