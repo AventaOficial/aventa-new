@@ -562,7 +562,7 @@ function PlazaInner() {
           </div>
         ) : null}
         <aside
-          className={`min-w-0 lg:sticky lg:top-6 lg:col-start-2 lg:row-span-2 lg:row-start-1 ${tab === 'requests' ? 'order-2' : 'order-3'}`}
+          className="order-3 min-w-0 lg:sticky lg:top-6 lg:col-start-2 lg:row-span-2 lg:row-start-1"
           aria-label="Centro de Caza"
         >
           <HuntCenter
@@ -572,7 +572,7 @@ function PlazaInner() {
           />
         </aside>
         <div
-          className={`min-w-0 lg:col-start-1 ${noticeBanner || top ? 'lg:row-start-2' : 'lg:row-start-1'} ${tab === 'requests' ? 'order-3' : 'order-2'}`}
+          className={`order-2 min-w-0 lg:col-start-1 ${noticeBanner || top ? 'lg:row-start-2' : 'lg:row-start-1'}`}
         >
           {bottom}
         </div>
