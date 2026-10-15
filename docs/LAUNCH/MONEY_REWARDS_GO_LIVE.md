@@ -23,7 +23,9 @@ El **motor** (ledger, holds, payout intents, freeze) está implementado y probad
 
 ## Secuencia recomendada para encender dinero (post-lanzamiento)
 
-1. Cerrar #143 en **producción** con precheck de esquema.
+Guía operativa paso a paso (staging primero): **`MONEY_REWARDS_STAGING_ACTIVATION.md`**.
+
+1. Cerrar #143 en **producción** con precheck de esquema. ✅ 2026-10-15 (`PR143_PRODUCTION_APPLY_20261015.md`)
 2. Supabase Pro + restore probado (ledger `AVENTA_LAUNCH_READINESS.md`).
 3. Staging: `REWARDS_PROGRAM_ACTIVE=true`, `MONEY_PATH_FROZEN=false` → smoke de crons y payout intent en sandbox.
 4. Producción: mismo orden; **primero** programa activo con money aún congelado; luego descongelar con ventana de observación.

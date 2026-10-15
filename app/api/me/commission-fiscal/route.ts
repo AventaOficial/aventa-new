@@ -3,6 +3,9 @@ import { requireBearerMeUser, meAuthFailureResponse } from '@/lib/server/require
 import { getCommissionEligibility } from '@/lib/server/commissionEligibility';
 import { saveCommissionFiscalProfile } from '@/lib/server/commissionFiscal';
 import { enforceRateLimitCustom } from '@/lib/server/rateLimit';
+import { isCommissionProgramPubliclyActive } from '@/lib/commissions/programStatus';
+import { isRewardsProgramActive } from '@/lib/rewards/programStatus';
+import { isMoneyPathFrozen, moneyPathFrozenHttpBody } from '@/lib/server/moneyPathFreeze';
 
 /** GET: datos fiscales del usuario para comisiones. POST/PATCH: guardar (solo si elegible o ya activo). */
 export async function GET(request: Request) {
@@ -27,6 +30,17 @@ export async function POST(request: Request) {
   const rl = await enforceRateLimitCustom(`commission-fiscal:${user.id}`, 'reports');
   if (!rl.success) {
     return NextResponse.json({ error: 'Demasiados intentos. Espera un momento.' }, { status: 429 });
+  }
+
+  const programOn = isRewardsProgramActive() || isCommissionProgramPubliclyActive();
+  if (!programOn) {
+    return NextResponse.json(
+      { error: 'El programa de recompensas o comisiones no está activo.', code: 'program_inactive' },
+      { status: 403 },
+    );
+  }
+  if (isMoneyPathFrozen()) {
+    return NextResponse.json(moneyPathFrozenHttpBody(), { status: 503 });
   }
 
   const eligibility = await getCommissionEligibility(supabase, user.id);
