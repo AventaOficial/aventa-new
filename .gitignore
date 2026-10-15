@@ -25,6 +25,7 @@ workers/**/node_modules/
 
 # production
 /build
+browser-extension/dist/
 
 # misc
 .DS_Store
