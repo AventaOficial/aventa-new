@@ -12,6 +12,9 @@ const state: {
   ilikeRows: Row[];
   ilikeNot: unknown[][];
   voteQueries: number;
+  profiles: Row[];
+  profilesError: { message: string } | null;
+  hunterOffers: Row[];
 } = {
   rpcRows: [],
   rpcError: null,
@@ -23,6 +26,9 @@ const state: {
   ilikeRows: [],
   ilikeNot: [],
   voteQueries: 0,
+  profiles: [],
+  profilesError: null,
+  hunterOffers: [],
 };
 
 function tableBuilder(table: string) {
@@ -39,6 +45,20 @@ function tableBuilder(table: string) {
       return Promise.resolve({
         data: state.votesError ? null : state.votes.filter((v) => ids.has(String(v.id))),
         error: state.votesError,
+      });
+    }
+    if (table === 'public_profiles_view') {
+      const ids = new Set(args[1] as string[]);
+      return Promise.resolve({
+        data: state.profilesError ? null : state.profiles.filter((p) => ids.has(String(p.id))),
+        error: state.profilesError,
+      });
+    }
+    if (table === 'offers' && args[0] === 'id') {
+      const ids = new Set(args[1] as string[]);
+      return Promise.resolve({
+        data: state.hunterOffers.filter((o) => ids.has(String(o.id))),
+        error: null,
       });
     }
     return builder;
@@ -84,11 +104,23 @@ describe('searchPublicOffers', () => {
     state.ilikeRows = [];
     state.ilikeNot = [];
     state.voteQueries = 0;
+    state.profiles = [];
+    state.profilesError = null;
+    state.hunterOffers = [];
     resetMachineAuthorCacheForTests();
     vi.stubEnv('BOT_INGEST_USER_ID', '');
     vi.stubEnv('MCP_BOT_AUTHOR_USER_IDS', '');
   });
   afterEach(() => vi.unstubAllEnvs());
+
+  it('adjunta perfiles de creador para la atribución en la card', async () => {
+    state.rpcRows = [hit('a', HUMAN, 0.06)];
+    state.profiles = [{ id: HUMAN, display_name: 'María', avatar_url: null }];
+    const { hits } = await searchPublicOffers({ query: 'cafe', limit: 12 });
+    expect(hits[0].profiles?.display_name).toBe('María');
+    const card = mapOfferToCard(hits[0] as unknown as RankedOfferSource);
+    expect(card.author.username).toBe('María');
+  });
 
   it('usa los votos reales de la vista del feed, no el rank de texto, con una sola lectura', async () => {
     state.rpcRows = [hit('a', HUMAN, 0.0607), hit('b', HUNTER, 0.05)];

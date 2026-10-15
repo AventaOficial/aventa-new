@@ -58,6 +58,11 @@ export type CardOffer = {
   /** Dominio de la oferta, para identificar la tienda. La URL completa no se expone en la card. */
   sourceHost?: string | null;
   origin?: 'community' | 'machine' | null;
+  searchPriceAlternate?: {
+    offerId: string;
+    price: number;
+    discountPct: number;
+  } | null;
 };
 
 type ProfilesJoin =
@@ -111,6 +116,11 @@ export type RankedOfferSource = {
   profiles?: ProfilesJoin;
   /** `bot_meta.hunter_code` resuelto en servidor; la vista no lo expone. */
   hunter_code?: string | null;
+  search_price_alternate?: {
+    offer_id: string;
+    price: number;
+    discount_pct: number;
+  } | null;
 };
 
 export type FeedApiItemShape = {
@@ -239,6 +249,13 @@ function mapRankedToCard(row: RankedOfferSource): CardOffer {
     ranking_momentum: Number(row.ranking_momentum) || 0,
     ranking_blend: row.ranking_blend != null ? Number(row.ranking_blend) : undefined,
     createdAt: row.created_at ?? null,
+    searchPriceAlternate: row.search_price_alternate
+      ? {
+          offerId: row.search_price_alternate.offer_id,
+          price: row.search_price_alternate.price,
+          discountPct: row.search_price_alternate.discount_pct,
+        }
+      : null,
     ...despensaFields(row.title, row.offer_url),
   };
 }

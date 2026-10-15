@@ -50,6 +50,7 @@ import StoreBrandMark from './StoreBrandMark';
 import FeedModerationAction from './moderation/FeedModerationAction';
 import OfferAdvancedMetricsModal from './OfferAdvancedMetricsModal';
 import { presentOfferPrice } from '@/lib/formatPrice';
+import { buildOfferPublicPath } from '@/lib/offerPath';
 
 /** Tope visual del comentario del cazador en la card (ellipsis / line-clamp). */
 export const OFFER_CARD_HUNTER_COMMENT_MAX_LENGTH = 120;
@@ -201,6 +202,11 @@ interface OfferCardProps {
   offerScope?: OfferScopeUi | null;
   canModerate?: boolean;
   onModerated?: (offerId: string) => void;
+  searchPriceAlternate?: {
+    offerId: string;
+    price: number;
+    discountPct: number;
+  } | null;
 }
 
 export default function OfferCard({
@@ -239,6 +245,7 @@ export default function OfferCard({
   offerScope = null,
   canModerate = false,
   onModerated,
+  searchPriceAlternate = null,
 }: OfferCardProps) {
   const router = useRouter();
   const { showToast } = useUI();
@@ -706,6 +713,21 @@ export default function OfferCard({
               {listDifferenceText ? (
                 <p className="mt-0.5 text-xs md:text-[13px] text-gray-400 dark:text-gray-500 tabular-nums tracking-tight">
                   {listDifferenceText}
+                </p>
+              ) : null}
+              {searchPriceAlternate ? (
+                <p className="mt-1 text-[11px] md:text-xs leading-snug text-gray-600 dark:text-gray-400">
+                  <span className="font-medium text-gray-700 dark:text-gray-300">Mejor precio en la búsqueda:</span>{' '}
+                  <Link
+                    href={buildOfferPublicPath(searchPriceAlternate.offerId, title)}
+                    onClick={(e) => e.stopPropagation()}
+                    className="font-semibold text-violet-600 dark:text-violet-400 hover:underline tabular-nums"
+                  >
+                    {presentOfferPrice(searchPriceAlternate.price, sourceCurrency)}
+                    {searchPriceAlternate.discountPct >= 1
+                      ? ` (${cardPercentText(searchPriceAlternate.discountPct)})`
+                      : ''}
+                  </Link>
                 </p>
               ) : null}
               {isTesterOffer ? (
