@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { createServerClient } from '@/lib/supabase/server';
 import { enforceRateLimit } from '@/lib/server/rateLimit';
 import { getValidCategoryValuesForFeed } from '@/lib/categories';
@@ -8,6 +9,7 @@ import {
   hasAffinitySignals,
   sortOffersByAffinity,
 } from '@/lib/preferences/affinity';
+import { FOR_YOU_AFFINITY_RECENT_LIMIT, mergeForYouAffinityCandidates } from '@/lib/preferences/forYouFeed';
 import { FOR_YOU_MAX_LIMIT, feedForYouQuerySchema } from '@/lib/contracts/feed';
 import { computeOfferScore } from '@/lib/offers/scoring';
 import { observeFeedRequest } from '@/lib/analytics/observeProductBehavior';
@@ -52,7 +54,8 @@ type OfferRow = {
  * Señales: (1) preferred_categories del perfil (categorías macro + tiendas/marcas);
  * (2) categorías/tiendas inferidas de favoritos y votos.
  * Orden: primero filas que matchean categoría o tienda; luego ranking_blend.
- * Candidatos: últimos FOR_YOU_LOOKBACK_DAYS días.
+ * Lista principal: top por ranking_blend + ofertas recientes que encajan con gustos (likes/votos/categorías),
+ * ordenadas por afinidad y, entre ellas, más recientes primero. Sin mezclar novedad genérica.
  */
 export async function GET(request: Request) {
   const authHeader = request.headers.get('authorization');
@@ -113,69 +116,39 @@ export async function GET(request: Request) {
     );
   }
 
-  // 2) Traer ofertas del feed. Intentar vista; si falla (ej. vista sin columnas en prod), usar tabla offers.
-  let list: OfferRow[] = [];
-  let query = supabase
-    .from('ofertas_ranked_general')
-    .select('id, title, price, original_price, image_url, image_urls, msi_months, bank_coupon, store, offer_url, description, hunter_comment, steps, conditions, coupons, created_at, created_by, up_votes, down_votes, score, score_final, ranking_momentum, ranking_blend, category, profiles:public_profiles_view!created_by(display_name, avatar_url, leader_badge, ml_tracking_tag, amazon_tracking_tag, slug)')
-    .in('status', ['approved', 'published'])
-    .or(`expires_at.is.null,expires_at.gte.${nowISO}`)
-    .gte('created_at', windowStart)
-    .order('ranking_blend', { ascending: false })
-    .limit(FETCH_LIMIT);
-
-  if (storeFilter) query = query.eq('store', storeFilter);
-  if (categoryFilterValues.length === 1) query = query.eq('category', categoryFilterValues[0]);
-  else if (categoryFilterValues.length > 1) query = query.in('category', categoryFilterValues);
-
-  const { data: viewRows, error: viewError } = await query;
-  if (!viewError && viewRows?.length !== undefined) {
-    list = viewRows as OfferRow[];
-  } else {
-    let offerQuery = supabase
-      .from('offers')
-      .select('id, title, price, original_price, image_url, image_urls, msi_months, bank_coupon, store, offer_url, description, hunter_comment, steps, conditions, coupons, created_at, created_by, upvotes_count, downvotes_count, ranking_momentum, reputation_weighted_score, category')
-      .in('status', ['approved', 'published'])
-      .or(`expires_at.is.null,expires_at.gte.${nowISO}`)
-      .gte('created_at', windowStart)
-      .order('ranking_blend', { ascending: false })
-      .limit(FETCH_LIMIT);
-    if (storeFilter) offerQuery = offerQuery.eq('store', storeFilter);
-    if (categoryFilterValues.length === 1) offerQuery = offerQuery.eq('category', categoryFilterValues[0]);
-    else if (categoryFilterValues.length > 1) offerQuery = offerQuery.in('category', categoryFilterValues);
-    const { data: offerRows, error: offerError } = await offerQuery;
-    if (offerError) {
-      return NextResponse.json({ error: offerError.message }, { status: 500 });
-    }
-    const offers = (offerRows ?? []) as Array<Record<string, unknown> & { upvotes_count?: number; downvotes_count?: number; ranking_momentum?: number; reputation_weighted_score?: number }>;
-    list = offers.map((o) => {
-      const up = o.upvotes_count ?? 0;
-      const down = o.downvotes_count ?? 0;
-      const score = computeOfferScore(up, down);
-      const blend = (o.ranking_momentum ?? 0) + (o.reputation_weighted_score ?? 0);
-      return {
-        ...o,
-        up_votes: up,
-        down_votes: down,
-        score,
-        score_final: score,
-        ranking_blend: blend,
-        profiles: null,
-      } as unknown as OfferRow;
-    });
+  const list = await fetchForYouOfferRows(supabase, {
+    windowStart,
+    nowISO,
+    storeFilter,
+    categoryFilterValues,
+    order: { column: 'ranking_blend', ascending: false },
+    limit: FETCH_LIMIT,
+  });
+  if (list === null) {
+    return NextResponse.json({ error: 'No se pudo cargar el feed' }, { status: 500 });
   }
 
 
-  const sorted = hasAffinitySignals(affinity)
-    ? sortOffersByAffinity(list, affinity)
-    : list;
+  let feed: OfferRow[] = list;
+  if (hasAffinitySignals(affinity)) {
+    const recent =
+      (await fetchForYouOfferRows(supabase, {
+        windowStart,
+        nowISO,
+        storeFilter,
+        categoryFilterValues,
+        order: { column: 'created_at', ascending: false },
+        limit: FOR_YOU_AFFINITY_RECENT_LIMIT,
+      })) ?? [];
+    const merged = mergeForYouAffinityCandidates(list, recent, affinity);
+    feed = sortOffersByAffinity(merged, affinity);
+  }
 
   let interestMatches: Array<OfferRow & { matchKind: string; matchLabel: string; interestLabel: string }> = [];
-  let feed = sorted;
   try {
     const interests = await listInterests(supabase, user.id);
     if (interests.length > 0) {
-      const candidates = sorted.map((row) => ({
+      const candidates = feed.map((row) => ({
         id: row.id,
         title: row.title,
         category: row.category,
@@ -185,7 +158,7 @@ export async function GET(request: Request) {
         rankingBlend: row.ranking_blend,
       }));
       const view = buildInterestView(interests, candidates, now);
-      const byId = new Map(sorted.map((row) => [row.id, row]));
+      const byId = new Map(feed.map((row) => [row.id, row]));
       interestMatches = view.matches.flatMap((match) => {
         const row = byId.get(match.id);
         return row
@@ -193,7 +166,7 @@ export async function GET(request: Request) {
           : [];
       });
       const personalIds = new Set(interestMatches.map((row) => row.id));
-      feed = omitMatchedOffers(sorted, personalIds);
+      feed = omitMatchedOffers(feed, personalIds);
     }
   } catch (error) {
     console.error('[for-you] interests', error instanceof Error ? error.message : 'failed');
@@ -211,4 +184,80 @@ export async function GET(request: Request) {
     source: 'api/feed/for-you',
   });
   return NextResponse.json({ offers: result, interestMatches, hasMore: feed.length > limit });
+}
+
+const RANKED_SELECT =
+  'id, title, price, original_price, image_url, image_urls, msi_months, bank_coupon, store, offer_url, description, hunter_comment, steps, conditions, coupons, created_at, created_by, up_votes, down_votes, score, score_final, ranking_momentum, ranking_blend, category, profiles:public_profiles_view!created_by(display_name, avatar_url, leader_badge, ml_tracking_tag, amazon_tracking_tag, slug)';
+
+type ForYouFetchOrder = { column: 'ranking_blend' | 'created_at'; ascending: boolean };
+
+async function fetchForYouOfferRows(
+  supabase: SupabaseClient,
+  input: {
+    windowStart: string;
+    nowISO: string;
+    storeFilter: string | null | undefined;
+    categoryFilterValues: string[];
+    order: ForYouFetchOrder;
+    limit: number;
+  },
+): Promise<OfferRow[] | null> {
+  let query = supabase
+    .from('ofertas_ranked_general')
+    .select(RANKED_SELECT)
+    .in('status', ['approved', 'published'])
+    .or(`expires_at.is.null,expires_at.gte.${input.nowISO}`)
+    .gte('created_at', input.windowStart)
+    .order(input.order.column, { ascending: input.order.ascending })
+    .limit(input.limit);
+
+  if (input.storeFilter) query = query.eq('store', input.storeFilter);
+  if (input.categoryFilterValues.length === 1) query = query.eq('category', input.categoryFilterValues[0]);
+  else if (input.categoryFilterValues.length > 1) query = query.in('category', input.categoryFilterValues);
+
+  const { data: viewRows, error: viewError } = await query;
+  if (!viewError && viewRows?.length !== undefined) {
+    return viewRows as OfferRow[];
+  }
+
+  let offerQuery = supabase
+    .from('offers')
+    .select(
+      'id, title, price, original_price, image_url, image_urls, msi_months, bank_coupon, store, offer_url, description, hunter_comment, steps, conditions, coupons, created_at, created_by, upvotes_count, downvotes_count, ranking_momentum, reputation_weighted_score, category',
+    )
+    .in('status', ['approved', 'published'])
+    .or(`expires_at.is.null,expires_at.gte.${input.nowISO}`)
+    .gte('created_at', input.windowStart)
+    .order(input.order.column === 'created_at' ? 'created_at' : 'ranking_blend', {
+      ascending: input.order.ascending,
+    })
+    .limit(input.limit);
+  if (input.storeFilter) offerQuery = offerQuery.eq('store', input.storeFilter);
+  if (input.categoryFilterValues.length === 1) offerQuery = offerQuery.eq('category', input.categoryFilterValues[0]);
+  else if (input.categoryFilterValues.length > 1) offerQuery = offerQuery.in('category', input.categoryFilterValues);
+  const { data: offerRows, error: offerError } = await offerQuery;
+  if (offerError) return null;
+  const offers = (offerRows ?? []) as Array<
+    Record<string, unknown> & {
+      upvotes_count?: number;
+      downvotes_count?: number;
+      ranking_momentum?: number;
+      reputation_weighted_score?: number;
+    }
+  >;
+  return offers.map((o) => {
+    const up = o.upvotes_count ?? 0;
+    const down = o.downvotes_count ?? 0;
+    const score = computeOfferScore(up, down);
+    const blend = (o.ranking_momentum ?? 0) + (o.reputation_weighted_score ?? 0);
+    return {
+      ...o,
+      up_votes: up,
+      down_votes: down,
+      score,
+      score_final: score,
+      ranking_blend: blend,
+      profiles: null,
+    } as unknown as OfferRow;
+  });
 }

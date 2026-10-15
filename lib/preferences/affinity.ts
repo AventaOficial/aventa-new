@@ -77,10 +77,14 @@ export function hasAffinitySignals(affinity: UserAffinitySignals): boolean {
   return affinity.categoryIds.size > 0 || affinity.storeKeys.size > 0;
 }
 
-export function sortOffersByAffinity<T extends { category?: string | null; store?: string | null; ranking_blend?: number | null }>(
-  offers: T[],
-  affinity: UserAffinitySignals,
-): T[] {
+export function sortOffersByAffinity<
+  T extends {
+    category?: string | null;
+    store?: string | null;
+    ranking_blend?: number | null;
+    created_at?: string | null;
+  },
+>(offers: T[], affinity: UserAffinitySignals): T[] {
   if (!hasAffinitySignals(affinity)) return offers;
 
   return [...offers].sort((a, b) => {
@@ -88,6 +92,11 @@ export function sortOffersByAffinity<T extends { category?: string | null; store
     const bMatch = offerMatchesAffinity(b, affinity);
     if (aMatch && !bMatch) return -1;
     if (!aMatch && bMatch) return 1;
+    if (aMatch && bMatch) {
+      const ta = a.created_at ? Date.parse(a.created_at) : 0;
+      const tb = b.created_at ? Date.parse(b.created_at) : 0;
+      if (Number.isFinite(ta) && Number.isFinite(tb) && tb !== ta) return tb - ta;
+    }
     const blendA = a.ranking_blend ?? 0;
     const blendB = b.ranking_blend ?? 0;
     return blendB - blendA;
