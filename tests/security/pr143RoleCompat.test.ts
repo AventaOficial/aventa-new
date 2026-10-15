@@ -17,6 +17,7 @@ describe('PR #143 role compatibility', () => {
     const sql = read('20261016_staff_roles_profile_sync.sql');
     expect(sql).toMatch(/INSERT INTO public\.user_roles/);
     expect(sql).toMatch(/NOT EXISTS/);
+    expect(sql).toMatch(/column_name = 'role'/);
   });
 
   it('endurece vistas sensibles y RPC admin', () => {
