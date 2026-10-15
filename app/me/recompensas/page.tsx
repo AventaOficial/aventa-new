@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import {
@@ -9,11 +9,7 @@ import {
   Clock,
   Gift,
   Lock,
-  Search,
-  Send,
   ShieldCheck,
-  ThumbsUp,
-  Unlock,
   Wallet,
   X,
 } from 'lucide-react';
@@ -21,6 +17,7 @@ import { createClient } from '@/lib/supabase/client';
 import { MeSpaceShell, meCardClass } from '@/app/me/dashboard/MeSectionPage';
 import RewardsBetaOnboarding from '@/app/me/RewardsBetaOnboarding';
 import RewardsOfferSelection, { type WelcomeChoiceCard } from '@/app/me/RewardsOfferSelection';
+import RewardsUnlockCeremony, { type CeremonyStep } from '@/app/me/RewardsUnlockCeremony';
 import { formatRewardShare } from '@/lib/me/rewardStatusCopy';
 import { illustrativePhoneEstimate } from '@/lib/rewards/estimation/estimateReward';
 import { REWARDS_LEVEL_COUNT, rewardsLevelShareBps } from '@/lib/rewards/levels';
@@ -82,6 +79,11 @@ type StatusPayload = {
   balances: Balances;
   policy: Policy;
   beta: BetaStatus;
+  terms: {
+    current: boolean;
+    needsAcceptance: boolean;
+    href: string;
+  };
 };
 
 type RewardRow = {
@@ -96,14 +98,6 @@ type RewardRow = {
   currency: string | null;
   offer: { title: string; store: string | null; image_url: string | null } | null;
 };
-
-const PATH_STEPS = [
-  { title: 'Caza', body: 'Encuentra ofertas que realmente valgan la pena.', icon: Search },
-  { title: 'Publica', body: 'Compártelas con la comunidad.', icon: Send },
-  { title: 'Consigue votos', body: 'Tus ofertas ayudan a otros cazadores y reciben votos.', icon: ThumbsUp },
-  { title: 'Desbloquea', body: 'Cumple las ofertas aprobadas y los votos positivos.', icon: Unlock },
-  { title: 'Elige tu Oferta de Bienvenida', body: 'Selecciona una de tus primeras ofertas aprobadas.', icon: Gift },
-] as const;
 
 function num(value: unknown, fallback = 0): number {
   return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
@@ -182,6 +176,7 @@ function parseStatus(body: unknown): StatusPayload | null {
   const balances = (raw.balances ?? {}) as Record<string, unknown>;
   const policy = (raw.policy ?? {}) as Record<string, unknown>;
   const beta = (raw.beta ?? {}) as Record<string, unknown>;
+  const terms = (raw.terms ?? {}) as Record<string, unknown>;
   const offer = welcome.welcomeOffer && typeof welcome.welcomeOffer === 'object'
     ? (welcome.welcomeOffer as Record<string, unknown>)
     : null;
@@ -231,6 +226,11 @@ function parseStatus(body: unknown): StatusPayload | null {
       canSeeEconomics: Boolean(beta.canSeeEconomics),
       steps: Array.isArray(beta.steps) ? (beta.steps as BetaStatus['steps']) : [],
     },
+    terms: {
+      current: Boolean(terms.current),
+      needsAcceptance: Boolean(terms.needsAcceptance),
+      href: typeof terms.href === 'string' ? terms.href : '/terms#comisiones',
+    },
   };
 }
 
@@ -273,9 +273,11 @@ function RuleBlock({ title, items }: { title: string; items: string[] }) {
   return (
     <div className="min-w-0 rounded-2xl bg-[#f6f4fb] p-4 dark:bg-white/5">
       <p className="text-[14px] font-semibold">{title}</p>
-      <ul className="mt-2 space-y-1.5">
-        {items.map((item) => (
-          <li key={item} className="text-[13px] leading-relaxed text-[var(--me-muted)]">{item}</li>
+      <ul className="mt-2 list-disc space-y-2 pl-5 [overflow-wrap:anywhere]">
+        {items.map((item, index) => (
+          <li key={`${title}-${index}`} className="text-[13px] leading-relaxed text-[var(--me-muted)]">
+            {item}
+          </li>
         ))}
       </ul>
     </div>
@@ -375,6 +377,11 @@ export default function RecompensasPage() {
   const [selectionError, setSelectionError] = useState<string | null>(null);
   const [guideStep, setGuideStep] = useState<number | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [ceremonyOpen, setCeremonyOpen] = useState(false);
+  const [ceremonyStep, setCeremonyStep] = useState<CeremonyStep>('hello');
+  const [ceremonySubmitting, setCeremonySubmitting] = useState(false);
+  const [ceremonyError, setCeremonyError] = useState<string | null>(null);
+  const ceremonyAutoOpened = useRef(false);
 
   useEffect(() => {
     let active = true;
@@ -404,6 +411,59 @@ export default function RecompensasPage() {
       active = false;
     };
   }, [reloadKey]);
+
+  const openCeremony = useCallback(() => {
+    setCeremonyError(null);
+    setCeremonyStep('hello');
+    setCeremonyOpen(true);
+  }, []);
+
+  const closeCeremony = useCallback(() => {
+    if (ceremonySubmitting) return;
+    setCeremonyOpen(false);
+    setCeremonyError(null);
+  }, [ceremonySubmitting]);
+
+  const submitTerms = useCallback(async () => {
+    setCeremonySubmitting(true);
+    setCeremonyError(null);
+    try {
+      const supabase = createClient();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) {
+        setCeremonyError('Inicia sesión de nuevo');
+        return;
+      }
+      const res = await fetch('/api/me/rewards/accept-terms', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ accept: true }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setCeremonyError(
+          typeof body?.error === 'string' ? body.error : 'No se pudo registrar la aceptación',
+        );
+        return;
+      }
+      setCeremonyOpen(false);
+      setReloadKey((value) => value + 1);
+    } finally {
+      setCeremonySubmitting(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!status || status.claimPhase !== 'unlocked' || ceremonyAutoOpened.current) return;
+    ceremonyAutoOpened.current = true;
+    openCeremony();
+  }, [status, openCeremony]);
 
   useEffect(() => {
     if (guideStep == null && !historyOpen) return;
@@ -473,6 +533,9 @@ export default function RecompensasPage() {
   const votesPct = progress ? clampPct(progress.positiveVotes, progress.requiredVotes) : 0;
   const missingOffers = progress ? Math.max(0, progress.requiredOffers - progress.approvedOffers) : 0;
   const missingVotes = progress ? Math.max(0, progress.requiredVotes - progress.positiveVotes) : 0;
+  const gatesMet = missingOffers === 0 && missingVotes === 0;
+  const showProgramDashboard = gatesMet;
+  const termsHref = status?.terms.href ?? '/terms#comisiones';
   const available = balances?.availableCents ?? 0;
   const payoutPct = policy ? clampPct(available, policy.minPayoutCents) : 0;
   const missingPayout = policy ? Math.max(0, policy.minPayoutCents - available) : 0;
@@ -511,42 +574,78 @@ export default function RecompensasPage() {
       {!loading && status && !status.beta.needsOnboarding ? (
         <div className="space-y-5">
           <section className="overflow-hidden rounded-[28px] bg-linear-to-br from-[#6d4aff] via-[#8b5cf6] to-[#c084fc] p-5 text-white shadow-[0_18px_50px_rgba(109,74,255,0.28)] sm:p-7">
-            <div className="grid items-center gap-6 lg:grid-cols-[minmax(0,1.1fr)_220px_minmax(220px,280px)]">
-              <div className="min-w-0">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/80">{hero?.kicker}</p>
-                <h1 className="mt-3 max-w-xl text-[32px] font-semibold leading-[1.12] tracking-tight sm:text-[40px]">
-                  {hero?.title}
+            {showProgramDashboard ? (
+              <div className="grid items-center gap-6 lg:grid-cols-[minmax(0,1.1fr)_220px_minmax(220px,280px)]">
+                <div className="min-w-0">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/80">{hero?.kicker}</p>
+                  <h1 className="mt-3 max-w-xl text-[32px] font-semibold leading-[1.12] tracking-tight sm:text-[40px]">
+                    {hero?.title}
+                  </h1>
+                  <p className="mt-3 max-w-lg text-[15px] leading-relaxed text-white/90">{hero?.body}</p>
+                  <div className="mt-5 flex flex-wrap gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setGuideStep(0)}
+                      className="inline-flex min-h-11 items-center rounded-full bg-white px-4 text-[14px] font-semibold text-violet-700"
+                    >
+                      Cómo funciona
+                    </button>
+                    <Link
+                      href="/me/ofertas"
+                      className="inline-flex min-h-11 items-center rounded-full border border-white/40 px-4 text-[14px] font-semibold text-white"
+                    >
+                      Ver mis ofertas
+                    </Link>
+                  </div>
+                </div>
+                <GiftCluster />
+                <ul className="space-y-2.5">
+                  {(hero?.facts ?? []).map((fact, index) => {
+                    const Icon = [BadgePercent, Wallet, Clock, ShieldCheck][index] ?? ShieldCheck;
+                    return (
+                      <li key={fact.title} className="flex items-center gap-3 rounded-2xl bg-white/15 px-3 py-2.5 backdrop-blur-sm">
+                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/20">
+                          <Icon className="h-4 w-4" aria-hidden />
+                        </span>
+                        <span className="min-w-0">
+                          <span className="block text-[13px] font-semibold leading-tight">{fact.title}</span>
+                          <span className="block text-[12px] text-white/80">{fact.body}</span>
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            ) : (
+              <div className="max-w-2xl">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/80">Programa de recompensas</p>
+                <h1 className="mt-3 text-[28px] font-semibold leading-[1.12] tracking-tight sm:text-[34px]">
+                  Publica ofertas útiles y desbloquea el programa
                 </h1>
-                <p className="mt-3 max-w-lg text-[15px] leading-relaxed text-white/90">
-                  {hero?.body}
+                <p className="mt-3 text-[15px] leading-relaxed text-white/90">
+                  Primero cumple los requisitos de ofertas aprobadas y votos positivos. Los detalles del programa, niveles y pagos están en{' '}
+                  <button type="button" onClick={() => setGuideStep(0)} className="font-semibold underline underline-offset-2">
+                    cómo funciona
+                  </button>
+                  .
                 </p>
                 <div className="mt-5 flex flex-wrap gap-3">
-                  <button type="button" onClick={() => setGuideStep(0)} className="inline-flex min-h-11 items-center rounded-full bg-white px-4 text-[14px] font-semibold text-violet-700">
-                    Conoce cómo funciona
-                  </button>
-                  <Link href="/me/ofertas" className="inline-flex min-h-11 items-center rounded-full border border-white/40 px-4 text-[14px] font-semibold text-white">
+                  <Link
+                    href="/me/ofertas"
+                    className="inline-flex min-h-11 items-center rounded-full bg-white px-4 text-[14px] font-semibold text-violet-700"
+                  >
                     Ver mis ofertas
                   </Link>
+                  <button
+                    type="button"
+                    onClick={() => setGuideStep(0)}
+                    className="inline-flex min-h-11 items-center rounded-full border border-white/40 px-4 text-[14px] font-semibold text-white"
+                  >
+                    Cómo funciona
+                  </button>
                 </div>
               </div>
-              <GiftCluster />
-              <ul className="space-y-2.5">
-                {(hero?.facts ?? []).map((fact, index) => {
-                  const Icon = [BadgePercent, Wallet, Clock, ShieldCheck][index] ?? ShieldCheck;
-                  return (
-                    <li key={fact.title} className="flex items-center gap-3 rounded-2xl bg-white/15 px-3 py-2.5 backdrop-blur-sm">
-                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/20">
-                        <Icon className="h-4 w-4" aria-hidden />
-                      </span>
-                      <span className="min-w-0">
-                        <span className="block text-[13px] font-semibold leading-tight">{fact.title}</span>
-                        <span className="block text-[12px] text-white/80">{fact.body}</span>
-                      </span>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
+            )}
           </section>
 
           <section className={`${meCardClass} p-5 sm:p-6`}>
@@ -558,7 +657,7 @@ export default function RecompensasPage() {
                 </p>
               </div>
               <button type="button" onClick={() => setGuideStep(2)} className="text-[13px] font-semibold text-violet-700 dark:text-violet-300">
-                Ver requisitos completos
+                Reglas completas
               </button>
             </div>
             <div className="mt-5 grid gap-4 md:grid-cols-2">
@@ -580,39 +679,32 @@ export default function RecompensasPage() {
               </div>
             </div>
             <p className="mt-4 text-[13px] text-[var(--me-muted)]">
-              {missingOffers === 0 && missingVotes === 0
-                ? 'Ya cumpliste los requisitos para desbloquear el programa de recompensas.'
-                : `Te faltan ${missingOffers} ofertas aprobadas y ${missingVotes} votos positivos para desbloquear el programa de recompensas.`}
+              {gatesMet
+                ? status.claimPhase === 'locked'
+                  ? 'Cumpliste los requisitos. Cuando el programa confirme tu desbloqueo, aquí verás tu panel y podrás aceptar términos y elegir tu Oferta de Bienvenida.'
+                  : 'Cumpliste los requisitos. Revisa tu panel abajo y completa la aceptación de términos si aún no lo hiciste.'
+                : `Te faltan ${missingOffers} ofertas aprobadas y ${missingVotes} votos positivos para abrir tu panel de recompensas.`}
             </p>
           </section>
 
-          <section className={`${meCardClass} p-5 sm:p-6`}>
-            <div className="flex items-center justify-between gap-3">
-              <h2 className="text-[18px] font-semibold">Tu primera recompensa, paso a paso</h2>
-              <span className="text-[12px] font-medium text-[var(--me-muted)]">5 pasos</span>
-            </div>
-            <ol className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-              {PATH_STEPS.map((step, index) => {
-                const Icon = step.icon;
-                const body = index === 3 && progress
-                  ? `Cumple ${progress.requiredOffers} ofertas aprobadas + ${progress.requiredVotes} votos positivos.`
-                  : index === 4 && progress
-                    ? `Selecciona una de tus primeras ${progress.requiredOffers} ofertas aprobadas.`
-                    : step.body;
-                return (
-                  <li key={step.title} className="min-w-0">
-                    <span className="flex h-8 w-8 items-center justify-center rounded-full bg-violet-100 text-[13px] font-semibold text-violet-700 dark:bg-violet-500/20 dark:text-violet-200">{index + 1}</span>
-                    <span className="mt-3 flex h-9 w-9 items-center justify-center rounded-xl bg-[#f6f4fb] text-violet-700 dark:bg-white/5 dark:text-violet-200">
-                      <Icon className="h-4 w-4" aria-hidden />
-                    </span>
-                    <p className="mt-3 text-[14px] font-semibold">{step.title}</p>
-                    <p className="mt-1 text-[13px] leading-relaxed text-[var(--me-muted)]">{body}</p>
-                  </li>
-                );
-              })}
-            </ol>
-          </section>
+          {showProgramDashboard && status.claimPhase === 'unlocked' ? (
+            <section className={`${meCardClass} border-violet-200/80 p-5 dark:border-violet-500/30 sm:p-6`}>
+              <h2 className="text-[18px] font-semibold">Un paso legal antes de continuar</h2>
+              <p className="mt-2 max-w-2xl text-[14px] leading-relaxed text-[var(--me-muted)]">
+                Para entrar al programa debes leer y aceptar los términos y el contrato de comisiones. No confirma pagos ni elige tu oferta todavía.
+              </p>
+              <button
+                type="button"
+                onClick={openCeremony}
+                className="mt-4 inline-flex min-h-11 items-center justify-center rounded-2xl bg-violet-600 px-5 text-[14px] font-semibold text-white"
+              >
+                Revisar y aceptar términos
+              </button>
+            </section>
+          ) : null}
 
+          {showProgramDashboard ? (
+          <>
           <section className={`${meCardClass} p-5 sm:p-6`}>
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0 max-w-2xl">
@@ -772,17 +864,15 @@ export default function RecompensasPage() {
                   <span className="rounded-full bg-rose-50 px-2.5 py-1 text-[12px] font-semibold text-rose-700 dark:bg-rose-500/15 dark:text-rose-300">Aún no desbloqueado</span>
                 )}
               </div>
-              <div className="mt-4 space-y-3">
-                <div className="flex items-center justify-between gap-3 rounded-2xl bg-[#f6f4fb] px-4 py-3 dark:bg-white/5">
-                  <span className="text-[14px]">Ofertas aprobadas</span>
-                  <span className="font-semibold tabular-nums">{progress?.approvedOffers ?? 0} / {progress?.requiredOffers ?? 0}</span>
-                </div>
-                <div className="flex items-center justify-between gap-3 rounded-2xl bg-[#f6f4fb] px-4 py-3 dark:bg-white/5">
-                  <span className="text-[14px]">Votos positivos</span>
-                  <span className="font-semibold tabular-nums">{progress?.positiveVotes ?? 0} / {progress?.requiredVotes ?? 0}</span>
-                </div>
-              </div>
               {member ? <p className="mt-3 text-[13px] leading-relaxed text-[var(--me-muted)]">{member.label}. {member.description} Tu Nivel Aventa no cambia este estado.</p> : null}
+              {status.terms.current ? (
+                <p className="mt-3 text-[13px] text-[var(--me-muted)]">
+                  Términos del programa aceptados.{' '}
+                  <a href={termsHref} className="font-semibold text-violet-700 dark:text-violet-300">
+                    Ver documento
+                  </a>
+                </p>
+              ) : null}
               <Link href="/me/nivel" className="mt-4 inline-flex text-[13px] font-semibold text-violet-700 dark:text-violet-300">
                 Ver mi actividad
               </Link>
@@ -815,6 +905,8 @@ export default function RecompensasPage() {
             </div>
             <RewardTable rows={realRewards.slice(0, 3)} showMoney={showMoney} />
           </section>
+          </>
+          ) : null}
 
           {guideStep != null && guide ? (
             <SheetFrame
@@ -876,14 +968,12 @@ export default function RecompensasPage() {
                 </div>
               ) : null}
               {guideStep === 2 ? (
-                <div>
+                <div className="space-y-4">
                   <p className="text-[14px] leading-relaxed text-[var(--me-muted)]">
-                    Tu nivel de comunidad no cambia estas reglas. Arriba ves tu progreso de ofertas y votos. También cuentan la antigüedad y la tasa de aprobación.
+                    Tu Nivel Aventa no cambia estas reglas. En la página principal ves solo tu progreso de ofertas y votos; aquí están el resto de criterios y exclusiones.
                   </p>
-                  <div className="mt-4 grid gap-3">
-                    <RuleBlock title="Cuenta para desbloquear" items={guide.counts} />
-                    <RuleBlock title="Lo que no cuenta" items={guide.doesNotCount} />
-                  </div>
+                  <RuleBlock title="Cuenta para desbloquear" items={guide.counts} />
+                  <RuleBlock title="Lo que no cuenta" items={guide.doesNotCount} />
                 </div>
               ) : null}
               {guideStep === 3 ? (
@@ -923,6 +1013,20 @@ export default function RecompensasPage() {
               <RewardTable rows={realRewards} showMoney={showMoney} />
             </SheetFrame>
           ) : null}
+
+          <RewardsUnlockCeremony
+            open={ceremonyOpen}
+            step={ceremonyStep}
+            termsHref={termsHref}
+            submitting={ceremonySubmitting}
+            error={ceremonyError}
+            onClose={closeCeremony}
+            onContinueFromHello={() => {
+              setCeremonyStep('terms');
+              setCeremonyError(null);
+            }}
+            onAcceptTerms={() => void submitTerms()}
+          />
         </div>
       ) : null}
     </MeSpaceShell>
