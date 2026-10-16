@@ -11,25 +11,15 @@ import {
   type Role,
 } from '@/lib/admin/roles';
 
-type RosterMembership = {
-  team_id: string;
-  team_label: string;
-  role: string;
-  role_label: string;
-  status: string;
-};
-
 type TeamMember = {
   user_id: string;
-  staff_role: Role | null;
+  role: Role;
   display_name: string | null;
   avatar_url: string | null;
   reputation_level: number;
   reputation_score: number;
   email: string | null;
   has_email_password: boolean;
-  memberships: RosterMembership[];
-  last_equipo_password: { password: string; generated_at: string } | null;
 };
 
 type SearchUser = {
@@ -61,12 +51,7 @@ export function TeamRolesPanel({ onCallerRole }: { onCallerRole?: (role: Role | 
     const q = searchName.toLowerCase().trim();
     const name = (m.display_name ?? '').toLowerCase();
     const id = m.user_id.toLowerCase();
-    const memb = m.memberships.some(
-      (x) =>
-        x.team_label.toLowerCase().includes(q) ||
-        x.role_label.toLowerCase().includes(q),
-    );
-    return name.includes(q) || id.includes(q) || memb;
+    return name.includes(q) || id.includes(q);
   });
 
   const loadTeam = useCallback(async () => {
@@ -75,7 +60,7 @@ export function TeamRolesPanel({ onCallerRole }: { onCallerRole?: (role: Role | 
     try {
       const headers: Record<string, string> = {};
       if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
-      const res = await fetch('/api/admin/team', { headers });
+      const res = await fetch('/api/admin/staff-roles', { headers });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         throw new Error(data?.error || 'Error al cargar equipo');
@@ -155,7 +140,7 @@ export function TeamRolesPanel({ onCallerRole }: { onCallerRole?: (role: Role | 
       if (!res.ok) throw new Error(data?.error ?? 'No se pudo completar');
       if (typeof data.temporary_password === 'string') {
         setPasswordNote(
-          `Contraseña Team OS para ${userId.slice(0, 8)}…: ${data.temporary_password} (también en la columna «Para copiar»).`,
+          `Contraseña temporal para ${userId.slice(0, 8)}…: ${data.temporary_password} (cópiala ahora; no se vuelve a mostrar).`,
         );
       } else {
         setPasswordNote(typeof data.message === 'string' ? data.message : 'Correo enviado.');
@@ -178,18 +163,13 @@ export function TeamRolesPanel({ onCallerRole }: { onCallerRole?: (role: Role | 
     try {
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
-      const res = await fetch('/api/admin/team', {
+      const res = await fetch('/api/admin/staff-roles', {
         method: 'POST',
         headers,
         body: JSON.stringify({ user_id: uid, role }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error || 'Error al agregar');
-      if (typeof data.temporary_password === 'string') {
-        setPasswordNote(
-          `Nuevo staff — contraseña Team OS: ${data.temporary_password} (queda en la tabla para copiar).`,
-        );
-      }
       setAddSearch('');
       setSearchResults([]);
       await loadTeam();
@@ -206,19 +186,19 @@ export function TeamRolesPanel({ onCallerRole }: { onCallerRole?: (role: Role | 
       alert('ID de usuario no válido.');
       return;
     }
-    if (!previousRole || newRole === previousRole || !ROLES.includes(newRole)) return;
+    if (newRole === previousRole || !ROLES.includes(newRole)) return;
     setUpdating(uid);
     try {
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
-      const res = await fetch('/api/admin/team', {
+      const res = await fetch('/api/admin/staff-roles', {
         method: 'PATCH',
         headers,
         body: JSON.stringify({ user_id: uid, role: newRole }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error || 'Error al actualizar');
-      setTeam((prev) => prev.map((m) => (m.user_id === uid ? { ...m, staff_role: newRole } : m)));
+      setTeam((prev) => prev.map((m) => (m.user_id === uid ? { ...m, role: newRole } : m)));
     } catch (e) {
       alert(e instanceof Error ? e.message : 'Error al actualizar');
     } finally {
@@ -234,18 +214,14 @@ export function TeamRolesPanel({ onCallerRole }: { onCallerRole?: (role: Role | 
     return <div className="text-red-600 dark:text-red-400">{error}</div>;
   }
 
-  const staffUserIds = new Set(team.filter((m) => m.staff_role).map((m) => m.user_id));
+  const teamIds = new Set(team.map((m) => m.user_id));
 
   return (
     <div className="space-y-4">
       <p className="text-sm text-gray-500 dark:text-gray-400">
-        <strong className="font-medium text-gray-700 dark:text-gray-300">Rol panel</strong> = Admin/CEO.
-        <strong className="font-medium text-gray-700 dark:text-gray-300"> Membresías</strong> = equipo en Team OS (Moderación…).
-        La contraseña es la misma para entrar a{' '}
-        <Link href="/team/gate" className="text-emerald-600 hover:underline">/team</Link>
-        {callerRole === 'owner'
-          ? ' (se genera al dar de alta o al asignar membresía; el owner la ve en «Para copiar»).'
-          : '.'}
+        Solo <strong className="font-medium text-gray-700 dark:text-gray-300">acceso al panel</strong> (
+        <code className="text-xs">user_roles</code>). Para equipos de trabajo sin hacerlos staff, usa{' '}
+        <Link href="/admin/team" className="text-violet-600 hover:underline">Team OS — miembros</Link>.
       </p>
       {passwordNote ? (
         <p className="rounded-xl border border-violet-200 dark:border-violet-800 bg-violet-50 dark:bg-violet-950/30 px-4 py-3 text-sm text-violet-900 dark:text-violet-100">
@@ -269,7 +245,7 @@ export function TeamRolesPanel({ onCallerRole }: { onCallerRole?: (role: Role | 
         {searchResults.length > 0 && (
           <ul className="space-y-2 max-h-48 overflow-y-auto">
             {searchResults.map((u) => {
-              const alreadyInTeam = staffUserIds.has(u.user_id);
+              const alreadyInTeam = teamIds.has(u.user_id);
               return (
                 <li
                   key={u.user_id}
@@ -335,17 +311,17 @@ export function TeamRolesPanel({ onCallerRole }: { onCallerRole?: (role: Role | 
           <thead>
             <tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50">
               <th className="text-left p-3 font-medium text-gray-700 dark:text-gray-300">Usuario</th>
-              <th className="text-left p-3 font-medium text-gray-700 dark:text-gray-300">Rol panel</th>
-              <th className="text-left p-3 font-medium text-gray-700 dark:text-gray-300">Membresías Team OS</th>
-              <th className="text-left p-3 font-medium text-gray-700 dark:text-gray-300">Contraseña entrada</th>
-              <th className="text-left p-3 font-medium text-gray-700 dark:text-gray-300">Asignar rol panel</th>
+              <th className="text-left p-3 font-medium text-gray-700 dark:text-gray-300">Rol actual</th>
+              <th className="text-left p-3 font-medium text-gray-700 dark:text-gray-300">Reputación</th>
+              <th className="text-left p-3 font-medium text-gray-700 dark:text-gray-300">Team OS</th>
+              <th className="text-left p-3 font-medium text-gray-700 dark:text-gray-300">Asignar rol</th>
             </tr>
           </thead>
           <tbody>
             {filteredTeam.length === 0 ? (
               <tr>
                 <td colSpan={5} className="p-4 text-center text-gray-500 dark:text-gray-400">
-                  {team.length === 0 ? 'No hay personas en el equipo' : 'No hay resultados para la búsqueda'}
+                  {team.length === 0 ? 'No hay usuarios con rol' : 'No hay resultados para la búsqueda'}
                 </td>
               </tr>
             ) : (
@@ -373,45 +349,20 @@ export function TeamRolesPanel({ onCallerRole }: { onCallerRole?: (role: Role | 
                     </div>
                   </td>
                   <td className="p-3">
-                    {m.staff_role ? (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300">
-                        {ROLE_LABELS[m.staff_role]}
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300">
+                      {ROLE_LABELS[m.role]}
+                    </span>
+                  </td>
+                  <td className="p-3">
+                    <span className="inline-flex items-center gap-1.5">
+                      <span className="font-medium text-gray-900 dark:text-gray-100">
+                        {getReputationLabel(m.reputation_level)}
                       </span>
-                    ) : (
-                      <span className="text-xs text-gray-500 dark:text-gray-400">Sin rol panel</span>
-                    )}
-                    <span className="mt-1 block text-xs text-gray-500 dark:text-gray-400">
-                      {getReputationLabel(m.reputation_level)} ({m.reputation_score} pts)
+                      <span className="text-xs text-gray-500 dark:text-gray-400">({m.reputation_score} pts)</span>
                     </span>
                   </td>
                   <td className="p-3 align-top">
-                    {m.memberships.length === 0 ? (
-                      <span className="text-xs text-gray-500 dark:text-gray-400">Ninguna</span>
-                    ) : (
-                      <ul className="space-y-1 text-xs">
-                        {m.memberships.map((mem) => (
-                          <li key={`${mem.team_id}-${mem.role}`}>
-                            <span className="font-medium text-gray-800 dark:text-gray-200">
-                              {mem.team_label} · {mem.role_label}
-                            </span>
-                            <span className="text-gray-500 dark:text-gray-400"> — {mem.status}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </td>
-                  <td className="p-3 align-top">
-                    <div className="flex flex-col gap-1.5 max-w-[16rem]">
-                      {callerRole === 'owner' && m.last_equipo_password ? (
-                        <div className="rounded-lg border border-emerald-300 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/30 px-2 py-1.5">
-                          <span className="text-[10px] uppercase tracking-wide text-emerald-800 dark:text-emerald-300">
-                            Para copiar
-                          </span>
-                          <code className="mt-0.5 block break-all text-xs font-mono text-emerald-950 dark:text-emerald-100">
-                            {m.last_equipo_password.password}
-                          </code>
-                        </div>
-                      ) : null}
+                    <div className="flex flex-col gap-1.5 max-w-[14rem]">
                       <span
                         className={`text-xs font-medium ${m.has_email_password ? 'text-emerald-700 dark:text-emerald-400' : 'text-amber-700 dark:text-amber-400'}`}
                       >
@@ -438,31 +389,19 @@ export function TeamRolesPanel({ onCallerRole }: { onCallerRole?: (role: Role | 
                     </div>
                   </td>
                   <td className="p-3">
-                    {m.staff_role ? (
-                      <>
-                        <select
-                          value={m.staff_role}
-                          onChange={(e) => {
-                            const prev = m.staff_role;
-                            if (!prev) return;
-                            handleRoleChange(m.user_id, e.currentTarget.value as Role, prev);
-                          }}
-                          disabled={updating === m.user_id || m.staff_role === 'owner'}
-                          className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 px-3 py-2 text-sm disabled:opacity-50"
-                        >
-                          {ROLES.map((r) => (
-                            <option key={r} value={r}>{ROLE_LABELS[r]}</option>
-                          ))}
-                        </select>
-                        {m.staff_role === 'owner' ? (
-                          <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">(no editable)</span>
-                        ) : null}
-                      </>
-                    ) : (
-                      <span className="text-xs text-gray-500 dark:text-gray-400">
-                        Agrégalo arriba con «Agregar rol de staff»
-                      </span>
-                    )}
+                    <select
+                      value={m.role}
+                      onChange={(e) => handleRoleChange(m.user_id, e.currentTarget.value as Role, m.role)}
+                      disabled={updating === m.user_id || m.role === 'owner'}
+                      className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 px-3 py-2 text-sm disabled:opacity-50"
+                    >
+                      {ROLES.map((r) => (
+                        <option key={r} value={r}>{ROLE_LABELS[r]}</option>
+                      ))}
+                    </select>
+                    {m.role === 'owner' ? (
+                      <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">(no editable)</span>
+                    ) : null}
                   </td>
                 </tr>
               ))

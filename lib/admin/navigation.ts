@@ -260,7 +260,15 @@ export const ADMIN_SCREEN_REGISTRY: Omit<AdminNavItem, 'icon'>[] = [
   },
   {
     href: '/admin/team',
-    label: 'Equipo (roles y membresías)',
+    label: 'Team OS — miembros',
+    domain: 'personas',
+    frequency: 'mensual',
+    audiences: ['founder'],
+    visibility: 'submenu',
+  },
+  {
+    href: '/admin/staff-roles',
+    label: 'Acceso al panel',
     domain: 'personas',
     frequency: 'mensual',
     audiences: ['founder', 'admin'],
@@ -599,7 +607,7 @@ export function getAdminMobileSectionTitle(pathname: string): string {
   ) {
     return 'Operación';
   }
-  if (pathname === '/admin/users' || pathname === '/admin/team') {
+  if (pathname === '/admin/users' || pathname === '/admin/team' || pathname === '/admin/staff-roles') {
     return 'Personas';
   }
   if (

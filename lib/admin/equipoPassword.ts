@@ -1,8 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { userHasEmailPasswordIdentity } from '@/lib/auth/authIdentities';
-import { saveStaffEquipoCredential } from '@/lib/admin/staffEquipoCredentials';
-
 export type EquipoPasswordAction = 'recovery_email' | 'generate_temporary';
 
 export async function loadAuthUserForEquipoPassword(
@@ -53,14 +51,3 @@ export async function setTemporaryEquipoPassword(
   return { ok: true, temporaryPassword };
 }
 
-/** Genera contraseña Team OS y la guarda para que el owner la vea en /admin/team (tabla staff_equipo_credentials). */
-export async function issueEquipoPasswordForOwner(
-  supabase: SupabaseClient,
-  userId: string,
-  generatedBy: string,
-): Promise<{ ok: true; temporaryPassword: string } | { ok: false; message: string }> {
-  const set = await setTemporaryEquipoPassword(supabase, userId);
-  if (!set.ok) return set;
-  await saveStaffEquipoCredential(supabase, userId, set.temporaryPassword, generatedBy);
-  return { ok: true, temporaryPassword: set.temporaryPassword };
-}

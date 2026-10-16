@@ -75,7 +75,7 @@ export async function requireOwner(request: Request): Promise<AuthResult> {
   return requireRole(request, OWNER_ROLES)
 }
 
-/** Owner o admin: gestionar miembros del equipo en /api/admin/team */
+/** Owner o admin: roles de panel (`user_roles`) en /api/admin/staff-roles */
 export const TEAM_MANAGEMENT_ROLES: Role[] = ['owner', 'admin']
 export async function requireTeamManagement(request: Request): Promise<AuthResult> {
   return requireRole(request, TEAM_MANAGEMENT_ROLES)

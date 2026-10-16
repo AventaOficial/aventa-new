@@ -114,7 +114,8 @@ export const OWNER_NAV_SECTIONS: OwnerNavSection[] = [
     audience: 'HACER',
     items: [
       { href: '/admin/users', label: 'Usuarios', icon: Users },
-      { href: '/admin/team', label: 'Equipo y roles', icon: UsersRound },
+      { href: '/admin/team', label: 'Team OS — miembros', icon: UsersRound },
+      { href: '/admin/staff-roles', label: 'Acceso al panel', icon: UserCog },
       { href: '/admin/vote-weights', label: 'Vote Weights', icon: Scale },
       { href: '/admin/machine-clients', label: 'MCP', icon: Bot },
       { href: '/admin/owner/control', label: 'Centro de control', icon: SlidersHorizontal },

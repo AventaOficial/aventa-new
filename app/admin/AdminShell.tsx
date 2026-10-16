@@ -172,7 +172,8 @@ export default function AdminShell({
       pathname.startsWith('/admin/reports') ||
       pathname.startsWith('/admin/hunters-ai');
     const isUsersLogsPath = pathname === '/admin/users' || pathname === '/admin/logs';
-    const isTeamPath = pathname === '/admin/team';
+    const isTeamOsPath = pathname === '/admin/team';
+    const isStaffRolesPath = pathname === '/admin/staff-roles';
     const isOwnerPanelPath = pathname.startsWith('/admin/owner');
     const isAnalistaPath = pathname === '/admin/analista';
     const isAnnouncementsPath = pathname === '/admin/announcements';
@@ -206,7 +207,9 @@ export default function AdminShell({
       router.replace(canUsersLogs ? '/admin/users' : canMod ? '/admin/moderation' : '/admin/metrics');
     } else if (isAnnouncementsPath && !canAnnouncements) {
       router.replace(canTeam ? '/admin/team' : canUsersLogs ? '/admin/users' : canMod ? '/admin/moderation' : canMet ? '/admin/metrics' : '/admin/health');
-    } else if (isTeamPath && !canTeam) {
+    } else if (isTeamOsPath && !canOwnerOpsPanel) {
+      router.replace(canTeam ? '/admin/staff-roles' : canMod ? '/admin/moderation' : canMet ? '/admin/metrics' : '/admin/health');
+    } else if (isStaffRolesPath && !canTeam) {
       router.replace(canUsersLogs ? '/admin/users' : canMod ? '/admin/moderation' : canMet ? '/admin/metrics' : '/admin/health');
     } else if (isUsersLogsPath && !canUsersLogs) {
       router.replace(canTeam ? '/admin/team' : canMod ? '/admin/moderation' : canMet ? '/admin/metrics' : '/admin/health');

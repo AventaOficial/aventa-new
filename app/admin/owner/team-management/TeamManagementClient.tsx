@@ -16,6 +16,7 @@ import {
   type CandidateState,
   type MemberStatusFilter,
 } from '@/lib/team/membership/view';
+import { TeamOsMemberAccess } from '@/app/admin/team/TeamOsMemberAccess';
 
 type Member = {
   id: string;
@@ -289,7 +290,7 @@ export default function TeamManagementClient() {
       if (typeof body?.temporary_password === 'string') {
         setNotice(
           body.message ??
-            `Contraseña Team OS generada: ${body.temporary_password} (también en la tabla de arriba en /admin/team).`,
+            `Contraseña temporal (cópiala ahora): ${body.temporary_password}`,
         );
       }
       setAssignOpen(false);
@@ -438,6 +439,7 @@ export default function TeamManagementClient() {
                 Asignada {new Date(selected.createdAt).toLocaleString('es-MX')}
                 {selected.assignedByName ? ` por ${selected.assignedByName}` : ''}
               </p>
+              <TeamOsMemberAccess userId={selected.userId} />
               {selected.status !== 'REMOVED' && isTeamId(selected.teamId) ? (
                 <div className="space-y-2 border-t border-white/10 pt-3">
                   <label className="block text-xs text-white/40" htmlFor="next-role">Rol</label>
