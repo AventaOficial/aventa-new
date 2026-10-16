@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
-import { requireTeamManagement, requireOwner } from '@/lib/server/requireAdmin';
+import { requireOwner } from '@/lib/server/requireAdmin';
 import {
   EquipoPasswordAction,
   loadAuthUserForEquipoPassword,
@@ -20,7 +20,7 @@ function parseAction(body: unknown): EquipoPasswordAction | null {
 
 /** POST: enviar recuperación o (solo owner) contraseña temporal para acceso a Team OS. */
 export async function POST(request: Request, context: { params: Promise<{ userId: string }> }) {
-  const auth = await requireTeamManagement(request);
+  const auth = await requireOwner(request);
   if ('error' in auth) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }

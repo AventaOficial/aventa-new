@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { canAccessAdmin } from '../../lib/admin/roles';
-import { isStaffPathAllowed } from '../../lib/server/middlewareRoleGate';
+import { evaluateStaffPathAccessForLegacyRole } from '../../lib/server/middlewareRoleGate';
 import { composeTeamHero } from '../../lib/team/hero/adapters';
 import { membershipFromRow } from '../../lib/team/gate/policy';
 import { decideTeamEntry } from '../../lib/team/gate/policy';
@@ -262,7 +262,7 @@ describe('team xp does not reopen other surfaces', () => {
     expect(membershipGrantsAdmin()).toBe(false);
     expect(canAccessAdmin('moderator')).toBe(false);
     expect(canAccessAdmin('owner')).toBe(true);
-    expect(isStaffPathAllowed('/equipo/moderacion', 'moderator')).toBe(true);
+    expect(evaluateStaffPathAccessForLegacyRole('/equipo/moderacion', 'moderator')).toBe(true);
     expect(readFileSync('app/equipo/moderacion/page.tsx', 'utf8')).toContain('ModerationFocusWorkspace');
   });
 
