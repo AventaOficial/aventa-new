@@ -18,6 +18,20 @@ type Db = {
 
 const PGLITE = '@electric-sql/pglite';
 const mod = (await import(/* @vite-ignore */ PGLITE).catch(() => null)) as { PGlite: new () => Db } | null;
+
+async function isPgliteUsable(): Promise<boolean> {
+  if (!mod) return false;
+  try {
+    const probe = new mod.PGlite();
+    await probe.exec('SELECT 1');
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Importar el paquete no garantiza que PGlite arranque (p. ej. binarios faltantes en Windows/CI). */
+const pgliteUsable = await isPgliteUsable();
 const MIGRATIONS = path.resolve(__dirname, '../../docs/supabase-migrations');
 const sql = (f: string) => readFileSync(path.join(MIGRATIONS, f), 'utf8');
 
@@ -48,7 +62,7 @@ async function errorOf(db: Db, statement: string): Promise<{ code: string; messa
   }
 }
 
-describe.skipIf(!mod)('observaciones de precio: ciclo de vida en Postgres (PGlite)', () => {
+describe.skipIf(!pgliteUsable)('observaciones de precio: ciclo de vida en Postgres (PGlite)', () => {
   let db: Db;
   const count = async (where: string) =>
     (await db.query<{ n: number }>(`SELECT count(*)::int AS n FROM public.offer_price_snapshots WHERE ${where}`)).rows[0].n;
@@ -171,6 +185,11 @@ describe.skipIf(!mod)('observaciones de precio: ciclo de vida en Postgres (PGlit
   });
 });
 
-describe.runIf(!mod)('observaciones de precio: ciclo de vida en Postgres (PGlite)', () => {
-  it.skip('PGlite no instalado: npm i --no-save @electric-sql/pglite@0.3', () => undefined);
+describe.runIf(!pgliteUsable)('observaciones de precio: ciclo de vida en Postgres (PGlite)', () => {
+  it.skip(
+    mod
+      ? 'PGlite instalado pero no arranca en este entorno (omitido).'
+      : 'PGlite no instalado: npm i --no-save @electric-sql/pglite@0.3',
+    () => undefined,
+  );
 });
