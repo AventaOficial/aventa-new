@@ -196,6 +196,7 @@ function HomeContent() {
   const fetchOffersRef = useRef<((overrideLimit?: number, opts?: { silent?: boolean }) => void) | null>(null);
   const debouncedQueryRef = useRef(debouncedQuery);
   const feedStaleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const skipLimitOnlyRefetchRef = useRef(false);
 
   useEffect(() => {
     debouncedQueryRef.current = debouncedQuery;
@@ -287,8 +288,13 @@ function HomeContent() {
     };
   }, [session?.access_token]);
 
-  const fetchOffers = useCallback((overrideLimit?: number, opts?: { silent?: boolean }) => {
-    if (!opts?.silent) setLoading(true);
+  const fetchOffers = useCallback((overrideLimit?: number, opts?: { silent?: boolean; append?: boolean }) => {
+    const appendFromCount = opts?.append ? offersCountRef.current : 0;
+    if (!opts?.silent && !opts?.append) setLoading(true);
+    if (opts?.append) {
+      setLoadingMore(true);
+      setMoreError(false);
+    }
     setFeedError(null);
     if (viewMode !== 'personalized') setInterestRail([]);
     const effectiveLimit = overrideLimit ?? limit;
@@ -358,12 +364,26 @@ function HomeContent() {
         );
         const list = homeView === 'vitales' ? processed.slice(0, effectiveLimit) : processed;
         const keepPages = Boolean(opts?.silent) && offersCountRef.current > list.length;
-        setOffers((prev) => (keepPages ? refreshFeedWithoutDroppingPages(prev, list) : list));
+        setOffers((prev) => {
+          if (opts?.append) return appendOffersById(prev, list.slice(appendFromCount));
+          return keepPages ? refreshFeedWithoutDroppingPages(prev, list) : list;
+        });
         setJustPublished((prev) => prev.filter((p) => !list.some((o) => o.id === p.id)));
         setLoading(false);
+        if (opts?.append) {
+          setLoadingMore(false);
+          skipLimitOnlyRefetchRef.current = true;
+          setLimit(effectiveLimit);
+        }
         setFeedError(null);
-        if (!keepPages) {
+        if (!keepPages && !opts?.append) {
           setFeedCursor(nextCursor);
+          setHasMoreCursor(
+            homeView === 'vitales'
+              ? vitalesHasMore({ rankedCount: processed.length, pageSize: effectiveLimit, serverHasMore: nextCursor != null })
+              : nextCursor != null,
+          );
+        } else if (opts?.append) {
           setHasMoreCursor(
             homeView === 'vitales'
               ? vitalesHasMore({ rankedCount: processed.length, pageSize: effectiveLimit, serverHasMore: nextCursor != null })
@@ -381,8 +401,12 @@ function HomeContent() {
         recordFeedLoadFailure({ branch: 'feed/home-api' });
         notifyUserError(showToast, 'No pudimos cargar las ofertas. Revisa tu conexión.', 'feed:home-api', err);
         setLoading(false);
+        if (opts?.append) {
+          setLoadingMore(false);
+          setMoreError(true);
+        }
         setFeedError('load');
-        setOffers([]);
+        if (!opts?.append) setOffers([]);
       });
   }, [timeFilter, viewMode, limit, storeFilter, categoryFilter, session?.access_token, showToast, vitalesBudget]);
 
@@ -490,6 +514,20 @@ function HomeContent() {
       .finally(() => setLoadingMore(false));
   }, [viewMode, timeFilter, storeFilter, categoryFilter, feedCursor, loadingMore, showToast]);
 
+  const loadMoreFeed = useCallback(() => {
+    if (loadingMore) return;
+    if (debouncedQuery.trim()) {
+      setLimit((prev) => prev + homeFeedPageSize(viewMode));
+      return;
+    }
+    if (viewMode === 'latest') {
+      fetchNextPage();
+      return;
+    }
+    if (viewMode === 'personalized') return;
+    fetchOffers(limit + homeFeedPageSize(viewMode), { append: true, silent: true });
+  }, [debouncedQuery, viewMode, loadingMore, limit, fetchOffers, fetchNextPage]);
+
   useEffect(() => {
     const t = setTimeout(() => setDebouncedQuery(searchQuery), 300);
     return () => clearTimeout(t);
@@ -497,6 +535,10 @@ function HomeContent() {
 
   useEffect(() => {
     if (pathname !== '/') return;
+    if (skipLimitOnlyRefetchRef.current) {
+      skipLimitOnlyRefetchRef.current = false;
+      return;
+    }
 
     const filtersChanged =
       prevFiltersRef.current.viewMode !== viewMode ||
@@ -980,13 +1022,7 @@ function HomeContent() {
                   <button
                     type="button"
                     disabled={loadingMore}
-                    onClick={() => {
-                      if (viewMode === 'latest' && !debouncedQuery.trim()) {
-                        fetchNextPage();
-                      } else {
-                        setLimit((prev) => prev + homeFeedPageSize(viewMode));
-                      }
-                    }}
+                    onClick={loadMoreFeed}
                     className="rounded-xl border-2 border-violet-600 dark:border-violet-500 bg-white dark:bg-[#141414] px-6 py-2.5 text-sm font-semibold text-violet-600 dark:text-violet-400 transition-all duration-200 hover:bg-violet-50 dark:hover:bg-violet-900/20 disabled:opacity-60"
                   >
                     {loadingMore ? 'Cargando…' : moreError ? 'Reintentar' : 'Cargar más'}

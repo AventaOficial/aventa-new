@@ -15,6 +15,8 @@ const state: {
   profiles: Row[];
   profilesError: { message: string } | null;
   hunterOffers: Row[];
+  hunterLaneRows: Row[];
+  hunterLaneQuery: boolean;
 } = {
   rpcRows: [],
   rpcError: null,
@@ -29,6 +31,8 @@ const state: {
   profiles: [],
   profilesError: null,
   hunterOffers: [],
+  hunterLaneRows: [],
+  hunterLaneQuery: false,
 };
 
 function tableBuilder(table: string) {
@@ -39,6 +43,10 @@ function tableBuilder(table: string) {
     return builder;
   };
   builder.in = (...args: unknown[]) => {
+    if (table === 'offers' && args[0] === 'bot_meta->>hunter_code') {
+      state.hunterLaneQuery = true;
+      return builder;
+    }
     if (table === 'ofertas_ranked_general') {
       state.voteQueries += 1;
       const ids = new Set(args[1] as string[]);
@@ -65,6 +73,10 @@ function tableBuilder(table: string) {
   };
   builder.limit = async () => {
     if (table === 'machine_clients') return { data: state.machineClients, error: state.machineClientsError };
+    if (table === 'offers' && state.hunterLaneQuery) {
+      state.hunterLaneQuery = false;
+      return { data: state.hunterLaneRows, error: null };
+    }
     return { data: state.ilikeRows, error: null };
   };
   return builder;
@@ -107,6 +119,8 @@ describe('searchPublicOffers', () => {
     state.profiles = [];
     state.profilesError = null;
     state.hunterOffers = [];
+    state.hunterLaneRows = [];
+    state.hunterLaneQuery = false;
     resetMachineAuthorCacheForTests();
     vi.stubEnv('BOT_INGEST_USER_ID', '');
     vi.stubEnv('MCP_BOT_AUTHOR_USER_IDS', '');
@@ -153,6 +167,13 @@ describe('searchPublicOffers', () => {
     const { hits } = await searchPublicOffers({ query: 'cafe', limit: 12 });
     expect(hits.map((h) => h.id)).toEqual(['h', 'c']);
     expect(state.rpcArgs?.p_limit).toBe(12);
+  });
+
+  it('en Recientes conserva hunters de especialidad (kai / eleonore)', async () => {
+    state.rpcRows = [hit('kai-1', HUNTER), hit('c1', HUMAN)];
+    state.hunterOffers = [{ id: 'kai-1', hunter_code: 'kai', created_by: HUNTER }];
+    const { hits } = await searchPublicOffers({ query: 'cafe', limit: 12, communityOnly: true });
+    expect(hits.map((h) => h.id)).toEqual(expect.arrayContaining(['kai-1', 'c1']));
   });
 
   it('en Recientes excluye Hunters y autores vacíos, pide más filas y respeta el límite', async () => {

@@ -5,6 +5,7 @@ import { presentAuthor, type HunterPublicIdentity } from '@/lib/product/hunters/
 import { classifyDespensaText } from '@/lib/despensa/classify';
 import { despensaHostOf } from '@/lib/despensa/sources';
 import { resolveOfferSourceCurrency } from '@/lib/offers/sourceCurrency';
+import { normalizeOfferImageUrl } from '@/lib/offers/media/offerImageSource';
 
 /** Modelo único para cards/modal en feed, tienda, categoría, favoritos e inicio. */
 export type CardOfferAuthor = {
@@ -217,6 +218,18 @@ export function resolveVotesFromSource(row: RankedOfferSource): { up: number; do
   return normalizeVoteCounts(up, down);
 }
 
+function resolveCardImage(row: Pick<RankedOfferSource, 'image_url' | 'image_urls'>): {
+  image?: string;
+  imageUrls?: string[];
+} {
+  const extras = Array.isArray(row.image_urls)
+    ? row.image_urls.map((u) => normalizeOfferImageUrl(u)).filter((u): u is string => Boolean(u?.trim()))
+    : [];
+  const primary = normalizeOfferImageUrl(row.image_url)?.trim() || extras[0] || undefined;
+  const imageUrls = primary ? extras.filter((u) => u !== primary) : extras;
+  return { image: primary, imageUrls: imageUrls.length > 0 ? imageUrls : undefined };
+}
+
 function mapRankedToCard(row: RankedOfferSource): CardOffer {
   const originalPrice = Number(row.original_price) || 0;
   const discountPrice = Number(row.price) || 0;
@@ -234,8 +247,7 @@ function mapRankedToCard(row: RankedOfferSource): CardOffer {
     upvotes: up,
     downvotes: down,
     offerUrl: row.offer_url?.trim() ?? '',
-    image: row.image_url ? row.image_url : undefined,
-    imageUrls: Array.isArray(row.image_urls) ? row.image_urls : undefined,
+    ...resolveCardImage(row),
     msiMonths: row.msi_months != null ? Number(row.msi_months) : undefined,
     bankCoupon: row.bank_coupon?.trim() || undefined,
     description: publicOfferDescription(row.description) ?? undefined,

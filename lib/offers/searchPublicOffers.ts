@@ -5,6 +5,9 @@ import { sanitizeSearchQuery } from '@/lib/offers/searchQuery';
 import { loadMachineAuthorIds, machineAuthorNotInList } from '@/lib/offers/machineAuthors';
 import { attachOfferCreatorProfiles } from '@/lib/offers/attachOfferCreatorProfiles';
 import { withOfferHunterCodes } from '@/lib/offers/offerHunterCodes';
+import { isSupplyHunterCode } from '@/lib/product/hunters/identity';
+import { mergeNewestFirst } from '@/lib/offers/feedService';
+import { isRecientesHunterCode, RECIENTES_HUNTER_CODES } from '@/lib/product/hunters/lane';
 import {
   applySearchPriceAlternates,
   organizeSearchHits,
@@ -89,6 +92,110 @@ function isCommunityHit(hit: PublicSearchHit, machineAuthors: ReadonlySet<string
   return Boolean(author) && !machineAuthors.has(author!);
 }
 
+function passesRecientesSearchFilter(
+  hit: PublicSearchHit,
+  machineAuthors: ReadonlySet<string>,
+  hunterCodes: ReadonlyMap<string, string>,
+): boolean {
+  if (!hit.created_by?.trim()) return false;
+  if (isCommunityHit(hit, machineAuthors)) return true;
+  return isRecientesHunterCode(hunterCodes.get(hit.id));
+}
+
+async function loadRecientesHunterCodes(
+  supabase: SupabaseClient,
+  hits: PublicSearchHit[],
+  machineAuthors: readonly string[],
+): Promise<Map<string, string>> {
+  const excluded = new Set(machineAuthors);
+  const ids = hits
+    .filter((hit) => hit.created_by && excluded.has(hit.created_by.trim()))
+    .map((hit) => hit.id);
+  const codes = new Map<string, string>();
+  if (ids.length === 0) return codes;
+  const { data, error } = await supabase
+    .from('offers')
+    .select('id, hunter_code:bot_meta->>hunter_code')
+    .in('id', ids);
+  if (error || !Array.isArray(data)) return codes;
+  for (const row of data as { id: string; hunter_code: unknown }[]) {
+    if (isSupplyHunterCode(row.hunter_code)) codes.set(row.id, row.hunter_code);
+  }
+  return codes;
+}
+
+async function filterRecientesSearchHits(
+  supabase: SupabaseClient,
+  hits: PublicSearchHit[],
+  machineAuthors: readonly string[],
+): Promise<PublicSearchHit[]> {
+  if (hits.length === 0) return hits;
+  const excluded = new Set(machineAuthors);
+  const hunterCodes = await loadRecientesHunterCodes(supabase, hits, machineAuthors);
+  return hits.filter((hit) => passesRecientesSearchFilter(hit, excluded, hunterCodes));
+}
+
+async function searchRecientesHunterLane(
+  supabase: SupabaseClient,
+  input: {
+    query: string;
+    limit: number;
+    categories: string[] | null;
+    store: string | null;
+  },
+): Promise<PublicSearchHit[]> {
+  const nowISO = new Date().toISOString();
+  const orFilter = buildOfferSearchOrFilter(input.query);
+  if (!orFilter) return [];
+
+  let query = supabase
+    .from('offers')
+    .select(SELECT_COLUMNS)
+    .in('status', ['approved', 'published'])
+    .is('deleted_at', null)
+    .or(`expires_at.is.null,expires_at.gte.${nowISO}`)
+    .or(orFilter)
+    .in('bot_meta->>hunter_code', [...RECIENTES_HUNTER_CODES]);
+
+  if (input.store) query = query.eq('store', input.store);
+  if (input.categories && input.categories.length > 0) query = query.in('category', input.categories);
+
+  const { data, error } = await query.order('created_at', { ascending: false }).limit(input.limit);
+  if (error || !data) return [];
+  return (data as Record<string, unknown>[]).map((row) => asHit(row));
+}
+
+async function mergeRecientesSearchPage(
+  supabase: SupabaseClient,
+  input: {
+    query: string;
+    limit: number;
+    categories: string[] | null;
+    store: string | null;
+    machineAuthors: readonly string[];
+    primary: PublicSearchHit[];
+  },
+): Promise<PublicSearchHit[]> {
+  const lane = await searchRecientesHunterLane(supabase, {
+    query: input.query,
+    limit: input.limit,
+    categories: input.categories,
+    store: input.store,
+  });
+  const merged = mergeNewestFirst(
+    input.primary.map((hit) => ({ ...hit, created_at: hit.created_at })),
+    lane.map((hit) => ({ ...hit, created_at: hit.created_at })),
+  ) as PublicSearchHit[];
+  const seen = new Set<string>();
+  const deduped: PublicSearchHit[] = [];
+  for (const row of merged) {
+    if (seen.has(row.id)) continue;
+    seen.add(row.id);
+    deduped.push(row);
+  }
+  return deduped.slice(0, input.limit);
+}
+
 /** Votos reales desde la misma vista que el feed, en una sola lectura por búsqueda. */
 async function attachVotes(supabase: SupabaseClient, hits: PublicSearchHit[]): Promise<PublicSearchHit[]> {
   if (hits.length === 0) return hits;
@@ -163,8 +270,8 @@ async function searchWithIlike(
 }
 
 /**
- * Búsqueda pública. Con `communityOnly` (Recientes) excluye a los autores automáticos;
- * si no se pueden leer, devuelve `unavailable` en lugar de mostrar ofertas de Hunters.
+ * Búsqueda pública. Con `communityOnly` (Recientes) excluye hunters de uso diario,
+ * pero conserva la misma mezcla que el feed: comunidad + hunters de especialidad (kai, eleonore).
  */
 export async function searchPublicOffers(input: {
   query: string;
@@ -189,8 +296,6 @@ export async function searchPublicOffers(input: {
       return { hits: [], engine: 'unavailable' };
     }
   }
-  const excluded = new Set(machineAuthors ?? []);
-
   const { data, error } = await supabase.rpc('search_public_offers', {
     p_query: query,
     p_limit: machineAuthors ? RPC_MAX_LIMIT : limit,
@@ -206,7 +311,17 @@ export async function searchPublicOffers(input: {
     // Con el tope lleno, filtrar después puede dejar fuera ofertas de la comunidad más allá de la fila 50:
     // en ese caso la consulta ilike, que excluye autores en la base antes del límite, es la exacta.
     const saturated = machineAuthors != null && data.length >= RPC_MAX_LIMIT;
-    if (machineAuthors) hits = hits.filter((hit) => isCommunityHit(hit, excluded));
+    if (machineAuthors) hits = await filterRecientesSearchHits(supabase, hits, machineAuthors);
+    if (machineAuthors && hits.length < limit) {
+      hits = await mergeRecientesSearchPage(supabase, {
+        query,
+        limit,
+        categories,
+        store,
+        machineAuthors,
+        primary: hits,
+      });
+    }
     if (hits.length >= limit || (hits.length > 0 && !saturated)) {
       const voted = await attachVotes(supabase, hits);
       const presented = await presentSearchHits(supabase, voted);
@@ -214,7 +329,18 @@ export async function searchPublicOffers(input: {
     }
   }
 
-  const fallback = await searchWithIlike(supabase, { query, limit, categories, store, machineAuthors });
+  let fallback = await searchWithIlike(supabase, { query, limit, categories, store, machineAuthors });
+  if (machineAuthors) {
+    fallback = await filterRecientesSearchHits(supabase, fallback, machineAuthors);
+    fallback = await mergeRecientesSearchPage(supabase, {
+      query,
+      limit,
+      categories,
+      store,
+      machineAuthors,
+      primary: fallback,
+    });
+  }
   const voted = await attachVotes(supabase, fallback);
   const presented = await presentSearchHits(supabase, voted);
   return {

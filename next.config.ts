@@ -53,6 +53,9 @@ const nextConfig: NextConfig = {
       { source: '/communities', destination: '/', permanent: true },
       { source: '/communities/:path*', destination: '/', permanent: true },
       { source: '/admin/communities', destination: '/admin/moderation', permanent: true },
+      { source: '/guia', destination: '/descubre', permanent: true },
+      { source: '/guia/:path*', destination: '/descubre', permanent: true },
+      { source: '/recompensas', destination: '/comisiones', permanent: true },
     ];
   },
   images: {
