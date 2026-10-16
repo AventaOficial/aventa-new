@@ -1,0 +1,101 @@
+{
+  "generatedAt": "2026-10-16T16:19:38.266Z",
+  "dataSource": "fixtures",
+  "limitation": "Datos de fixture local; no representa producción.",
+  "inspected": 5,
+  "withFindings": 3,
+  "byType": {
+    "category_mismatch": 2,
+    "original_price_unprovenanced": 1,
+    "discount_unverifiable": 1,
+    "multi_risk": 1
+  },
+  "bySeverity": {
+    "low": 0,
+    "medium": 0,
+    "high": 5
+  },
+  "samples": [
+    {
+      "offerId": "sample-perfume-servicios",
+      "status": "approved",
+      "findings": [
+        {
+          "type": "category_mismatch",
+          "kind": "confirmed",
+          "severity": "high",
+          "evidence": "Título coincide con «perfume-not-servicios» pero categoría=servicios",
+          "fields": [
+            "category",
+            "title"
+          ],
+          "recommendation": "Corregir categoría a belleza",
+          "confidence": "high",
+          "ruleId": "perfume-not-servicios",
+          "suggestedCategory": "belleza"
+        }
+      ]
+    },
+    {
+      "offerId": "sample-colgate-jardin",
+      "status": "approved",
+      "findings": [
+        {
+          "type": "category_mismatch",
+          "kind": "confirmed",
+          "severity": "high",
+          "evidence": "Título coincide con «dental-not-jardin» pero categoría=jardin",
+          "fields": [
+            "category",
+            "title"
+          ],
+          "recommendation": "Corregir categoría a belleza",
+          "confidence": "high",
+          "ruleId": "dental-not-jardin",
+          "suggestedCategory": "belleza"
+        }
+      ]
+    },
+    {
+      "offerId": "sample-bot-unprovenanced",
+      "status": "pending",
+      "findings": [
+        {
+          "type": "original_price_unprovenanced",
+          "kind": "confirmed",
+          "severity": "high",
+          "evidence": "original_price=1099 sin procedencia verificable",
+          "fields": [
+            "price",
+            "original_price"
+          ],
+          "recommendation": "Quitar original_price o documentar procedencia de página",
+          "confidence": "high"
+        },
+        {
+          "type": "discount_unverifiable",
+          "kind": "confirmed",
+          "severity": "high",
+          "evidence": "descuento declarado ~45% sin evidencia",
+          "fields": [
+            "price",
+            "original_price"
+          ],
+          "recommendation": "No mostrar % de descuento hasta verificar",
+          "confidence": "high"
+        },
+        {
+          "type": "multi_risk",
+          "kind": "review",
+          "severity": "high",
+          "evidence": "2 señales de riesgo simultáneas",
+          "fields": [
+            "*"
+          ],
+          "recommendation": "Priorizar en moderación",
+          "confidence": "high"
+        }
+      ]
+    }
+  ]
+}
