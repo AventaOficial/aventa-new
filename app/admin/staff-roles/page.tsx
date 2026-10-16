@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { TeamRolesPanel } from '@/app/admin/team/TeamRolesPanel';
+import { TeamRolesPanel } from '@/app/admin/staff-roles/TeamRolesPanel';
 
 export default function AdminStaffRolesPage() {
   return (
