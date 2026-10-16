@@ -24,12 +24,14 @@ export async function GET(request: Request) {
       : 'latest';
   const categories = homeSearchCategoryInList(view, category);
 
+  // El feed de Recientes sin query sigue siendo solo comunidad + hunters de especialidad.
+  // Con texto en el buscador, el usuario espera hallar cualquier oferta publicada (p. ej. Persil en Soriana).
   const result = await searchPublicOffers({
     query: q,
     limit: Number.isFinite(limit) ? limit : 12,
     categories,
     store,
-    communityOnly: view === 'latest',
+    communityOnly: false,
   });
 
   if (result.engine === 'unavailable') {

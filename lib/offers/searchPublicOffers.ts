@@ -153,6 +153,7 @@ async function searchRecientesHunterLane(
     .select(SELECT_COLUMNS)
     .in('status', ['approved', 'published'])
     .is('deleted_at', null)
+    .is('archived_at', null)
     .or(`expires_at.is.null,expires_at.gte.${nowISO}`)
     .or(orFilter)
     .in('bot_meta->>hunter_code', [...RECIENTES_HUNTER_CODES]);
@@ -253,6 +254,7 @@ async function searchWithIlike(
     .select(SELECT_COLUMNS)
     .in('status', ['approved', 'published'])
     .is('deleted_at', null)
+    .is('archived_at', null)
     .or(`expires_at.is.null,expires_at.gte.${nowISO}`)
     .or(orFilter);
 
