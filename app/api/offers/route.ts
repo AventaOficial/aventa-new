@@ -151,6 +151,7 @@ export async function POST(request: Request) {
       recordSubmissionCount: true,
       recordPriceSnapshot: true,
       extractionMethod: 'community_paste',
+      enforceCatalogTitleQuality: true,
     });
 
     if (!result.ok) {
