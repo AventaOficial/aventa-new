@@ -58,7 +58,12 @@ type ConfirmState = {
   onConfirm: (reason: string) => Promise<void>;
 };
 
-type MutationBody = { membership?: Member | null; error?: string };
+type MutationBody = {
+  membership?: Member | null;
+  error?: string;
+  temporary_password?: string;
+  message?: string;
+};
 
 const STATUS_LABEL: Record<MembershipStatus, string> = {
   ACTIVE: 'Activa',
@@ -281,6 +286,12 @@ export default function TeamManagementClient() {
         return false;
       }
       if (body?.membership) applyPersisted(body.membership);
+      if (typeof body?.temporary_password === 'string') {
+        setNotice(
+          body.message ??
+            `Contraseña Team OS generada: ${body.temporary_password} (también en la tabla de arriba en /admin/team).`,
+        );
+      }
       setAssignOpen(false);
       setConfirm(null);
       await load();

@@ -6,13 +6,10 @@ import {
   pickEffectiveRole,
   type Role,
 } from '@/lib/admin/roles';
-import { loadAuthUserForEquipoPassword } from '@/lib/admin/equipoPassword';
+import { issueEquipoPasswordForOwner } from '@/lib/admin/equipoPassword';
+import { effectiveRoleFromRows, loadAdminTeamRoster } from '@/lib/admin/teamRoster';
 
-function effectiveRoleFromRows(rows: { role: Role }[] | null | undefined): Role | null {
-  return pickEffectiveRole(((rows ?? []) as { role: Role }[]).map((r) => r.role));
-}
-
-/** GET: lista usuarios con rol (owner o admin). */
+/** GET: roster unificado (roles de panel + membresías Team OS). */
 export async function GET(request: NextRequest) {
   const auth = await requireTeamManagement(request);
   if ('error' in auth) {
@@ -20,86 +17,15 @@ export async function GET(request: NextRequest) {
   }
 
   const supabase = createServerClient();
-  const { data: rows, error } = await supabase.from('user_roles').select('user_id, role');
-
-  if (error) {
-    console.error('[admin/team] user_roles:', error.message);
-    return NextResponse.json({ error: 'Error al cargar roles' }, { status: 500 });
-  }
-
-  const byUser = new Map<string, Role>();
-  for (const r of (rows ?? []) as { user_id: string; role: Role }[]) {
-    const current = byUser.get(r.user_id);
-    if (!current || pickEffectiveRole([current, r.role]) === r.role) {
-      byUser.set(r.user_id, r.role);
-    }
-  }
-
-  const userIds = [...byUser.keys()];
-  if (userIds.length === 0) {
-    return NextResponse.json({ team: [] });
-  }
-
-  const { data: profiles } = await supabase
-    .from('profiles')
-    .select('id, display_name, avatar_url, reputation_level, reputation_score')
-    .in('id', userIds);
-
-  const profileMap = new Map<
-    string,
-    {
-      display_name: string | null;
-      avatar_url: string | null;
-      reputation_level: number;
-      reputation_score: number;
-    }
-  >();
-  for (const p of (profiles ?? []) as {
-    id: string;
-    display_name: string | null;
-    avatar_url?: string | null;
-    reputation_level?: number;
-    reputation_score?: number;
-  }[]) {
-    profileMap.set(p.id, {
-      display_name: p.display_name ?? null,
-      avatar_url: p.avatar_url ?? null,
-      reputation_level: Math.max(1, p.reputation_level ?? 1),
-      reputation_score: Math.max(0, p.reputation_score ?? 0),
+  try {
+    const team = await loadAdminTeamRoster(supabase, {
+      includePasswordLedger: auth.role === 'owner',
     });
+    return NextResponse.json({ team, caller_role: auth.role });
+  } catch (e) {
+    console.error('[admin/team] roster:', e);
+    return NextResponse.json({ error: 'Error al cargar equipo' }, { status: 500 });
   }
-
-  const authFlags = await Promise.all(
-    userIds.map(async (user_id) => {
-      const loaded = await loadAuthUserForEquipoPassword(supabase, user_id);
-      if (!loaded.ok) {
-        return { user_id, email: null as string | null, has_email_password: false };
-      }
-      return {
-        user_id,
-        email: loaded.email,
-        has_email_password: loaded.hasEmailPassword,
-      };
-    }),
-  );
-  const authByUser = new Map(authFlags.map((row) => [row.user_id, row]));
-
-  const team = userIds.map((user_id) => {
-    const prof = profileMap.get(user_id);
-    const auth = authByUser.get(user_id);
-    return {
-      user_id,
-      role: byUser.get(user_id)!,
-      display_name: prof?.display_name ?? null,
-      avatar_url: prof?.avatar_url ?? null,
-      reputation_level: prof?.reputation_level ?? 1,
-      reputation_score: prof?.reputation_score ?? 0,
-      email: auth?.email ?? null,
-      has_email_password: auth?.has_email_password ?? false,
-    };
-  });
-
-  return NextResponse.json({ team, caller_role: auth.role });
 }
 
 function canAssignRole(actor: Role, targetRole: Role): boolean {
@@ -152,7 +78,22 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Error al agregar al equipo' }, { status: 500 });
   }
 
-  return NextResponse.json({ ok: true });
+  let temporary_password: string | undefined;
+  if (auth.role === 'owner') {
+    const issued = await issueEquipoPasswordForOwner(supabase, userId, auth.user.id);
+    if (issued.ok) temporary_password = issued.temporaryPassword;
+  }
+
+  return NextResponse.json({
+    ok: true,
+    ...(temporary_password
+      ? {
+          temporary_password,
+          message:
+            'Rol asignado y contraseña Team OS generada. Compártela por un canal seguro; también aparece en la tabla.',
+        }
+      : {}),
+  });
 }
 
 /** PATCH: actualizar rol. Body: { user_id, role }. */
