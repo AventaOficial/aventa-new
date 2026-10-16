@@ -11,7 +11,10 @@ import { ADMIN_MODERATION_TABS, resolveModerationTabId } from '@/lib/moderation/
 import type { CeoPriority, HealthCategory } from '@/app/admin/owner/command/types';
 
 const root = process.cwd();
-const pageExists = (href: string) => existsSync(join(root, 'app', href.split('#')[0]!.replace(/^\//, ''), 'page.tsx'));
+const pageExists = (href: string) => {
+  const pathOnly = href.split('#')[0]!.split('?')[0]!;
+  return existsSync(join(root, 'app', pathOnly.replace(/^\//, ''), 'page.tsx'));
+};
 const read = (p: string) => readFileSync(join(root, p), 'utf8');
 
 function health(over: Partial<HealthCategory> & Pick<HealthCategory, 'id' | 'level'>): HealthCategory {
@@ -70,9 +73,9 @@ describe('Founder OS · navegación por capacidad', () => {
     for (const s of OWNER_NAV_SECTIONS) expect(s.question).toMatch(/^¿.+\?$/);
   });
 
-  it('los roles globales se llaman «Roles y permisos», nunca solo «Team»', () => {
+  it('equipo staff unificado en un menú, nunca solo «Team»', () => {
     const team = allItems.find((i) => i.href === '/admin/team');
-    expect(team?.label).toBe('Roles y permisos');
+    expect(team?.label).toBe('Equipo y roles');
     expect(allItems.some((i) => i.label === 'Team')).toBe(false);
     expect(allItems.find((i) => i.href === '/equipo')?.label).toBe('Team Hub');
   });
