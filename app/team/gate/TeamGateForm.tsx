@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 
@@ -62,7 +63,9 @@ export function TeamGateForm({
         if (response.status === 429 || code === 'rate_limited') {
           setError('Demasiados intentos. Espera un momento.');
         } else if (code === 'password_unavailable') {
-          setError('Esta cuenta no tiene contraseña de Aventa.');
+          setError('Esta cuenta no tiene correo de Aventa. Pide al owner que revise tu perfil.');
+        } else if (response.status === 401) {
+          setError('Contraseña incorrecta o aún no definida (p. ej. solo Google).');
         } else if (code === 'unavailable') {
           setError('Team OS no está disponible ahora.');
         } else {
@@ -110,6 +113,15 @@ export function TeamGateForm({
         className={inputClass}
       />
       {error ? <p className="text-sm text-red-600 dark:text-red-400">{error}</p> : null}
+      {mode === 'reauth' ? (
+        <p className="text-xs text-[#6e6e73] dark:text-[#a3a3a3]">
+          ¿Entraste con Google?{' '}
+          <Link href="/settings" className="font-semibold text-violet-600 dark:text-violet-400 hover:underline">
+            Configuración → Seguridad
+          </Link>{' '}
+          para crear contraseña, o pide al admin un enlace desde Admin → Equipo.
+        </p>
+      ) : null}
       <button
         type="submit"
         disabled={pending}
