@@ -9,10 +9,13 @@ export default function SidebarProgressCard({
   loggedIn,
   level,
   score,
+  ready = true,
 }: {
   loggedIn: boolean;
   level: number;
   score: number;
+  /** When false, show a skeleton instead of placeholder 0 pts. */
+  ready?: boolean;
 }) {
   const { openRegisterModal } = useUI();
   const progress = Math.round(getReputationProgress(score, level) * 100);
@@ -31,6 +34,20 @@ export default function SidebarProgressCard({
         >
           Crear cuenta →
         </button>
+      </div>
+    );
+  }
+
+  if (!ready) {
+    return (
+      <div
+        className="mt-auto rounded-2xl border border-violet-100 bg-white p-3 dark:border-violet-900/40 dark:bg-[#141414]"
+        aria-busy="true"
+        aria-label="Cargando tu nivel"
+      >
+        <div className="h-8 w-24 animate-pulse rounded-lg bg-violet-100/80 dark:bg-violet-900/30" />
+        <div className="mt-2 h-3 w-16 animate-pulse rounded bg-[#e8e8ed] dark:bg-[#2c2c2e]" />
+        <div className="mt-1.5 h-1.5 animate-pulse rounded-full bg-[#e8e8ed] dark:bg-[#2c2c2e]" />
       </div>
     );
   }

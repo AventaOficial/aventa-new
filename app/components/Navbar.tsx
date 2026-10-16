@@ -10,6 +10,7 @@ import { useTheme } from '@/app/providers/ThemeProvider';
 import { useAuth } from '@/app/providers/AuthProvider';
 import { useUI } from '@/app/providers/UIProvider';
 import { readCachedDisplayName, writeCachedDisplayName } from '@/lib/profileDisplayName';
+import { useProfileReputation } from '@/lib/hooks/useProfileReputation';
 
 type ProfileMenuLink = { id: string; href: string; label: string };
 
@@ -27,15 +28,12 @@ export default function Navbar() {
     user?.id ? readCachedDisplayName(user.id) : null,
   );
   const [menuLinks, setMenuLinks] = useState<ProfileMenuLink[]>([]);
-  const [reputationLevel, setReputationLevel] = useState<number>(1);
-  const [reputationScore, setReputationScore] = useState<number>(0);
+  const { level: reputationLevel, score: reputationScore, ready: reputationReady } = useProfileReputation();
 
   useEffect(() => {
     if (!user?.id) {
       setDisplayName(null);
       setMenuLinks([]);
-      setReputationLevel(1);
-      setReputationScore(0);
       return;
     }
     const cached = readCachedDisplayName(user.id);
@@ -45,7 +43,7 @@ export default function Navbar() {
       const supabase = createClient();
       const { data: profile } = await supabase
         .from('profiles')
-        .select('display_name, avatar_url, reputation_level, reputation_score')
+        .select('display_name, avatar_url')
         .eq('id', user.id)
         .maybeSingle();
       const name = (profile as { display_name?: string } | null)?.display_name?.trim();
@@ -53,8 +51,6 @@ export default function Navbar() {
       const nextName = name || emailPart || null;
       setDisplayName(nextName);
       if (nextName) writeCachedDisplayName(user.id, nextName);
-      setReputationLevel((profile as { reputation_level?: number } | null)?.reputation_level ?? 1);
-      setReputationScore((profile as { reputation_score?: number } | null)?.reputation_score ?? 0);
     };
     let cancelled = false;
     const loadMenu = async () => {
@@ -170,7 +166,13 @@ export default function Navbar() {
                     className="flex flex-col gap-0.5 px-4 py-2.5 border-b border-[#e5e5e7] dark:border-[#262626] text-left hover:bg-violet-50/50 dark:hover:bg-violet-900/10 transition-colors"
                   >
                     <span className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">{userName}</span>
-                    <span className="text-xs text-violet-600 dark:text-violet-400 font-medium">Nivel {reputationLevel} · {reputationScore} pts</span>
+                    <span className="text-xs text-violet-600 dark:text-violet-400 font-medium">
+                      {reputationReady ? (
+                        <>Nivel {reputationLevel} · {reputationScore} pts</>
+                      ) : (
+                        <span className="inline-block h-3.5 w-28 animate-pulse rounded bg-violet-200/70 dark:bg-violet-800/40" aria-hidden />
+                      )}
+                    </span>
                   </Link>
                   <UserMenuContent />
                   {menuLinks.map((link) => (

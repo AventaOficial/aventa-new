@@ -145,7 +145,13 @@ function FavoritesPageInner() {
             <Heart className="h-4 w-4 text-violet-600 dark:text-violet-300" aria-hidden />
             Guardadas
           </p>
-          <p className="mt-2 text-[28px] font-semibold tabular-nums leading-none">{status === 'ready' ? offers.length : '—'}</p>
+          <p className="mt-2 text-[28px] font-semibold tabular-nums leading-none">
+            {status === 'loading' ? (
+              <span className="inline-block h-8 w-10 animate-pulse rounded-lg bg-violet-200/60 dark:bg-violet-500/20" aria-hidden />
+            ) : (
+              offers.length
+            )}
+          </p>
           <p className="mt-2 text-[13px] leading-relaxed text-[var(--me-muted)]">Las ofertas que decidiste no perder de vista.</p>
         </div>
       }

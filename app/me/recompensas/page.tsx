@@ -30,6 +30,7 @@ import {
   rewardsHeroCopy,
   type RewardsClaimPhase,
 } from '@/lib/rewards/onboarding';
+import { formatRewardsUnlockRemaining } from '@/lib/rewards/formatUnlockRemaining';
 
 type Progress = {
   approvedOffers: number;
@@ -687,7 +688,7 @@ export default function RecompensasPage() {
                 ? status.claimPhase === 'locked'
                   ? 'Cumpliste los requisitos. Cuando el programa confirme tu desbloqueo, aquí verás tu panel y podrás aceptar términos y elegir tu Oferta de Bienvenida.'
                   : 'Cumpliste los requisitos. Revisa tu panel abajo y completa la aceptación de términos si aún no lo hiciste.'
-                : `Te faltan ${missingOffers} ofertas aprobadas y ${missingVotes} votos positivos para abrir tu panel de recompensas.`}
+                : formatRewardsUnlockRemaining(missingOffers, missingVotes)}
             </p>
           </section>
 
