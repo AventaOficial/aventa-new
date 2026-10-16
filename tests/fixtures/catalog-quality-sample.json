@@ -1,0 +1,54 @@
+[
+  {
+    "id": "sample-perfume-servicios",
+    "status": "approved",
+    "title": "Acqua di Parma Colonia 100ml",
+    "store": "Liverpool",
+    "category": "servicios",
+    "price": 3200,
+    "original_price": 4000,
+    "image_url": "https://example.com/p.jpg"
+  },
+  {
+    "id": "sample-colgate-jardin",
+    "status": "approved",
+    "title": "Pasta dental Colgate Total 12 75ml",
+    "store": "Soriana",
+    "category": "jardin",
+    "price": 45,
+    "original_price": 60,
+    "image_url": "https://example.com/c.jpg"
+  },
+  {
+    "id": "sample-usb-hub-valid",
+    "status": "approved",
+    "title": "Hub USB-C 7 en 1 con HDMI para laptop",
+    "store": "Amazon",
+    "category": "tecnologia",
+    "price": 499,
+    "original_price": null,
+    "image_url": "https://example.com/h.jpg"
+  },
+  {
+    "id": "sample-legit-cents",
+    "status": "approved",
+    "title": "Leche UHT 1L pack 6",
+    "store": "Walmart",
+    "category": "supermercado",
+    "price": 163.5,
+    "original_price": 189.99,
+    "image_url": "https://example.com/m.jpg"
+  },
+  {
+    "id": "sample-bot-unprovenanced",
+    "status": "pending",
+    "title": "Audífonos Soundcore P20i",
+    "store": "Amazon",
+    "category": "tecnologia",
+    "price": 599,
+    "original_price": 1099,
+    "image_url": "https://example.com/a.jpg",
+    "moderator_comment": "[bot-ingest v3] score=72",
+    "bot_meta": {}
+  }
+]

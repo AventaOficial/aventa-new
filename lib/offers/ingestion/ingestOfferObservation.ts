@@ -28,6 +28,7 @@ import { splitCoverAndExtras } from '@/lib/offers/selectOfferImages';
 import { isValidOfferImage } from '@/lib/hunter/enrichment/isValidOfferImage';
 import { incrementHumanOfferCounter } from '@/lib/server/reputation';
 import { validatePublicOfferUrl } from '@/lib/server/validatePublicOfferUrl';
+import { applyCatalogPreventOnIngest } from '@/lib/offers/catalogQuality/preventOnIngest';
 
 export type IngestObservationSource =
   | 'community:batch'
@@ -76,6 +77,8 @@ export type IngestOfferObservationInput = {
   recordSubmissionCount?: boolean;
   /** Record price snapshot on create. */
   recordPriceSnapshot?: boolean;
+  /** API pública de comunidad: rechaza títulos que no pasan isLowQualityTitle. */
+  enforceCatalogTitleQuality?: boolean;
   /** Privileged columns — never from untrusted public JSON. */
   offerExtras?: IngestOfferExtras | null;
 };
@@ -298,6 +301,13 @@ function applyExtras(
   if (extras.msi_months != null) payload.msi_months = extras.msi_months;
 }
 
+function catalogIngestSource(source: IngestObservationSource): 'community' | 'bot' | 'machine' {
+  if (source.startsWith('community')) return 'community';
+  if (source === 'bot' || source === 'crawler') return 'bot';
+  if (source === 'hunter' || source === 'admin') return 'machine';
+  return 'community';
+}
+
 /**
  * Sole entry for creating/updating pending offers from any source.
  */
@@ -331,7 +341,7 @@ export async function ingestOfferObservation(
   }
 
   const hasDiscount = body.hasDiscount !== false;
-  const originalPrice = hasDiscount && body.original_price != null ? body.original_price : null;
+  let originalPrice = hasDiscount && body.original_price != null ? body.original_price : null;
   const price = body.price ?? originalPrice ?? 0;
   if (!Number.isFinite(price) || price < 0) {
     return { ok: false, httpStatus: 400, error: 'Precio inválido' };
@@ -374,10 +384,40 @@ export async function ingestOfferObservation(
     description: descriptionText,
     extraTags: userTags,
   });
-  const category = autogroup.category ?? categoryBase ?? 'other';
+  let category = autogroup.category ?? categoryBase ?? 'other';
   const tags = [
     ...new Set([...userTags, ...autogroup.tags, ...(forceLoteTag ? ['lote'] : [])]),
   ].slice(0, 20);
+
+  const catalogPrevention = applyCatalogPreventOnIngest({
+    title,
+    store,
+    category,
+    price,
+    originalPrice,
+    source: catalogIngestSource(input.source),
+    botMeta: input.offerExtras?.bot_meta,
+    enforceTitleQuality: input.enforceCatalogTitleQuality === true,
+  });
+  if (catalogPrevention.rejectTitle) {
+    return {
+      ok: false,
+      httpStatus: 400,
+      error: 'Título demasiado corto o poco claro. Incluye producto y marca.',
+      issues: [{ path: 'title', message: 'LOW_QUALITY_TITLE' }],
+    };
+  }
+  if (catalogPrevention.category != null) {
+    category = catalogPrevention.category;
+  }
+  if (catalogPrevention.originalDropped) {
+    originalPrice = catalogPrevention.originalPrice;
+  }
+  if (catalogPrevention.flags.length > 0 && input.offerExtras) {
+    const flagNote = `[catalog-quality] ${catalogPrevention.flags.join('; ')}`;
+    const prev = input.offerExtras.moderator_comment?.trim() ?? '';
+    input.offerExtras.moderator_comment = prev ? `${prev} | ${flagNote}` : flagNote;
+  }
 
   const rawOfferUrl = typeof body.offer_url === 'string' ? body.offer_url.trim() : '';
   let originalOfferUrl: string | null = null;
