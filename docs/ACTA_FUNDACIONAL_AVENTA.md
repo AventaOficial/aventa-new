@@ -25,7 +25,7 @@ Ahí empezó. No con un nombre, ni un repo, ni Supabase. Con una pregunta honest
 |-------|--------------------------|------------|
 | 1 | ¿Cómo se llama lo del link? | Descubrimiento del **marketing de afiliados** |
 | 2 | ¿En qué plataformas se puede? | Amazon, Mercado Libre, Hotmart, ClickBank, Awin… |
-| 3 | ¿Conoces Promodescuentos? | Referente directo: **comunidad + ofertas + tráfico** |
+| 3 | ¿Conoces foros de ofertas consolidados? | Referente directo: **comunidad + ofertas + tráfico** |
 | 4 | Análisis de sus publicaciones (~95k, ~102k vistas…) | Pensar como **dueño**, no solo usuario |
 | 5 | *“¿Y si hubiera 300 publicaciones al día parecidas?”* | Economía de **volumen + selección natural** |
 | 6 | Usuarios suben ofertas con **su** link afiliado; plataforma retiene **25–30%** | Modelo **plataforma + creadores** |
@@ -57,7 +57,7 @@ Comisión generada
 
 **Gremio (idea original):** líder + miembros, reparto interno configurable, insignias, rankings mensuales, verificación para influencers.
 
-**Diferenciador vs Promodescuentos (ya en jul 2025):**
+**Diferenciador vs foros de ofertas consolidados (ya en jul 2025):**
 - El cazador **gana dinero**, no solo karma
 - Comunidades propias (gremios)
 - Gamificación y premios reales

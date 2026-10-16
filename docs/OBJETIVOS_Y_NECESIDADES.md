@@ -28,7 +28,7 @@ Ofertas que son **solución de vida**: mejor precio en lo que la gente necesita 
 
 ### Ofertas bancarias
 
-En sitios como Promodescuentos las **ofertas bancarias** (promos de bancos: “usa tu tarjeta X y obtén Y”, cashback, MSI con banco Z) las sube un usuario y quedan mezcladas con el resto. Problemas:
+En sitios como foros de ofertas consolidados las **ofertas bancarias** (promos de bancos: “usa tu tarjeta X y obtén Y”, cashback, MSI con banco Z) las sube un usuario y quedan mezcladas con el resto. Problemas:
 
 - Al día siguiente ya no salen en “top” a menos que filtres por “esta semana”.
 - Poca gente sabe **cuántas ofertas bancarias hay** y **cómo usarlas** (qué banco, qué vigencia, qué tienda).

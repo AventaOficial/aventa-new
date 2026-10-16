@@ -51,4 +51,4 @@ Objetivo: **ser la mejor página de ofertas** y sentar las bases para **expansi�
 
 - No priorizar hasta que reputación, moderación y feed estén estables.
 - Objetivo: **pagar por impacto**, **muy por abajo** — recompensar calidad e impacto real, no "subir de nivel para vender".
-- Ver sección 10 de `docs/COMPARATIVA_AVENTA_VS_PROMODESCUENTOS.md`.
+- Ver documentación interna de comparativa de producto (copia local en `docs/_private/competitive/`, no versionada).

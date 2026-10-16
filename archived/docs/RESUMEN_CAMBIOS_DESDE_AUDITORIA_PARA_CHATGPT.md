@@ -24,7 +24,7 @@
 - **Feed:** Vista ranked; sin badge “Destacada”, sin explicación clara de niveles, sin filtros por tienda/categoría en la UI del home (o con filtros que luego quitamos).
 - **Moderación:** Sin “marcar expirada”, sin ofertas similares, sin acciones en lote, sin filtros por tienda/categoría/fecha/risk/autor, sin historial visible por oferta.
 - **Onboarding:** Sin paso inicial solo logo/animación; dos logotipos en bienvenida.
-- **Comparativa vs Promodescuentos:** Doc existía; checklist “qué nos falta” sin marcar como hecho.
+- **Comparativa vs foros de ofertas consolidados:** Doc existía; checklist “qué nos falta” sin marcar como hecho.
 
 ---
 
@@ -57,7 +57,7 @@
   Feed ordenado por `ranking_blend` (ranking_momentum + reputation_weighted_score). Vistas: General (Recomendado), Top, Para ti, Recientes. Línea de ayuda bajo los tabs.
 
 - **Badge “Destacada”:**  
-  Ofertas con `ranking_blend` ≥ umbral muestran etiqueta “Destacada” en la tarjeta. Solo señal visual; **no da puntos ni recompensas** (evitamos el “farmear para 100” tipo Promodescuentos).
+  Ofertas con `ranking_blend` ≥ umbral muestran etiqueta “Destacada” en la tarjeta. Solo señal visual; **no da puntos ni recompensas** (evitamos el “farmear para 100” tipo foros de ofertas consolidados).
 
 - **Filtros en home:**  
   Se quitaron los selectores “Tienda” y “Categoría” del home para no dar sensación de página vacía con pocas ofertas; el **buscador** cubre búsqueda por texto (y en backend hay filtros por tienda/categoría para cuando se quieran reañadir).
@@ -128,8 +128,8 @@
 
 ### 3.10 Documentación y comparativa
 
-- **Comparativa AVENTA vs Promodescuentos:**  
-  Se añadió la sección **11. Estado actual del checklist** en `COMPARATIVA_AVENTA_VS_PROMODESCUENTOS.md`: tabla de “Hecho” (§9) y estado de los 6 puntos de “Falta” (badge Destacada, descubribilidad, explicación niveles, experiencia moderación, métricas, no copiar). Conclusión: lo pedido para estar a la altura o superarlos está implementado o parcial; lo que falta para **superar** es escala, uso real y economía por impacto (fase posterior, §10 del mismo doc).
+- **Comparativa AVENTA vs foros de ofertas consolidados:**  
+  Se añadió la sección **11. Estado actual del checklist** en `docs/_private/competitive/ (no versionado)`: tabla de “Hecho” (§9) y estado de los 6 puntos de “Falta” (badge Destacada, descubribilidad, explicación niveles, experiencia moderación, métricas, no copiar). Conclusión: lo pedido para estar a la altura o superarlos está implementado o parcial; lo que falta para **superar** es escala, uso real y economía por impacto (fase posterior, §10 del mismo doc).
 
 - **Roadmap y checklist:**  
   `ROADMAP_PRODUCTO.md` y `CHECKLIST_LANZAMIENTO.md` actualizados con el estado actual (filtros, categorías, moderación, métricas, perfil público, etc.).
@@ -138,7 +138,7 @@
 
 ## 4. Resumen para ChatGPT (una página)
 
-- **Modelo y economía:** Siguen como en tu auditoría: reputación interna (score + niveles 1–4), **sin economía monetaria aún**. Niveles desbloquean confianza (menos moderación, más peso de voto), no recompensas tangibles. La economía futura será **por impacto** (baja, acotada), después de tener estable el sistema de confianza. Ver §10 de `COMPARATIVA_AVENTA_VS_PROMODESCUENTOS.md`.
+- **Modelo y economía:** Siguen como en tu auditoría: reputación interna (score + niveles 1–4), **sin economía monetaria aún**. Niveles desbloquean confianza (menos moderación, más peso de voto), no recompensas tangibles. La economía futura será **por impacto** (baja, acotada), después de tener estable el sistema de confianza. Ver §10 de `docs/_private/competitive/ (no versionado)`.
 
 - **Uso real y escala:**  
   - Métricas de impacto implementadas (vistas, outbound, CTR; panel en admin).  
@@ -158,7 +158,7 @@
 | Tema | Documento / ubicación |
 |------|------------------------|
 | Reputación y niveles | `REPUTACION_TRUST_SCORE.md`, `lib/reputation.ts`, `lib/server/reputation.ts` |
-| Comparativa vs PD y checklist | `COMPARATIVA_AVENTA_VS_PROMODESCUENTOS.md` (§9, §10, §11) |
+| Comparativa vs PD y checklist | `docs/_private/competitive/ (no versionado)` (§9, §10, §11) |
 | Roadmap producto | `ROADMAP_PRODUCTO.md` |
 | Lanzamiento | `CHECKLIST_LANZAMIENTO.md` |
 | Migraciones | `docs/supabase-migrations/` (reputation_*, view_ranking_blend, offers_category, profiles_slug, etc.) |

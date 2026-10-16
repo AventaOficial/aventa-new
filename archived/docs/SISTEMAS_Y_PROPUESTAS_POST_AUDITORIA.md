@@ -1,6 +1,6 @@
 # Sistemas de AVENTA y propuestas post-auditoría (Gemini + ChatGPT)
 
-Documento que: (1) identifica todos los sistemas del producto, (2) resume lo que ya está alineado con las auditorías, (3) propone mejoras sin romper lo actual, y (4) aclara métricas y retención (incl. comparación con Promodescuentos).
+Documento que: (1) identifica todos los sistemas del producto, (2) resume lo que ya está alineado con las auditorías, (3) propone mejoras sin romper lo actual, y (4) aclara métricas y retención (incl. comparación con foros de ofertas consolidados).
 
 ---
 
@@ -90,10 +90,10 @@ Documento que: (1) identifica todos los sistemas del producto, (2) resume lo que
 
 ---
 
-## 4. Retención y comparación con Promodescuentos
+## 4. Retención y comparación con foros de ofertas consolidados
 
 - **Patrón espectador:** Es ley de internet; el trabajo no es convertir a todos en creadores, sino que creadores tengan recompensa y que **espectadores vuelvan** (ChatGPT).
-- **Promodescuentos:** Tiene problemas de retención similares (mucho consumo, poco creación). La diferencia que puedes explotar:
+- **foros de ofertas consolidados:** Tiene problemas de retención similares (mucho consumo, poco creación). La diferencia que puedes explotar:
   - **Claridad de valor:** “Comunidad de cazadores de ofertas” = encontrar el mejor precio con señales sociales (votos, comentarios), sin obligar a subir.
   - **Notificaciones y ritmo:** Que el usuario reciba “algo útil” (digest, notificaciones de ofertas que le interesan) para que vuelva; el motor de notificaciones como corazón de la app (Gemini).
   - **Densidad de contenido:** “La usaría seguido si hubiera más cosas” se resuelve con más ofertas de calidad y constancia, no con rediseño (ChatGPT).

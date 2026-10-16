@@ -36,9 +36,9 @@ Al crear oferta, el servidor usa **`resolveAndNormalizeAffiliateOfferUrl`**: exp
 
 ---
 
-## 4. Competir con Promodescuentos (u otros gigantes)
+## 4. Competir con foros de ofertas consolidados (u otros gigantes)
 
-**Con honestidad:** no compites hoy en **volumen de contenido**, **antigüedad de dominio**, **backlinks** ni **equipo editorial** con un player tipo Pepper/Promodescuentos. Eso no desmerece el código; es una **brecha de negocio y operación**.
+**Con honestidad:** no compites hoy en **volumen de contenido**, **antigüedad de dominio**, **backlinks** ni **equipo editorial** con un player tipo grupo internacional de foros de ofertas/foros de ofertas consolidados. Eso no desmerece el código; es una **brecha de negocio y operación**.
 
 Donde AVENTA puede **diferenciarse** a medio plazo (si se ejecuta bien): nicho (México, categorías vitales, tech), **reputación que pesa en votos**, moderación visible, y experiencia de cazador. Ninguna de esas ventajas se materializa sola sin **tráfico**, **ofertas frescas** y **costumbre de uso**.
 

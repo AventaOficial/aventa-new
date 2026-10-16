@@ -1,4 +1,4 @@
-# SEO AVENTA — Estado actual y plan (sistema tipo Promodescuentos)
+# SEO AVENTA — Estado actual y plan (sistema tipo foros de ofertas consolidados)
 
 Resumen de lo que ChatGPT te explicó + **cómo está AVENTA hoy** y qué hacer.
 
@@ -47,9 +47,9 @@ Para que Google indexe muchas páginas, el sitemap debería ser **dinámico**: g
 
 ---
 
-## Estado actual vs “sistema Promodescuentos”
+## Estado actual vs “sistema foros de ofertas consolidados”
 
-| Elemento | Promodescuentos | AVENTA hoy |
+| Elemento | foros de ofertas consolidados | AVENTA hoy |
 |----------|------------------|------------|
 | URL por oferta | `/oferta/titulo-tienda` | `/?o=uuid` |
 | Página indexable por oferta | Sí | No (misma URL base) |
@@ -99,7 +99,7 @@ Con esto ya respondes:
 
 ### Fase 2 — Páginas de tienda y categoría (siguiente paso)
 
-Cuando quieras acercarte más al modelo Promodescuentos:
+Cuando quieras acercarte más al modelo foros de ofertas consolidados:
 
 - **Tienda:** `/tienda/[slug]` (ej. `/tienda/amazon`). Listado de ofertas de esa tienda (usando el filtro por `store` que ya tienes).
 - **Categoría:** `/categoria/[slug]` (ej. `/categoria/electronica`). Listado por categoría (usando tu `category` / macro-categorías).
@@ -132,6 +132,6 @@ No es obligatorio para arrancar; Fase 1 ya da el mayor impacto.
 | ¿Sitemap con ofertas? | No (solo 4 estáticas) | Fase 1: sitemap dinámico desde Supabase |
 | ¿Páginas tienda/categoría? | No | Fase 2 cuando quieras escalar SEO |
 
-El “sistema Promodescuentos” que te explicaron es el objetivo a medio plazo; el paso inmediato que más ayuda es **Fase 1: página por oferta + sitemap dinámico**. Después puedes ir sumando tienda, categoría y producto.
+El “sistema foros de ofertas consolidados” que te explicaron es el objetivo a medio plazo; el paso inmediato que más ayuda es **Fase 1: página por oferta + sitemap dinámico**. Después puedes ir sumando tienda, categoría y producto.
 
 Si quieres, el siguiente paso puede ser bajar esto a tareas concretas en el repo (por ejemplo: crear `app/oferta/[id]/page.tsx`, actualizar sitemap y enlaces).
