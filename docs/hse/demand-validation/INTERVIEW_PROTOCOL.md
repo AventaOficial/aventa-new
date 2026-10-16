@@ -101,5 +101,5 @@ Agradecer. Ofrecer opt-in a concierge test (Parte 6) si el episodio encaja.
 
 - Priorizar **una** historia profunda sobre muchas superficiales.  
 - Separar en plantilla: Observación / Interpretación / Hipótesis.  
-- Si mencionan Promodescuentos, Google, ML, Amazon, grupos: anotar canal exacto.  
+- Si mencionan foros de ofertas consolidados, Google, ML, Amazon, grupos: anotar canal exacto.  
 - Clasificar al final: segmento + Search vs Help (A–E) + categoría del episodio.

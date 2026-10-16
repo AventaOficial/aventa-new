@@ -1,6 +1,6 @@
 # Auditoría SEO y arquitectura — AVENTA
 
-Informe técnico y de producto sobre SEO, indexabilidad y arquitectura escalable para una comunidad de ofertas tipo Promodescuentos.
+Informe técnico y de producto sobre SEO, indexabilidad y arquitectura escalable para una comunidad de ofertas tipo foros de ofertas consolidados.
 
 ---
 
@@ -27,7 +27,7 @@ Informe técnico y de producto sobre SEO, indexabilidad y arquitectura escalable
 - **Sitemap:** Dinámico desde Supabase: home, estáticas, categorías, tiendas, ofertas aprobadas y no expiradas (hasta 10k ofertas).
 - **Enlaces internos:** En la página de oferta hay enlaces a `/categoria/[slug]` y `/tienda/[slug]`. En categoría hay enlaces a otras categorías y a cada oferta. En tienda hay enlace a cada oferta y a inicio.
 
-### Lo que falta respecto a un “Promodescuentos completo”
+### Lo que falta respecto a un “foros de ofertas consolidados completo”
 
 - **Páginas producto:** `/producto/[slug]` para agrupar ofertas por producto (ej. “iPhone 15 Pro Max”). No implementado; requiere modelo de datos o normalización de título.
 - **Structured Data (JSON-LD):** Product, Offer, AggregateRating para ofertas. No implementado.
@@ -58,9 +58,9 @@ Informe técnico y de producto sobre SEO, indexabilidad y arquitectura escalable
 
 ---
 
-## 3. Estructuras de página faltantes (vs Promodescuentos)
+## 3. Estructuras de página faltantes (vs foros de ofertas consolidados)
 
-| Tipo de página | Promodescuentos | AVENTA ahora | Notas |
+| Tipo de página | foros de ofertas consolidados | AVENTA ahora | Notas |
 |----------------|------------------|--------------|--------|
 | Oferta | `/oferta/slug-oferta` | `/oferta/[id]` (UUID) | Implementado; slug legible sería P2. |
 | Categoría | `/categoria/electronica` | `/categoria/[slug]` | Implementado (macro + legacy). |
@@ -70,7 +70,7 @@ Informe técnico y de producto sobre SEO, indexabilidad y arquitectura escalable
 | Perfil usuario | `/u/slug` | `/u/[username]` | Implementado. |
 | Comunidades | Sí | Placeholder “Próximamente” | No indexable como sección útil. |
 
-**Conclusión:** Lo mínimo para escalar como plataforma de ofertas (oferta, categoría, tienda, home, perfiles) está cubierto. La única pieza “grande” que falta para un modelo tipo Promodescuentos es **páginas producto** (y opcionalmente slugs legibles para ofertas).
+**Conclusión:** Lo mínimo para escalar como plataforma de ofertas (oferta, categoría, tienda, home, perfiles) está cubierto. La única pieza “grande” que falta para un modelo tipo foros de ofertas consolidados es **páginas producto** (y opcionalmente slugs legibles para ofertas).
 
 ---
 

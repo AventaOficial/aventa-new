@@ -38,6 +38,7 @@ import StoreBrandMark from './StoreBrandMark';
 import { extractOfferUrlsFromText } from '@/lib/offers/batchPaste';
 import AventaIcon from './AventaIcon';
 import SidebarProgressCard from './SidebarProgressCard';
+import { useProfileReputation } from '@/lib/hooks/useProfileReputation';
 import UploadKindChooser from './upload/UploadKindChooser';
 import { safeDecodeURIComponentOnce } from '@/lib/server/safeUriDecode';
 
@@ -95,8 +96,7 @@ export default function ActionBar() {
   const sidebarLinkActive =
     'bg-violet-100 dark:bg-[#262626] text-violet-600 dark:text-fuchsia-300';
   const { session } = useAuth();
-  const [reputationLevel, setReputationLevel] = useState(1);
-  const [reputationScore, setReputationScore] = useState(0);
+  const { level: reputationLevel, score: reputationScore, ready: reputationReady } = useProfileReputation();
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showUploadChooser, setShowUploadChooser] = useState(false);
   const [showOptionalSection, setShowOptionalSection] = useState(false);
@@ -258,31 +258,6 @@ export default function ActionBar() {
     setShowLotesModal(true);
     clearLotesModalRequest();
   }, [lotesModalRequested, session, showToast, openRegisterModal, clearLotesModalRequest]);
-
-  useEffect(() => {
-    if (!session?.user?.id) {
-      setReputationLevel(1);
-      setReputationScore(0);
-      setCooldownExempt(false);
-      return;
-    }
-    const supabase = createClient();
-    supabase
-      .from('profiles')
-      .select('reputation_level, reputation_score')
-      .eq('id', session.user.id)
-      .maybeSingle()
-      .then(
-        ({ data }) => {
-          setReputationLevel(Math.max(1, (data as { reputation_level?: number } | null)?.reputation_level ?? 1));
-          setReputationScore(Math.max(0, (data as { reputation_score?: number } | null)?.reputation_score ?? 0));
-        },
-        () => {
-          setReputationLevel(1);
-          setReputationScore(0);
-        }
-      );
-  }, [session?.user?.id]);
 
   useEffect(() => {
     const token = session?.access_token;
@@ -1027,7 +1002,12 @@ export default function ActionBar() {
           </>
         )}
         </nav>
-        <SidebarProgressCard loggedIn={!!session} level={reputationLevel} score={reputationScore} />
+        <SidebarProgressCard
+          loggedIn={!!session}
+          level={reputationLevel}
+          score={reputationScore}
+          ready={reputationReady}
+        />
       </aside>
 
       {showLotesModal ? (

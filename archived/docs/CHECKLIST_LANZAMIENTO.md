@@ -52,7 +52,7 @@
 | Correo de contacto en Privacidad | ⚠️ | Placeholder: "El titular del proyecto deberá indicar aquí un correo de contacto válido." — **Sustituir por correo real antes de lanzar.** |
 
 **¿Nos pueden demandar si inspeccionan el código?**  
-- No hay marcas ajenas (Promodescuentos, Apple como marca comercial, etc.) usadas de forma que implique afiliación o competencia desleal.  
+- No hay marcas ajenas (foros de ofertas consolidados, Apple como marca comercial, etc.) usadas de forma que implique afiliación o competencia desleal.  
 - Uso de "Apple": solo para detección de dispositivo (userAgent) y meta `appleWebApp` (estándar para PWA); no es uso de marca comercial.  
 - Términos y Privacidad dejan claro que AVENTA no vende productos, que los precios y enlaces son de terceros y que el contenido es responsabilidad de los usuarios.  
 - Riesgo bajo si los textos legales están publicados y el correo de contacto está indicado. Para mayor seguridad, revisión por abogado en México (LFPDPPP, competencia, defensa al consumidor) sigue siendo recomendable.

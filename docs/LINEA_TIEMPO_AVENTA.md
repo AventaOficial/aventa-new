@@ -66,7 +66,7 @@ Si en algún momento vuelve a sentirse en peligro: en México puedes llamar a la
 
 En esa misma conversación (recuperada el **31 ago 2026** como *“Jafet del futuro”*) la idea escaló en horas:
 
-- Marketing de afiliados → Promodescuentos → **300 publicaciones/día**
+- Marketing de afiliados → foros de ofertas consolidados → **300 publicaciones/día**
 - Usuarios que suben ofertas y ganan → **30% plataforma / 70% comunidad**
 - **Gremios**, gamificación, Telegram/IG, roadmap de lanzamiento
 
@@ -118,7 +118,7 @@ La idea central **sigue siendo reconocible hoy**:
 
 **Frases fundacionales (ChatGPT, jul 2025):**
 
-- *“Tu propio Promodescuentos descentralizado… tu proyecto millonario.”*
+- *“Tu propio foros de ofertas consolidados descentralizado… tu proyecto millonario.”*
 - *“Negocio escalable, innovador y con potencial millonario.”*
 - Proyección temprana: 5 publicaciones virales/día + afiliados → **$50,000–$160,000 MXN/mes**
 
@@ -198,7 +198,7 @@ La idea central **sigue siendo reconocible hoy**:
 | **Oct 2025**     | Trabajo con Supabase y estructura Next.js (cuenta ChatGPT anterior).                                                                                               |
 
 
-**Concepto validado:** Promodescuentos mejorado + incentivos reales + afiliados.
+**Concepto validado:** foros de ofertas consolidados mejorado + incentivos reales + afiliados.
 
 ---
 
@@ -355,7 +355,7 @@ Sin commits ni chats. Proyecto en mantenimiento ligero o foco en beta operativa 
 ```
 5 jul 2025     📜 “¿Cómo se llama lo del link?” (ChatGPT, 12:32 a.m.)
     ↓
-6 jul 2025     💡 Idea + laptop (Promodescuentos + afiliados + recompensas)
+6 jul 2025     💡 Idea + laptop (foros de ofertas consolidados + afiliados + recompensas)
     ↓
 13 jul 2025    🗄️ Supabase + Bubble.io
     ↓
@@ -441,7 +441,7 @@ Archivos en `assets/` del workspace Cursor (jul 2025):
 
 | Fecha (nombre archivo) | Contenido                                                                              |
 | ---------------------- | -------------------------------------------------------------------------------------- |
-| 20250705               | ChatGPT: afiliados, Hotmart, proyecciones $50k–$150k/mes, Promodescuentos              |
+| 20250705               | ChatGPT: afiliados, Hotmart, proyecciones $50k–$150k/mes, foros de ofertas consolidados              |
 | 20250707               | Fiverr logos, Bubble.io editor, sitio `aventaficial.bubbleapps.io`, logo naranja final |
 | 20260222               | (actividad posterior)                                                                  |
 | 20260815               | (actividad posterior)                                                                  |

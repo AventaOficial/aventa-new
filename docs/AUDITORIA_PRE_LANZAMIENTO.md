@@ -65,7 +65,7 @@
 
 | Elemento | Estado | Riesgo |
 |-----------|--------|--------|
-| **Hot / Trending** | No hay lógica de "subida reciente de votos" o velocidad. Solo score y decay. | Feed menos adictivo que un Promodescuentos con "🔥 Terminando" o "Trending". |
+| **Hot / Trending** | No hay lógica de "subida reciente de votos" o velocidad. Solo score y decay. | Feed menos adictivo que un foros de ofertas consolidados con "🔥 Terminando" o "Trending". |
 | **Estado en /me** | En "Mis ofertas" no se muestra Pendiente / Aprobada / Rechazada / Expirada ni motivo de rechazo. | El usuario no sabe por qué no ve su oferta o por qué fue retirada. |
 | **Expiración automática** | No hay cron que ponga `expires_at = now` cuando la fecha ya pasó. Solo se expira por acción de mod o reporte. | Ofertas con `expires_at` en el pasado pueden seguir filtrándose bien por el `.gte(now)`, pero el estado en DB queda sucio. |
 | **Detección de duplicados al crear** | Solo se ayuda al mod con similares. El usuario puede subir la misma oferta varias veces. | Duplicados en el feed, más trabajo de moderación. |
@@ -222,7 +222,7 @@ Opcional para el mismo periodo:
 
 ### Lo que suena a amateur
 
-- **Home sin mensaje de valor.** Quien aterriza no sabe en 5 segundos qué es esto. Promodescuentos no lo explica mucho en la portada, pero tiene marca y volumen; vosotros no. Una frase en Hero cambia la primera impresión.
+- **Home sin mensaje de valor.** Quien aterriza no sabe en 5 segundos qué es esto. foros de ofertas consolidados no lo explica mucho en la portada, pero tiene marca y volumen; vosotros no. Una frase en Hero cambia la primera impresión.
 - **Errores que se tragan.** Ver lista vacía cuando en realidad falló el fetch es de producto sin pulir. El usuario piensa "no hay nada" o "está roto" y se va.
 - **"Comunidades" en la barra como tab principal** con "Próximamente" dentro es de MVP que no ha decidido qué enseñar. O quitas el tab o lo pones en un sitio secundario.
 - **Mis ofertas sin estado.** En cualquier plataforma con moderación, el usuario espera ver "En revisión" o "Rechazada". Si no está, parece que la oferta se perdió o que el producto está a medias.
@@ -254,7 +254,7 @@ Opcional para el mismo periodo:
 
 ### Conclusión
 
-El producto está **cerca de poder lanzar una beta pública** si se cierran los P0 (empty state feed, feedback de error, estado en /me, E2E) y se evita la sensación de "roto" o "vacío". La base técnica y de negocio (ofertas, votos, moderación, notificaciones) es suficiente para un Promodescuentos mínimo. Lo que falta es **claridad, feedback al usuario y transparencia del estado de sus acciones**. Con eso y un poco de contenido inicial, tenéis base para aprender y iterar.
+El producto está **cerca de poder lanzar una beta pública** si se cierran los P0 (empty state feed, feedback de error, estado en /me, E2E) y se evita la sensación de "roto" o "vacío". La base técnica y de negocio (ofertas, votos, moderación, notificaciones) es suficiente para un foros de ofertas consolidados mínimo. Lo que falta es **claridad, feedback al usuario y transparencia del estado de sus acciones**. Con eso y un poco de contenido inicial, tenéis base para aprender y iterar.
 
 ---
 

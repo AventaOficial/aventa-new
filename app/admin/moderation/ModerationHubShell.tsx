@@ -64,6 +64,16 @@ export default function ModerationHubShell({ children, mode = 'admin' }: Props) 
             </h1>
             <p className={cn('mt-0.5 text-sm', isWorkspace ? 'text-gray-500 dark:text-white/45' : 'text-white/45')}>
               Revisa ofertas, comentarios y reportes.
+              {isWorkspace ? (
+                <>
+                  {' '}
+                  Si entraste con Google y Team OS pide contraseña, créala en{' '}
+                  <Link href="/settings" className="font-medium text-emerald-700 dark:text-emerald-400 hover:underline">
+                    Configuración → Seguridad
+                  </Link>
+                  .
+                </>
+              ) : null}
             </p>
           </div>
         ) : null}

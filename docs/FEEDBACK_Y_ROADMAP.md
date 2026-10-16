@@ -27,7 +27,7 @@
 - **Flujo mental:** “Publicar alguna buena oferta” → el concepto de subir ofertas se entendió.
 - **Fricción técnica:** No se perdió, nada confuso, nada tardó → la UX base funciona para beta.
 - **Patrón espectador:** “No subí porque no tenía nada que recomendar” → repite el patrón: la mayoría será consumidora, no creadora (normal en comunidades: 90% mira, 9% interactúa, 1% crea).
-- **Retención:** “No diario pero sí al pendiente de vez en cuando” → realista; así funcionan también Promodescuentos, Slickdeals (entran cuando quieren comprar, con notificación o aburrimiento).
+- **Retención:** “No diario pero sí al pendiente de vez en cuando” → realista; así funcionan también foros de ofertas consolidados, foro US de ofertas (entran cuando quieren comprar, con notificación o aburrimiento).
 - **Sustitución:** “Sí usaría esto en vez de buscar en otro lado” → el producto resuelve un problema real.
 - **Uso seguido:** “Nada, ya es muy bueno así” → no hay fricción fuerte que lo aleje; no implica que volverá diario, pero es buen punto de partida.
 
@@ -89,9 +89,9 @@ El roadmap de producto detallado (filtros por precio, internacional, economía) 
 
 ---
 
-## 4. Cómo funcionan los filtros: Promodescuentos vs AVENTA
+## 4. Cómo funcionan los filtros: foros de ofertas consolidados vs AVENTA
 
-**Promodescuentos (referente):**
+**foros de ofertas consolidados (referente):**
 
 - **Recomendado:** Vista principal “recomendada” (lógica propia de ellos).
 - **Top:** Mejor puntuadas **en el período elegido**. No se repiten en el sentido de que son justo las más votadas en ese período.
@@ -110,9 +110,9 @@ Cada pestaña es una vista distinta; Top = ranking por votos en la ventana de ti
 | **Para ti** | Priorizado por afinidad: ofertas de la misma **categoría o tienda** que las que has guardado en favoritos o votado. API `/api/feed/for-you`. | Filtros tienda/categoría opcionales |
 | **Recientes** | Solo lo más nuevo por fecha de publicación. | Mismo timeFilter |
 
-En **Top** no “se repiten” las mismas ofertas de forma rara: son las mejor puntuadas **en ese período**. Si eliges “Hoy” ves las más votadas de hoy; “Semana” las de la semana; “Mes” las del mes. Igual que la idea de Promodescuentos.
+En **Top** no “se repiten” las mismas ofertas de forma rara: son las mejor puntuadas **en ese período**. Si eliges “Hoy” ves las más votadas de hoy; “Semana” las de la semana; “Mes” las del mes. Igual que la idea de foros de ofertas consolidados.
 
-**Diferencia de UI:** En Promodescuentos el selector “Período: Hoy / Semana / Mes” puede estar siempre visible o asociado al Top. En AVENTA el selector “Período: Hoy / Semana / Mes” **solo se muestra cuando el usuario está en la pestaña Top**, para no cargar la barra de filtros en las otras vistas.
+**Diferencia de UI:** En foros de ofertas consolidados el selector “Período: Hoy / Semana / Mes” puede estar siempre visible o asociado al Top. En AVENTA el selector “Período: Hoy / Semana / Mes” **solo se muestra cuando el usuario está en la pestaña Top**, para no cargar la barra de filtros en las otras vistas.
 
 ---
 
@@ -121,7 +121,7 @@ En **Top** no “se repiten” las mismas ofertas de forma rara: son las mejor p
 - **Objetivo de producto:** Ser la mejor página de ofertas (México primero) y sentar bases para expansión.
 - **Fase actual:** Beta privada (~20 personas). Métrica norte: retención 48h.
 - **Documento único de estado y checklist:** `docs/GUIA_AVENTA.md`.
-- **Este doc:** Feedback de encuestas, patrón de respuestas, qué estamos mejorando, roadmap resumido y cómo funcionan los filtros (AVENTA vs Promodescuentos).
+- **Este doc:** Feedback de encuestas, patrón de respuestas, qué estamos mejorando, roadmap resumido y cómo funcionan los filtros (AVENTA vs foros de ofertas consolidados).
 - **Supabase:** `docs/SUPABASE_CONTEXTO.md` (schema, funciones, triggers, producción).
 - **Código:** Next.js 16, React 19, Supabase, Upstash, Vercel; auth Google. Feed en `app/page.tsx` (viewMode, timeFilter, storeFilter, categoryFilter).
 

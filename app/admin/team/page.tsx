@@ -20,6 +20,8 @@ type TeamMember = {
   avatar_url: string | null;
   reputation_level: number;
   reputation_score: number;
+  email: string | null;
+  has_email_password: boolean;
 };
 
 type SearchUser = {
@@ -42,6 +44,9 @@ export default function TeamPage() {
   const [searchResults, setSearchResults] = useState<SearchUser[]>([]);
   const [searching, setSearching] = useState(false);
   const [addingUserId, setAddingUserId] = useState<string | null>(null);
+  const [callerRole, setCallerRole] = useState<Role | null>(null);
+  const [passwordBusy, setPasswordBusy] = useState<string | null>(null);
+  const [passwordNote, setPasswordNote] = useState<string | null>(null);
   const addSearchDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { session } = useAuth();
 
@@ -66,6 +71,7 @@ export default function TeamPage() {
       }
       const data = await res.json();
       setTeam(data.team ?? []);
+      setCallerRole(typeof data.caller_role === 'string' ? (data.caller_role as Role) : null);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Error al cargar');
       setTeam([]);
@@ -115,6 +121,34 @@ export default function TeamPage() {
       if (addSearchDebounce.current) clearTimeout(addSearchDebounce.current);
     };
   }, [addSearch, session?.access_token]);
+
+  const handleEquipoPassword = async (userId: string, action: 'recovery_email' | 'generate_temporary') => {
+    setPasswordBusy(userId);
+    setPasswordNote(null);
+    try {
+      const headers: Record<string, string> = { 'content-type': 'application/json' };
+      if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+      const res = await fetch(`/api/admin/users/${userId}/equipo-password`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ action }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error ?? 'No se pudo completar');
+      if (typeof data.temporary_password === 'string') {
+        setPasswordNote(
+          `Contraseña temporal para ${userId.slice(0, 8)}…: ${data.temporary_password} (cópiala ahora; no se vuelve a mostrar).`,
+        );
+      } else {
+        setPasswordNote(typeof data.message === 'string' ? data.message : 'Correo enviado.');
+      }
+      await loadTeam();
+    } catch (e) {
+      setPasswordNote(e instanceof Error ? e.message : 'Error al gestionar contraseña');
+    } finally {
+      setPasswordBusy(null);
+    }
+  };
 
   const handleAddMember = async (userId: string, role: Role) => {
     const uid = userId?.trim();
@@ -198,8 +232,15 @@ export default function TeamPage() {
           /equipo
         </Link>{' '}
         (gerente, marketing, contabilidad, moderador, analista). Solo el owner asigna gerente y admin.
-        Busca por nombre para agregar al equipo.
+        Busca por nombre para agregar al equipo. Quien entró solo con Google necesita contraseña para{' '}
+        <Link href="/team/gate" className="text-emerald-600 hover:underline">Team OS</Link> — envía el enlace
+        o genera una temporal (owner).
       </p>
+      {passwordNote ? (
+        <p className="mb-4 rounded-xl border border-violet-200 dark:border-violet-800 bg-violet-50 dark:bg-violet-950/30 px-4 py-3 text-sm text-violet-900 dark:text-violet-100">
+          {passwordNote}
+        </p>
+      ) : null}
 
       {/* Bloque: Agregar al equipo — buscar usuarios registrados y asignar rol */}
       <section className="mb-6 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#1a1a1a] p-4">
@@ -291,13 +332,14 @@ export default function TeamPage() {
               <th className="text-left p-3 font-medium text-gray-700 dark:text-gray-300">Usuario</th>
               <th className="text-left p-3 font-medium text-gray-700 dark:text-gray-300">Rol actual</th>
               <th className="text-left p-3 font-medium text-gray-700 dark:text-gray-300">Reputación</th>
+              <th className="text-left p-3 font-medium text-gray-700 dark:text-gray-300">Team OS</th>
               <th className="text-left p-3 font-medium text-gray-700 dark:text-gray-300">Asignar rol</th>
             </tr>
           </thead>
           <tbody>
             {filteredTeam.length === 0 ? (
               <tr>
-                <td colSpan={4} className="p-4 text-center text-gray-500 dark:text-gray-400">
+                <td colSpan={5} className="p-4 text-center text-gray-500 dark:text-gray-400">
                   {team.length === 0 ? 'No hay usuarios con rol' : 'No hay resultados para la búsqueda'}
                 </td>
               </tr>
@@ -339,6 +381,33 @@ export default function TeamPage() {
                         ({m.reputation_score} pts)
                       </span>
                     </span>
+                  </td>
+                  <td className="p-3 align-top">
+                    <div className="flex flex-col gap-1.5 max-w-[14rem]">
+                      <span
+                        className={`text-xs font-medium ${m.has_email_password ? 'text-emerald-700 dark:text-emerald-400' : 'text-amber-700 dark:text-amber-400'}`}
+                      >
+                        {m.has_email_password ? 'Con contraseña' : 'Solo Google / sin clave'}
+                      </span>
+                      <button
+                        type="button"
+                        disabled={passwordBusy === m.user_id || !m.email}
+                        onClick={() => void handleEquipoPassword(m.user_id, 'recovery_email')}
+                        className="rounded-lg border border-gray-300 dark:border-gray-600 px-2.5 py-1.5 text-xs font-medium text-gray-800 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 text-left"
+                      >
+                        {passwordBusy === m.user_id ? 'Enviando…' : 'Enviar enlace por correo'}
+                      </button>
+                      {callerRole === 'owner' ? (
+                        <button
+                          type="button"
+                          disabled={passwordBusy === m.user_id}
+                          onClick={() => void handleEquipoPassword(m.user_id, 'generate_temporary')}
+                          className="rounded-lg border border-amber-300 dark:border-amber-700 px-2.5 py-1.5 text-xs font-medium text-amber-900 dark:text-amber-100 hover:bg-amber-50 dark:hover:bg-amber-950/40 disabled:opacity-50 text-left"
+                        >
+                          Generar contraseña temporal
+                        </button>
+                      ) : null}
+                    </div>
                   </td>
                   <td className="p-3">
                     <select

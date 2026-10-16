@@ -85,8 +85,14 @@ docs/SYSTEMS/CURSOR_MARKETPLACE_AUDIT.md
 
 # Security: ignore generated operational reports, not versioned migrations or runtime inputs.
 # NOTE: .gitignore does not untrack files already committed; tracked artifacts require a reviewed removal PR.
-# The database-atlas snapshots are currently imported by lib/databaseAtlas/build.ts; keep them versioned
-# until a separately tested replacement removes that runtime/build dependency.
+# Atlas: lib/databaseAtlas/*.snapshot.json stays versioned with redacted projectRef (schema names only).
+/scripts/_m31_*.txt
+/scripts/_m31_*.sql
+/scripts/_m31_*.json
+!/scripts/_m31_probe.ts
+!/scripts/_m31_probe_profiles.ts
+/scripts/_m40_*
+/scripts/_seam_*
 /scripts/_m31_prod_counts.sql
 /scripts/_m31_prod_counts.txt
 /scripts/_m31_reward_prod.txt
@@ -127,3 +133,9 @@ docs/SYSTEMS/CURSOR_MARKETPLACE_AUDIT.md
 /scripts/_s7_reports/
 /scripts/_s9_reports/
 /scripts/_wave3_reports/
+
+# QA local: snapshots de prod/staging (refs, UUIDs, conteos — no versionar)
+/scripts/_catalog_quality_reports/
+/scripts/_rewards_staging_reports/
+/scripts/_tmp_frame_*.jpg
+/scripts/_tmp_frame_*.png

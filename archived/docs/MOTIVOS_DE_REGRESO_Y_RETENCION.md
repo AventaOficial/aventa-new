@@ -14,7 +14,7 @@ Si ninguna está activada, no hay motivo claro de regreso.
 
 ---
 
-## 2. Qué hace Promodescuentos (y por qué su retención tampoco es buena)
+## 2. Qué hace foros de ofertas consolidados (y por qué su retención tampoco es buena)
 
 - **Volumen:** Miles de ofertas. Quien vuelve es sobre todo por “siempre hay algo nuevo”. El motivo de regreso es **contenido nuevo**, no tanto la plataforma.
 - **Foro:** Un núcleo vuelve por el foro (debates, chistes, “hilos calientes”). Eso es **pertenencia** y un poco **estatus** (reputation, mensajes).
@@ -67,7 +67,7 @@ Entonces el diagnóstico no es “no hay nada”, sino: **el motivo principal ho
 
 - **Hoy:** Un correo al día (o a la semana) con lo mejor, y notificaciones cuando pasan cosas con sus ofertas o comentarios. Eso es **valor recurrente** + un poco de **“algo pasó que es mío”**.
 - **Falta:** Que el contenido del correo sea tan bueno que merezca abrirlo; que reputación y ranking se vean claros en la app; y, si quieres, un incentivo explícito en beta (ranking semanal, badge).
-- **Promodescuentos:** La mayoría no tiene un motivo fuerte de regreso; vuelve quien busca ofertas nuevas o quien ya está enganchado al foro. Aventa puede diferenciarse teniendo **un motivo claro**: “Tu resumen diario de ofertas” + “Aquí tu reputación y tu impacto son visibles.”
+- **foros de ofertas consolidados:** La mayoría no tiene un motivo fuerte de regreso; vuelve quien busca ofertas nuevas o quien ya está enganchado al foro. Aventa puede diferenciarse teniendo **un motivo claro**: “Tu resumen diario de ofertas” + “Aquí tu reputación y tu impacto son visibles.”
 
 Si mañana la plataforma estuviera llena de ofertas buenas todos los días y el correo las reflejara, **¿entrarías tú a diario?** Si sí → el problema es densidad de contenido. Si no → hay que afinar la propuesta de valor (qué gana el usuario además de “ver ofertas”). Este doc ayuda a tener ese diagnóstico en mente mientras crece la beta.
 
@@ -75,4 +75,4 @@ Si mañana la plataforma estuviera llena de ofertas buenas todos los días y el 
 
 ## 7. Alertas por categoría o palabra clave (idea)
 
-En sitios como Promodescuentos hay muchas alertas y notificaciones; se pierden. Una alternativa más acotada: que el usuario pueda **suscribirse a ofertas de una categoría o palabra clave** (ej. “iPhone”, “electrónica”, “Amazon”). Solo recibe avisos cuando haya algo que encaje. Así quien está ahorrando para un iPhone o busca ofertas de tecnología tiene una “llamada” clara sin ruido. Implementación futura: preferencias de alertas por categoría/keyword y notificaciones (o correo) filtradas.
+En sitios como foros de ofertas consolidados hay muchas alertas y notificaciones; se pierden. Una alternativa más acotada: que el usuario pueda **suscribirse a ofertas de una categoría o palabra clave** (ej. “iPhone”, “electrónica”, “Amazon”). Solo recibe avisos cuando haya algo que encaje. Así quien está ahorrando para un iPhone o busca ofertas de tecnología tiene una “llamada” clara sin ruido. Implementación futura: preferencias de alertas por categoría/keyword y notificaciones (o correo) filtradas.
