@@ -5,6 +5,13 @@ import { getRetailerPresentation } from '@/lib/stores/storeBrand';
 import { assessOfferReportText, offerReportRateIdentity } from '@/lib/reports/offerReportContract';
 import { isPublicFeedStatus } from '@/lib/moderation/feedTakedown';
 
+describe('búsqueda en feed', () => {
+  it('el API público busca en todo el catálogo publicado (no solo el filtro de Recientes)', () => {
+    const src = readFileSync('app/api/search/offers/route.ts', 'utf8');
+    expect(src).toMatch(/communityOnly:\s*false/);
+  });
+});
+
 describe('retailer presentation', () => {
   it('resuelve las tiendas prioritarias y un fallback', () => {
     expect(getRetailerPresentation('Amazon').logo).toBe('/stores/amazon.svg');

@@ -25,7 +25,12 @@ export function buildOfferSearchOrFilter(rawQuery: string): string {
 
   for (const t of allTerms) {
     const safe = escape(t);
-    parts.push(`title.ilike.%${safe}%`, `store.ilike.%${safe}%`, `description.ilike.%${safe}%`);
+    parts.push(
+      `title.ilike.%${safe}%`,
+      `store.ilike.%${safe}%`,
+      `description.ilike.%${safe}%`,
+      `hunter_comment.ilike.%${safe}%`,
+    );
     const slug = slugifyTag(t);
     if (slug.length >= 2) tagSlugs.add(slug);
   }

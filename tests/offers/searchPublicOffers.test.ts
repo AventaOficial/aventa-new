@@ -217,4 +217,16 @@ describe('searchPublicOffers', () => {
     expect(state.ilikeNot).toContainEqual(['created_by', 'is', null]);
     expect(state.ilikeNot).toContainEqual(['created_by', 'in', `(${HUNTER})`]);
   });
+
+  it('búsqueda de catálogo (sin communityOnly) incluye hunters de despensa aunque la RPC venga vacía', async () => {
+    state.rpcRows = [];
+    state.ilikeRows = [{ ...hit('persil-1', HUNTER), title: 'Detergente Persil 4.65L' }];
+    state.votes = [
+      { id: 'persil-1', up_votes: 2, down_votes: 0, score: 2, ranking_momentum: 2, ranking_blend: 2 },
+    ];
+    const { hits, engine } = await searchPublicOffers({ query: 'persil', limit: 12, communityOnly: false });
+    expect(engine).toBe('ilike');
+    expect(hits.map((h) => h.id)).toEqual(['persil-1']);
+    expect(state.ilikeNot).toHaveLength(0);
+  });
 });
