@@ -89,5 +89,7 @@ describe('reportes y guías', () => {
       expect(content).toContain(href);
     }
     expect(readFileSync('app/guias/page.tsx', 'utf8')).toContain("redirect('/descubre')");
+    expect(readFileSync('app/guia/page.tsx', 'utf8')).toContain("redirect('/descubre')");
+    expect(readFileSync('app/recompensas/page.tsx', 'utf8')).toContain("redirect('/comisiones')");
   });
 });

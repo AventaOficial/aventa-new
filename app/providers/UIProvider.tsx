@@ -213,14 +213,13 @@ export function UIProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const closeOnboarding = useCallback(() => {
-    const wasGuide = showGuide
     clearOverlayState()
     setLayoutReady(true)
-    if (typeof window !== 'undefined' && !wasGuide) {
+    if (typeof window !== 'undefined') {
       if (session) localStorage.setItem('onboarding_done', 'true')
       else localStorage.setItem('guestOnboardingDismissed', 'true')
     }
-  }, [showGuide, session, clearOverlayState])
+  }, [session, clearOverlayState])
 
   const openPendingMessage = useCallback(() => setShowPendingMessage(true), [])
   const dismissPendingMessage = useCallback(() => setShowPendingMessage(false), [])
