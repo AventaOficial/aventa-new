@@ -43,8 +43,12 @@ export async function setTemporaryEquipoPassword(
   supabase: SupabaseClient,
   userId: string,
 ): Promise<{ ok: true; temporaryPassword: string } | { ok: false; message: string }> {
+  const updateUser = supabase.auth?.admin?.updateUserById;
+  if (typeof updateUser !== 'function') {
+    return { ok: false, message: 'auth admin unavailable' };
+  }
   const temporaryPassword = `${randomBytes(9).toString('base64url')}Aa1!`;
-  const { error } = await supabase.auth.admin.updateUserById(userId, { password: temporaryPassword });
+  const { error } = await updateUser(userId, { password: temporaryPassword });
   if (error) return { ok: false, message: error.message };
   return { ok: true, temporaryPassword };
 }
