@@ -52,7 +52,13 @@ export default function ClientLayout({ children }: { children: ReactNode }) {
       <OnboardingV1 />
       <GuideModalStandalone />
       {showContent ? (
-        <main className={isPanelRoute ? 'min-h-screen' : 'pb-24 md:pb-0 md:pl-56 min-h-screen'}>
+        <main
+          className={
+            isPanelRoute
+              ? 'min-h-screen'
+              : 'pb-24 md:pb-0 md:pl-56 min-h-screen scroll-pb-28 md:scroll-pb-0'
+          }
+        >
           {children}
         </main>
       ) : (

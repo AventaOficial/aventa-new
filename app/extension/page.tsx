@@ -34,9 +34,14 @@ function ExtensionPageInner() {
               <h2 className="font-semibold text-gray-900 dark:text-gray-100">Cómo instalarla</h2>
             </div>
             <ol className="list-decimal pl-5 space-y-2 text-sm text-gray-600 dark:text-gray-400">
-              <li>Descarga o carga la extensión desde la carpeta <code className="text-xs">browser-extension</code> del repositorio (modo desarrollador en Chrome).</li>
-              <li>Inicia sesión en AVENTA en el navegador y abre el popup de la extensión.</li>
-              <li>Visita un producto en Amazon o Mercado Libre y pulsa «Cazar oferta».</li>
+              <li>
+                Si te invitamos al programa de cazadores, te enviamos el archivo de la extensión o el enlace de
+                instalación. En Chrome, abre <strong>Extensiones</strong> → <strong>Administrar extensiones</strong>{' '}
+                → <strong>Modo desarrollador</strong> → <strong>Cargar descomprimida</strong> y selecciona la carpeta
+                que te compartimos.
+              </li>
+              <li>Inicia sesión en AVENTA en el mismo navegador y abre el icono de la extensión.</li>
+              <li>Entra a un producto en Amazon o Mercado Libre y pulsa «Cazar oferta».</li>
             </ol>
             <p className="text-xs text-gray-500 dark:text-gray-500">
               La publicación en la web sigue siendo el flujo principal y siempre está disponible.
@@ -56,7 +61,7 @@ function ExtensionPageInner() {
             <p className="flex items-start gap-2">
               <Download className="h-4 w-4 mt-0.5 shrink-0 text-violet-600 dark:text-violet-400" />
               La versión en Chrome Web Store se publicará cuando esté lista para distribución masiva.
-              Mientras tanto, la extensión V1 funciona en modo desarrollador para cazadores del equipo.
+              Mientras tanto, la extensión está disponible para cazadores invitados con instalación manual en Chrome.
             </p>
           </section>
         </div>
