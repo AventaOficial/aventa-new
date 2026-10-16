@@ -41,10 +41,10 @@
 
 | Variable | Rol en código | Default / fail-closed | Valor esperado soft launch (Fase A) | Estado prod |
 |----------|---------------|------------------------|-------------------------------------|-------------|
-| `MONEY_PATH_FROZEN` | `lib/server/moneyPathFreeze.ts` | Prod: ausente o inválido → **congelado** | `true` explícito (mínimo: ausente con `VERCEL_ENV=production`) | **UNKNOWN** — doc 15-oct: `true` |
-| `REWARDS_PROGRAM_ACTIVE` | `lib/rewards/programStatus.ts` | Ausente → **OFF** | Doc Fase A: `true` (reconocimiento / desbloqueos; sin mover dinero si freeze ON) | **UNKNOWN** — doc: `true` |
-| `REWARDS_PAYOUT_ENABLED` | `lib/rewards/betaCohort.ts` | Ausente → **OFF** | `false` / ausente | **UNKNOWN** — doc: `false` |
-| `REWARDS_BETA_UI_ENABLED` | `lib/rewards/betaCohort.ts` | Ausente → **OFF** | `false` hasta cohorte invitada; ON solo UX | **UNKNOWN** |
+| `MONEY_PATH_FROZEN` | `lib/server/moneyPathFreeze.ts` | Prod: ausente o inválido → **congelado** | `true` explícito (mínimo: ausente con `VERCEL_ENV=production`) | **☑ `true`** (Vercel MCP prod, id `VS7ciQlKQLck8nJS`, 2026-10-16) |
+| `REWARDS_PROGRAM_ACTIVE` | `lib/rewards/programStatus.ts` | Ausente → **OFF** | Doc Fase A: `true` (reconocimiento / desbloqueos; sin mover dinero si freeze ON) | **☑ `true`** (Vercel MCP prod, id `Vufs87s9h4Tvx4lw`) |
+| `REWARDS_PAYOUT_ENABLED` | `lib/rewards/betaCohort.ts` | Ausente → **OFF** | `false` / ausente | **☑ `false`** (Vercel MCP prod, id `uZ0i0DxgRhUPtcIw`) |
+| `REWARDS_BETA_UI_ENABLED` | `lib/rewards/betaCohort.ts` | Ausente → **OFF** | `false` hasta cohorte invitada; ON solo UX | **☑ ausente en Production** (sin fila en Vercel → OFF en runtime) |
 | `SETTLEMENT_BRIDGE_ENABLED` | `lib/economy/settlement/isSettlementBridgeEnabled.ts` | Ausente → **OFF** | `false` / ausente | **UNKNOWN** |
 | `COMMISSION_PROGRAM_ACTIVE` | `lib/commissions/programStatus.ts` | Default string `false` | `false` | **UNKNOWN** |
 | `PAYOUT_PROVIDER` | `lib/rewards/payoutIntent/resolveProvider.ts` | Prod fail-closed sin PSP | ausente, `stub`, o sandbox — **no** `real` | **UNKNOWN** |
@@ -78,6 +78,17 @@ Variables relacionadas (no cambiar en prod sin runbook monetario): `REWARDS_HOLD
 
 **Criterio GO:** `MONEY_PATH_FROZEN` efectivamente congelado + `REWARDS_PAYOUT_ENABLED` off + sin PSP real. `REWARDS_PROGRAM_ACTIVE=true` solo si Product confirma mensaje Fase A (§1.5).
 
+#### Evidencia 2026-10-16 (cierre operativo)
+
+| Fuente | Resultado |
+|--------|-----------|
+| `node scripts/launch/verify-prod-economic-flags.mjs` (sin `.env.production.local`) | **exit 1** — `isMoneyPathFrozen()=false` en runtime local (sin `VERCEL_ENV=production`); esperado hasta `vercel env pull` |
+| Vercel MCP `filter_project_envs` + `get_project_env` en proyecto **`aventa-new`**, target **Production** | Valores desencriptados: `MONEY_PATH_FROZEN=true`, `REWARDS_PROGRAM_ACTIVE=true`, `REWARDS_PAYOUT_ENABLED=false`; `REWARDS_BETA_UI_ENABLED` **no definida** |
+| Nota higiene | Existe `REWARDS_BETA_ENABLED=true` en Production (legacy; **no** la lee `lib/rewards/betaCohort.ts`). Opcional: borrar o alinear nombre con `REWARDS_BETA_UI_ENABLED` en dashboard |
+| `GET https://aventaofertas.com/api/health` | `status: ok`, `feedViewOk: true`, `offersCount: 1594` |
+
+**Conclusión flags:** Alineado con perfil `soft_launch_community` en **runtime Production real** (freeze ON, payout OFF, programa Fase A ON, beta UI OFF).
+
 ---
 
 ### 1.3 Supabase backup / restore — opciones y recomendación
@@ -92,7 +103,7 @@ Variables relacionadas (no cambiar en prod sin runbook monetario): `REWARDS_HOLD
 
 #### Plantilla — decisión firmada
 
-> Yo, _________________, en calidad de owner de AVENTA, el día ___/___/2026, declaro que el proyecto Supabase `mkgsrpsuvedwwlzmzmzh` está en plan _____________ con backup _____________ (frecuencia: _________) y restore verificado el _________ (proyecto de prueba: _________), **o bien** acepto lanzar el soft launch comunitario sin restore verificable asumiendo el riesgo de pérdida de datos hasta RPO no acotado. Firma: _____________.
+> Yo, **Jafet** (pendiente firma), en calidad de owner de AVENTA, el día **16/10/2026**, declaro que el proyecto Supabase `mkgsrpsuvedwwlzmzmzh` está en plan **UNKNOWN vía MCP** (doc histórico: org `AventaOficial`, tier **Free** en `AVENTA_FINAL_CLOSURE_MATRIX.md`) con backup **no verificado por agente** (frecuencia: **UNKNOWN**) y restore verificado el **N/A** (proyecto de prueba: **N/A**), **o bien** acepto lanzar el soft launch comunitario sin restore verificable asumiendo el riesgo de pérdida de datos hasta RPO no acotado. Firma: **___________ (pendiente owner)**.
 
 | ☐/☑ | Acción | Owner |
 |-----|--------|-------|
@@ -100,6 +111,8 @@ Variables relacionadas (no cambiar en prod sin runbook monetario): `REWARDS_HOLD
 | ☐ | Upgrade Pro si aplica | **Jafet** |
 | ☐ | Restore de prueba a proyecto nuevo | Ops/**Jafet** |
 | ☐ | Párrafo firmado archivado (Drive/Notion) | **Jafet** |
+
+**Evidencia 2026-10-16:** Supabase MCP — proyecto prod `mkgsrpsuvedwwlzmzmzh` (`Aventa Cazadores de ofertas`) **ACTIVE_HEALTHY**; `get_project` no expone tier/plan; advisors de seguridad sin ítem de backup/PITR. **Riesgo aceptado documentado** pendiente firma owner (no bloquea copy/flags; sí condición formal en matriz de cierre).
 
 ---
 
@@ -122,6 +135,21 @@ Ejecutar en **teléfono real** (iOS o Android), Safari/Chrome, usuario de prueba
 
 **Evidencia sugerida:** 3–5 capturas (home, ficha, recompensas, comisiones) + modelo de dispositivo y fecha.
 
+#### Evidencia proxy 2026-10-16 (cursor-ide-browser, viewport móvil ~390×844)
+
+**Limitación:** sin teléfono real ni OTP; sesión del navegador de automatización ya autenticada en `/me` y `/settings`.
+
+| Paso / prueba | Resultado |
+|---------------|-----------|
+| `https://www.aventaofertas.com/` home | **PASS** — feed con ofertas, tabs visibles |
+| Tab Recientes | **PASS** — lista de ofertas tras clic |
+| `GET /api/feed/home?limit=3&view=latest` | **PASS** — `success: true` |
+| `/comisiones` | **PASS** — aviso «no está activo públicamente», sin promesa de pagos activos |
+| `/login` | **N/A** — 404 (auth vía modal/OTP; no ruta dedicada) |
+| `/me` sin cookie (`curl` anónimo) | **PASS** — HTTP **307** → `/` |
+| `/me` con sesión automation | **PASS** — perfil carga |
+| §1.4 pasos 3–8 (ficha, subir, plaza, recompensas) | **NO ejecutados** en esta pasada — pendiente smoke 15 min en dispositivo real (**Jafet**) |
+
 ---
 
 ### 1.5 Comunicación pública Rewards — diff narrativa
@@ -134,7 +162,7 @@ Ejecutar en **teléfono real** (iOS o Android), Safari/Chrome, usuario de prueba
 
 | Superficie | Estado actual (repo `master` / contenido estático) | Brecha vs narrativa | Acción |
 |------------|---------------------------------------------------|---------------------|--------|
-| `/comisiones` (`app/comisiones/page.tsx`) | Aviso fuerte: programa **no activo públicamente**, sin pagos; pasos por mérito | No menciona cohorte beta ni invitación | **Doc:** añadir párrafo opcional (Product) — ver strings §1.5.1 |
+| `/comisiones` (`app/comisiones/page.tsx`) | Aviso fuerte: programa **no activo públicamente**, sin pagos; pasos por mérito | No menciona cohorte beta ni invitación | **☑ 2026-10-16:** prod y repo alineados — **no bloqueante**; párrafo cohorte sigue opcional (§1.5.1) |
 | `/me/recompensas` | Dinámico: `lib/rewards/onboarding.ts` — FROZEN → «Retiros en pausa» + pagos no disponibles | No explica cohorte invitada ni cupo ~100 | **Doc:** copy en tracker; beta UX vía `RewardsBetaOnboarding` cuando `REWARDS_BETA_UI_ENABLED` |
 | `/terms` §8 | Elegibilidad por mérito; programa activo solo si anunciado | No dice «solo invitados» para pagos futuros | Alinear con legal antes de cohorte (`MONEY_REWARDS_PRODUCTION_FRIENDS_PILOT.md` §legal) |
 | Marketing externo | Fuera de repo | UNKNOWN | **Jafet/Product** |
@@ -254,33 +282,35 @@ Tests automatizados: `tests/admin/teamOsStaffSeparation.test.ts`.
 
 ## 4. Validación final GO / NO-GO
 
-**Fecha evaluación:** ___________  
-**Evaluadores:** Comunidad ___________ · Monetario ___________
+**Fecha evaluación:** 2026-10-16  
+**Evaluadores:** Comunidad **Agente cierre ops** · Monetario **Agente cierre ops** (evidencia; firmas owner pendientes)
+
+**PR #167:** **OPEN** — [feat(team): migrar colaboradores a Team OS…](https://github.com/AventaOficial/aventa-new/pull/167). **No mergeado** (correcto; no es gate 1 nov).
 
 ### 4.1 Comunidad (1 nov)
 
 | Prueba | Comando / URL | Resultado | ☐/☑ |
 |--------|---------------|-----------|-----|
-| Launch suite | `npx vitest run tests/launch` | 122/122 | ☐ |
-| Health | `GET /api/health` | `status: ok`, `feedViewOk: true` | ☐ |
-| Feed | `GET /api/feed/home?limit=3&view=latest` | `success: true` | ☐ |
-| Flags económicos | `node scripts/launch/verify-prod-economic-flags.mjs` + dashboard | freeze ON, payout OFF | ☐ |
-| Backup | §1.3 decisión | Pro o riesgo firmado | ☐ |
-| Smoke móvil | §1.4 | 10 pasos OK | ☐ |
-| Copy | §1.5 | Sin promesa de pagos | ☐ |
+| Launch suite | `npx vitest run tests/launch` | 122/122 (audit 16-oct; no re-ejecutado hoy) | ☐ |
+| Health | `GET /api/health` | `status: ok`, `feedViewOk: true`, 1594 ofertas | ☑ |
+| Feed | `GET /api/feed/home?limit=3&view=latest` | `success: true` | ☑ |
+| Flags económicos | Script local exit 1 sin env pull; **Vercel MCP prod** | freeze `true`, payout `false`, programa `true` | ☑ |
+| Backup | §1.3 decisión | Riesgo documentado; **firma Jafet pendiente** | ☐ |
+| Smoke móvil | §1.4 | Proxy browser OK; **smoke 15 min teléfono pendiente** | ☐ |
+| Copy | §1.5 | `/comisiones` prod sin promesa de pagos activos | ☑ |
 
-**Veredicto comunidad:** ☐ GO · ☐ GO con condiciones · ☐ NO-GO  
-**Condiciones:**
+**Veredicto comunidad:** ☐ GO · ☑ **GO con condiciones** · ☐ NO-GO  
+**Condiciones:** (1) Jafet firma §1.3 (Pro+restore o riesgo aceptado). (2) Smoke §1.4 completo en teléfono real antes del 1 nov. (3) Opcional: `vercel env pull` + script exit 0 para repetibilidad local.
 
 ### 4.2 Monetario (cohorte ~100)
 
 | Puerta | Evidencia | ☐/☑ |
 |--------|-----------|-----|
-| WP1–WP7 §2.1 | Enlaces en ticket/doc | ☐ |
-| Ledger prod sin sorpresas | `payout_intents` = 0 o explicado | ☐ |
-| Finanzas GO escrito | Archivo | ☐ |
+| WP1–WP7 §2.1 | Sin cierre; ver §2.1 | ☐ |
+| Ledger prod sin sorpresas | No auditado hoy (freeze ON + payout OFF en Vercel) | ☐ |
+| Finanzas GO escrito | Ausente | ☐ |
 
-**Veredicto monetario:** ☐ NO-GO (esperado pre-1-nov) · ☐ GO piloto
+**Veredicto monetario:** ☑ **NO-GO** (esperado pre-1-nov) · ☐ GO piloto
 
 ### 4.3 Firmas
 
@@ -298,3 +328,4 @@ Tests automatizados: `tests/admin/teamOsStaffSeparation.test.ts`.
 | Fecha | Cambio |
 |-------|--------|
 | 2026-10-16 | Creación tracker + script `verify-prod-economic-flags.mjs` |
+| 2026-10-16 | Cierre ops: evidencia Vercel MCP flags, health/feed, smoke proxy, §4 GO condicional / monetario NO-GO; PR #167 OPEN sin merge |
