@@ -5,7 +5,7 @@ import {
   EquipoPasswordAction,
   loadAuthUserForEquipoPassword,
   sendEquipoPasswordRecoveryEmail,
-  setTemporaryEquipoPassword,
+  issueEquipoPasswordForOwner,
 } from '@/lib/admin/equipoPassword';
 
 export const runtime = 'nodejs';
@@ -54,7 +54,7 @@ export async function POST(request: Request, context: { params: Promise<{ userId
     if ('error' in owner) {
       return NextResponse.json({ error: owner.error }, { status: owner.status });
     }
-    const set = await setTemporaryEquipoPassword(supabase, targetId);
+    const set = await issueEquipoPasswordForOwner(supabase, targetId, auth.user.id);
     if (!set.ok) {
       return NextResponse.json({ error: set.message }, { status: 500 });
     }

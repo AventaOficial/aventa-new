@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server';
+import { issueEquipoPasswordForOwner } from '@/lib/admin/equipoPassword';
+import { createServerClient } from '@/lib/supabase/server';
 import { isTeamId } from '@/lib/team/roles/teams';
 import { readAssignCommand } from '@/lib/team/membership/commands';
 import { readMemberStatusFilter } from '@/lib/team/membership/view';
@@ -48,5 +50,22 @@ export async function POST(request: Request) {
     p_request_id: crypto.randomUUID(),
   });
   if (!isRpcData(result)) return result;
-  return mutationResponse(result.data, rpcMembershipId(result.data));
+
+  const membershipId = rpcMembershipId(result.data);
+  const issued = await issueEquipoPasswordForOwner(
+    createServerClient(),
+    command.targetUserId,
+    owner.userId,
+  );
+
+  const base = await mutationResponse(result.data, membershipId);
+  if (!issued.ok) return base;
+
+  const payload = await base.json().catch(() => ({}));
+  return NextResponse.json({
+    ...payload,
+    temporary_password: issued.temporaryPassword,
+    message:
+      'Miembro asignado y contraseña Team OS generada. Compártela por un canal seguro; también queda en /admin/team.',
+  });
 }
