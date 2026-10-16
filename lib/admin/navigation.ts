@@ -260,7 +260,7 @@ export const ADMIN_SCREEN_REGISTRY: Omit<AdminNavItem, 'icon'>[] = [
   },
   {
     href: '/admin/team',
-    label: 'Equipo y roles',
+    label: 'Equipo (roles y membresías)',
     domain: 'personas',
     frequency: 'mensual',
     audiences: ['founder', 'admin'],

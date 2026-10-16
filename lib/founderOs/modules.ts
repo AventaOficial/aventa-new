@@ -306,7 +306,7 @@ export const FOUNDER_MODULES: FounderModule[] = [
   },
   {
     href: '/admin/team',
-    name: 'Roles y permisos',
+    name: 'Equipo y roles',
     whatIs: [
       'Es donde se decide quién puede entrar a las herramientas internas de Aventa.',
       'Cada persona del staff tiene un rol: owner, administración, moderación o análisis.',
@@ -329,10 +329,13 @@ export const FOUNDER_MODULES: FounderModule[] = [
     owner: 'Owner',
     healthArea: null,
     teams: [],
-    technical: ['Ruta: /admin/team (roles globales del panel).'],
+    technical: [
+      'Ruta: /admin/team — pestaña «Roles y contraseña Team OS» (roles globales del panel).',
+      'Misma ruta — pestaña «Membresías Team OS» (Moderación, Marketing…).',
+    ],
   },
   {
-    href: '/admin/owner/team-management',
+    href: '/admin/team?tab=membresias',
     name: 'Gestión de equipos',
     whatIs: [
       'Es donde se organizan los equipos que trabajan en Aventa día a día.',
@@ -356,7 +359,7 @@ export const FOUNDER_MODULES: FounderModule[] = [
     owner: 'Owner',
     healthArea: null,
     teams: [],
-    technical: ['Ruta: /admin/owner/team-management.', 'Supervisión del trabajo: /equipo (Team Hub).'],
+    technical: ['Ruta: /admin/team?tab=membresias (unificado con Roles).', 'Supervisión del trabajo: /equipo (Team Hub).'],
   },
   {
     href: '/admin/operaciones/trabajo',
