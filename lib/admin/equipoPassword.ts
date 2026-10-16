@@ -1,7 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { userHasEmailPasswordIdentity } from '@/lib/auth/authIdentities';
-
 export type EquipoPasswordAction = 'recovery_email' | 'generate_temporary';
 
 export async function loadAuthUserForEquipoPassword(
@@ -51,3 +50,4 @@ export async function setTemporaryEquipoPassword(
   if (error) return { ok: false, message: error.message };
   return { ok: true, temporaryPassword };
 }
+
