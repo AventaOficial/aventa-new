@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server';
+import { setTemporaryEquipoPassword } from '@/lib/admin/equipoPassword';
+import { createServerClient } from '@/lib/supabase/server';
 import { isTeamId } from '@/lib/team/roles/teams';
 import { readAssignCommand } from '@/lib/team/membership/commands';
 import { readMemberStatusFilter } from '@/lib/team/membership/view';
@@ -48,5 +50,18 @@ export async function POST(request: Request) {
     p_request_id: crypto.randomUUID(),
   });
   if (!isRpcData(result)) return result;
-  return mutationResponse(result.data, rpcMembershipId(result.data));
+
+  const membershipId = rpcMembershipId(result.data);
+  const base = await mutationResponse(result.data, membershipId);
+
+  const issued = await setTemporaryEquipoPassword(createServerClient(), command.targetUserId);
+  if (!issued.ok) return base;
+
+  const payload = await base.json().catch(() => ({}));
+  return NextResponse.json({
+    ...payload,
+    temporary_password: issued.temporaryPassword,
+    message:
+      'Miembro asignado. Contraseña temporal (cópiala ahora; no se almacena en texto plano): ver respuesta o ficha de acceso.',
+  });
 }

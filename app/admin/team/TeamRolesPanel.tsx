@@ -60,7 +60,7 @@ export function TeamRolesPanel({ onCallerRole }: { onCallerRole?: (role: Role | 
     try {
       const headers: Record<string, string> = {};
       if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
-      const res = await fetch('/api/admin/team', { headers });
+      const res = await fetch('/api/admin/staff-roles', { headers });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         throw new Error(data?.error || 'Error al cargar equipo');
@@ -163,7 +163,7 @@ export function TeamRolesPanel({ onCallerRole }: { onCallerRole?: (role: Role | 
     try {
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
-      const res = await fetch('/api/admin/team', {
+      const res = await fetch('/api/admin/staff-roles', {
         method: 'POST',
         headers,
         body: JSON.stringify({ user_id: uid, role }),
@@ -191,7 +191,7 @@ export function TeamRolesPanel({ onCallerRole }: { onCallerRole?: (role: Role | 
     try {
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
-      const res = await fetch('/api/admin/team', {
+      const res = await fetch('/api/admin/staff-roles', {
         method: 'PATCH',
         headers,
         body: JSON.stringify({ user_id: uid, role: newRole }),
@@ -219,12 +219,9 @@ export function TeamRolesPanel({ onCallerRole }: { onCallerRole?: (role: Role | 
   return (
     <div className="space-y-4">
       <p className="text-sm text-gray-500 dark:text-gray-400">
-        <strong className="font-medium text-gray-700 dark:text-gray-300">Roles de plataforma</strong> (moderador,
-        admin, analista…): quién puede usar Admin y Moderación. Para asignar a alguien a Moderación, Marketing, etc. en{' '}
-        <Link href="/equipo" className="text-emerald-600 hover:underline">Team OS</Link>, usa la pestaña{' '}
-        <strong className="font-medium text-gray-700 dark:text-gray-300">Membresías Team OS</strong> (solo owner).
-        Quien entró con Google necesita contraseña en la columna Team OS —{' '}
-        <strong>Enviar enlace por correo</strong> (automático a su email) o contraseña temporal (owner).
+        Solo <strong className="font-medium text-gray-700 dark:text-gray-300">acceso al panel</strong> (
+        <code className="text-xs">user_roles</code>). Para equipos de trabajo sin hacerlos staff, usa{' '}
+        <Link href="/admin/team" className="text-violet-600 hover:underline">Team OS — miembros</Link>.
       </p>
       {passwordNote ? (
         <p className="rounded-xl border border-violet-200 dark:border-violet-800 bg-violet-50 dark:bg-violet-950/30 px-4 py-3 text-sm text-violet-900 dark:text-violet-100">

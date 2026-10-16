@@ -16,6 +16,7 @@ import {
   type CandidateState,
   type MemberStatusFilter,
 } from '@/lib/team/membership/view';
+import { TeamOsMemberAccess } from '@/app/admin/team/TeamOsMemberAccess';
 
 type Member = {
   id: string;
@@ -58,7 +59,12 @@ type ConfirmState = {
   onConfirm: (reason: string) => Promise<void>;
 };
 
-type MutationBody = { membership?: Member | null; error?: string };
+type MutationBody = {
+  membership?: Member | null;
+  error?: string;
+  temporary_password?: string;
+  message?: string;
+};
 
 const STATUS_LABEL: Record<MembershipStatus, string> = {
   ACTIVE: 'Activa',
@@ -281,6 +287,12 @@ export default function TeamManagementClient() {
         return false;
       }
       if (body?.membership) applyPersisted(body.membership);
+      if (typeof body?.temporary_password === 'string') {
+        setNotice(
+          body.message ??
+            `Contraseña temporal (cópiala ahora): ${body.temporary_password}`,
+        );
+      }
       setAssignOpen(false);
       setConfirm(null);
       await load();
@@ -427,6 +439,7 @@ export default function TeamManagementClient() {
                 Asignada {new Date(selected.createdAt).toLocaleString('es-MX')}
                 {selected.assignedByName ? ` por ${selected.assignedByName}` : ''}
               </p>
+              <TeamOsMemberAccess userId={selected.userId} />
               {selected.status !== 'REMOVED' && isTeamId(selected.teamId) ? (
                 <div className="space-y-2 border-t border-white/10 pt-3">
                   <label className="block text-xs text-white/40" htmlFor="next-role">Rol</label>

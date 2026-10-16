@@ -73,9 +73,10 @@ describe('Founder OS · navegación por capacidad', () => {
     for (const s of OWNER_NAV_SECTIONS) expect(s.question).toMatch(/^¿.+\?$/);
   });
 
-  it('equipo staff unificado en un menú, nunca solo «Team»', () => {
+  it('Team OS y acceso al panel son entradas distintas, nunca solo «Team»', () => {
     const team = allItems.find((i) => i.href === '/admin/team');
-    expect(team?.label).toBe('Equipo y roles');
+    expect(team?.label).toBe('Team OS — miembros');
+    expect(allItems.find((i) => i.href === '/admin/staff-roles')?.label).toBe('Acceso al panel');
     expect(allItems.some((i) => i.label === 'Team')).toBe(false);
     expect(allItems.find((i) => i.href === '/equipo')?.label).toBe('Team Hub');
   });
