@@ -12,6 +12,11 @@ import { profileSlugFromDisplayName } from '@/lib/profileSlug';
 import { notifyUserError } from '@/lib/utils/handleError';
 import { writeCachedDisplayName } from '@/lib/profileDisplayName';
 import ProfileFields, { AppearancePicker } from '@/app/settings/ProfileFields';
+import {
+  formatPasswordResetSentAt,
+  readPasswordResetSentAt,
+  writePasswordResetSentAt,
+} from '@/lib/auth/passwordResetSentAt';
 
 const DAYS_LIMIT = 14;
 
@@ -36,7 +41,8 @@ function SettingsPageInner() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
-  const [passwordResetSent, setPasswordResetSent] = useState(false);
+  const [passwordResetSentAt, setPasswordResetSentAt] = useState<string | null>(null);
+  const [passwordResetSending, setPasswordResetSending] = useState(false);
   const [installPrompt, setInstallPrompt] = useState<{ prompt: () => Promise<void> } | null>(null);
   const [isIOS, setIsIOS] = useState(false);
   const [isAndroid, setIsAndroid] = useState(false);
@@ -107,6 +113,7 @@ function SettingsPageInner() {
         return;
       }
       setUserEmail(user.email ?? '');
+      setPasswordResetSentAt(readPasswordResetSentAt(user.id));
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('display_name, display_name_updated_at, name_saved_in_settings_at, account_deletion_requested_at')
@@ -288,9 +295,18 @@ function SettingsPageInner() {
   };
 
   const handlePasswordReset = async () => {
-    if (!userEmail) return;
+    if (!userEmail || !user?.id) return;
+    setPasswordResetSending(true);
     const { error } = await resetPassword(userEmail);
-    if (!error) setPasswordResetSent(true);
+    setPasswordResetSending(false);
+    if (error) {
+      showToast?.(error.message || 'No se pudo enviar el correo. Intenta de nuevo.');
+      return;
+    }
+    const sentAt = new Date().toISOString();
+    writePasswordResetSentAt(user.id, sentAt);
+    setPasswordResetSentAt(sentAt);
+    showToast?.('Correo enviado. Revisa tu bandeja y spam.');
   };
 
   if (loading) {
@@ -501,25 +517,27 @@ function SettingsPageInner() {
                 </div>
               </div>
             </div>
-            <div className="p-5 md:p-6">
-              {passwordResetSent ? (
-                <p className="text-sm text-green-600 dark:text-green-400">
-                  Revisa tu correo. Te enviamos un enlace para restablecer tu contraseña.
+            <div className="p-5 md:p-6 space-y-4">
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Te enviaremos un enlace a{' '}
+                <strong className="text-gray-900 dark:text-gray-100">{userEmail || 'tu correo'}</strong> para
+                crear o cambiar tu contraseña (necesaria para entrar a Team OS si entraste antes con Google).
+              </p>
+              {passwordResetSentAt ? (
+                <p className="text-sm text-green-700 dark:text-green-400 rounded-xl border border-green-200 dark:border-green-900/50 bg-green-50 dark:bg-green-950/30 px-4 py-3">
+                  Último envío:{' '}
+                  <time dateTime={passwordResetSentAt}>{formatPasswordResetSentAt(passwordResetSentAt)}</time>.
+                  Revisa tu correo (y spam). Puedes solicitar otro enlace si expiró.
                 </p>
-              ) : (
-                <>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                    Te enviaremos un enlace a <strong className="text-gray-900 dark:text-gray-100">{userEmail}</strong> para restablecer tu contraseña.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={handlePasswordReset}
-                    className="rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#1a1a1a] px-6 py-3 font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                  >
-                    Enviar enlace para restablecer
-                  </button>
-                </>
-              )}
+              ) : null}
+              <button
+                type="button"
+                disabled={!userEmail || passwordResetSending}
+                onClick={handlePasswordReset}
+                className="rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#1a1a1a] px-6 py-3 font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-60"
+              >
+                {passwordResetSending ? 'Enviando…' : passwordResetSentAt ? 'Reenviar enlace' : 'Enviar enlace para restablecer'}
+              </button>
             </div>
           </section>
 

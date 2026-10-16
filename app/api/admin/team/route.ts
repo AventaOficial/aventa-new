@@ -6,6 +6,7 @@ import {
   pickEffectiveRole,
   type Role,
 } from '@/lib/admin/roles';
+import { loadAuthUserForEquipoPassword } from '@/lib/admin/equipoPassword';
 
 function effectiveRoleFromRows(rows: { role: Role }[] | null | undefined): Role | null {
   return pickEffectiveRole(((rows ?? []) as { role: Role }[]).map((r) => r.role));
@@ -68,8 +69,24 @@ export async function GET(request: NextRequest) {
     });
   }
 
+  const authFlags = await Promise.all(
+    userIds.map(async (user_id) => {
+      const loaded = await loadAuthUserForEquipoPassword(supabase, user_id);
+      if (!loaded.ok) {
+        return { user_id, email: null as string | null, has_email_password: false };
+      }
+      return {
+        user_id,
+        email: loaded.email,
+        has_email_password: loaded.hasEmailPassword,
+      };
+    }),
+  );
+  const authByUser = new Map(authFlags.map((row) => [row.user_id, row]));
+
   const team = userIds.map((user_id) => {
     const prof = profileMap.get(user_id);
+    const auth = authByUser.get(user_id);
     return {
       user_id,
       role: byUser.get(user_id)!,
@@ -77,10 +94,12 @@ export async function GET(request: NextRequest) {
       avatar_url: prof?.avatar_url ?? null,
       reputation_level: prof?.reputation_level ?? 1,
       reputation_score: prof?.reputation_score ?? 0,
+      email: auth?.email ?? null,
+      has_email_password: auth?.has_email_password ?? false,
     };
   });
 
-  return NextResponse.json({ team });
+  return NextResponse.json({ team, caller_role: auth.role });
 }
 
 function canAssignRole(actor: Role, targetRole: Role): boolean {
