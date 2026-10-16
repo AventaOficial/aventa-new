@@ -442,9 +442,11 @@ export function TeamRolesPanel({ onCallerRole }: { onCallerRole?: (role: Role | 
                       <>
                         <select
                           value={m.staff_role}
-                          onChange={(e) =>
-                            handleRoleChange(m.user_id, e.currentTarget.value as Role, m.staff_role)
-                          }
+                          onChange={(e) => {
+                            const prev = m.staff_role;
+                            if (!prev) return;
+                            handleRoleChange(m.user_id, e.currentTarget.value as Role, prev);
+                          }}
                           disabled={updating === m.user_id || m.staff_role === 'owner'}
                           className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#1a1a1a] text-gray-900 dark:text-gray-100 px-3 py-2 text-sm disabled:opacity-50"
                         >
