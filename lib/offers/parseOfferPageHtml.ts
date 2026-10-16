@@ -515,7 +515,7 @@ export function extractOfferImages(html: string, base: string): string[] {
     }
   }
 
-  // Galería Amazon (mismo JSON que usan scrapers tipo PromoDescuentos)
+  // Galería Amazon (bloque colorImages del JSON embebido en la PDP)
   const colorImagesBlocks = [
     html.match(/["']colorImages["']\s*:\s*(\{[\s\S]*?\})\s*,\s*["']colorToAsin["']/i)?.[1],
     html.match(/["']colorImages["']\s*:\s*(\{[\s\S]{0,120000}?\})\s*[,}]/i)?.[1],

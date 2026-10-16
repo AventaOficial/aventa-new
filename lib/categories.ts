@@ -1,5 +1,5 @@
 /**
- * Macros alineadas con Promodescuentos (13 grupos) + Otros.
+ * Macros de categoría (13 grupos de referencia del mercado MX) + Otros.
  * Vitales = tab «Día a día». Resto = Top / Recientes / Para ti.
  */
 export type CategoryId =
@@ -24,7 +24,8 @@ export interface CategoryOption {
   subtitle?: string;
   vital?: boolean;
   icon: string;
-  promodescuentosGroup?: string;
+  /** Etiqueta legible del macro (solo uso interno; no se expone en UI). */
+  referenceMacroGroup?: string;
 }
 
 export const ALL_CATEGORIES: CategoryOption[] = [
@@ -34,7 +35,7 @@ export const ALL_CATEGORIES: CategoryOption[] = [
     subtitle: 'Celulares, laptops, TV, audio, gadgets',
     vital: false,
     icon: 'Smartphone',
-    promodescuentosGroup: 'Tecnología',
+    referenceMacroGroup: 'Tecnología',
   },
   {
     value: 'gaming',
@@ -42,7 +43,7 @@ export const ALL_CATEGORIES: CategoryOption[] = [
     subtitle: 'Consolas, juegos, accesorios gaming',
     vital: false,
     icon: 'Gamepad2',
-    promodescuentosGroup: 'Videojuegos',
+    referenceMacroGroup: 'Videojuegos',
   },
   {
     value: 'supermercado',
@@ -50,7 +51,7 @@ export const ALL_CATEGORIES: CategoryOption[] = [
     subtitle: 'Abarrotes, bebidas, despensa',
     vital: true,
     icon: 'ShoppingCart',
-    promodescuentosGroup: 'Abarrotes y alimentos',
+    referenceMacroGroup: 'Abarrotes y alimentos',
   },
   {
     value: 'moda',
@@ -58,7 +59,7 @@ export const ALL_CATEGORIES: CategoryOption[] = [
     subtitle: 'Ropa, tenis, accesorios',
     vital: false,
     icon: 'Shirt',
-    promodescuentosGroup: 'Ropa y accesorios',
+    referenceMacroGroup: 'Ropa y accesorios',
   },
   {
     value: 'belleza',
@@ -66,7 +67,7 @@ export const ALL_CATEGORIES: CategoryOption[] = [
     subtitle: 'Perfumes, skincare, maquillaje',
     vital: true,
     icon: 'Sparkles',
-    promodescuentosGroup: 'Salud y belleza',
+    referenceMacroGroup: 'Salud y belleza',
   },
   {
     value: 'bebes',
@@ -74,7 +75,7 @@ export const ALL_CATEGORIES: CategoryOption[] = [
     subtitle: 'Pañales, fórmulas, ropa infantil, juguetes',
     vital: true,
     icon: 'Baby',
-    promodescuentosGroup: 'Familia, bebés y niños',
+    referenceMacroGroup: 'Familia, bebés y niños',
   },
   {
     value: 'hogar',
@@ -82,7 +83,7 @@ export const ALL_CATEGORIES: CategoryOption[] = [
     subtitle: 'Electrodomésticos, cocina, muebles, limpieza',
     vital: true,
     icon: 'Home',
-    promodescuentosGroup: 'Hogar',
+    referenceMacroGroup: 'Hogar',
   },
   {
     value: 'jardin',
@@ -90,7 +91,7 @@ export const ALL_CATEGORIES: CategoryOption[] = [
     subtitle: 'Herramientas, plantas, outdoor, DIY',
     vital: false,
     icon: 'Flower2',
-    promodescuentosGroup: 'Jardín y hazlo tú mismo',
+    referenceMacroGroup: 'Jardín y hazlo tú mismo',
   },
   {
     value: 'autos',
@@ -98,7 +99,7 @@ export const ALL_CATEGORIES: CategoryOption[] = [
     subtitle: 'Refacciones, llantas, accesorios, motos',
     vital: false,
     icon: 'Car',
-    promodescuentosGroup: 'Autos y motos',
+    referenceMacroGroup: 'Autos y motos',
   },
   {
     value: 'entretenimiento',
@@ -106,7 +107,7 @@ export const ALL_CATEGORIES: CategoryOption[] = [
     subtitle: 'Libros, música, coleccionables, hobbies',
     vital: false,
     icon: 'BookOpen',
-    promodescuentosGroup: 'Entretenimiento y tiempo libre',
+    referenceMacroGroup: 'Entretenimiento y tiempo libre',
   },
   {
     value: 'deportes',
@@ -114,7 +115,7 @@ export const ALL_CATEGORIES: CategoryOption[] = [
     subtitle: 'Fitness, outdoor, equipamiento deportivo',
     vital: false,
     icon: 'Dumbbell',
-    promodescuentosGroup: 'Deportes y ejercicio',
+    referenceMacroGroup: 'Deportes y ejercicio',
   },
   {
     value: 'viajes',
@@ -122,7 +123,7 @@ export const ALL_CATEGORIES: CategoryOption[] = [
     subtitle: 'Vuelos, hoteles, maletas',
     vital: false,
     icon: 'Plane',
-    promodescuentosGroup: 'Viajes',
+    referenceMacroGroup: 'Viajes',
   },
   {
     value: 'servicios',
@@ -130,7 +131,7 @@ export const ALL_CATEGORIES: CategoryOption[] = [
     subtitle: 'Streaming, apps, bancos, comida a domicilio',
     vital: false,
     icon: 'CreditCard',
-    promodescuentosGroup: 'Servicios y suscripciones',
+    referenceMacroGroup: 'Servicios y suscripciones',
   },
   { value: 'other', label: 'Otros', vital: false, icon: 'Package' },
 ];

@@ -26,7 +26,7 @@
 |--------|--------|
 | **Cold start** | Poco contenido → poco tráfico SEO → poco contenido. El feed se ve vacío y la retención cae. |
 | **Dependencia de SEO** | Tardar meses en rankear; si no hay volumen de ofertas, las long-tail no despegan. |
-| **Commoditización** | Competir en “más ofertas” contra Pepper (Promodescuentos) es difícil con menos recursos. |
+| **Commoditización** | Competir en “más ofertas” contra grupo internacional de foros de ofertas es difícil con menos recursos. |
 
 **Mitigación ya en AVENTA:** Ofertas de testers (15 ofertas de ejemplo), digest (Top 10, semanal), métrica retención 48h. El doc OBJETIVOS_Y_NECESIDADES apuesta por contenido mínimo (~50 ofertas/día curadas al inicio) y categorías claras (vitales, bancarias, tech).
 
@@ -80,7 +80,7 @@
 
 ### Por qué no elegir solo uno
 
-- **Solo A:** Funciona para arrancar, pero en México Promodescuentos (Pepper) ya ocupa el espacio “foro de ofertas”. Competir solo en volumen y SEO es costoso.
+- **Solo A:** Funciona para arrancar, pero en México foros de ofertas consolidados (grupo internacional de foros de ofertas) ya ocupa el espacio “foro de ofertas”. Competir solo en volumen y SEO es costoso.
 - **Solo B:** Con 0–100 usuarios no hay suficientes cazadores reconocibles; el loop social es débil y el valor (“encontrar ofertas”) puede quedar en segundo plano.
 
 ### Híbrido propuesto
@@ -93,18 +93,18 @@
    - Mensaje: “comunidad de cazadores”, “cazado por X”, badges, reputación.  
    - No construir aún “seguir cazadores” ni feed por cazador; sí reforzar autor visible, reputación y digest “Top cazadores” para dar identidad y motivar a quien sube.
 
-3. **Posicionamiento frente a Pepper (Promodescuentos)**  
+3. **Posicionamiento frente a grupo internacional de foros de ofertas**  
    - No competir de frente en “más ofertas / más países”.  
    - Competir en **enfoque**: México primero, vitales + bancarias + tech (OBJETIVOS_Y_NECESIDADES), mensaje “cazadores” y reputación simple.  
    - Ventaja posible: claridad (“ofertas que importan”), categorías y filtros (ej. bancarias), experiencia más enfocada que un foro genérico.
 
 ---
 
-## 5. Pepper (HotUKDeals / Promodescuentos) y opción para competir
+## 5. grupo internacional de foros (foro UK de ofertas / foros de ofertas consolidados) y opción para competir
 
-### Modelo Pepper (resumen)
+### Modelo grupo internacional de foros (resumen)
 
-- **Producto:** Comunidad de ofertas en 12 países; Promodescuentos en España/LATAM, HotUKDeals en UK, etc.  
+- **Producto:** Comunidad de ofertas en 12 países; foros de ofertas consolidados en España/LATAM, foro UK de ofertas en UK, etc.  
 - **Modelo de negocio:** Afiliación + publicidad (self-serve para retailers); Creator Program (usuarios cualificados ganan por rendimiento).  
 - **Crecimiento:** Volumen (25M usuarios/mes), muchas ofertas, SEO, marca consolidada.  
 - **Comunidad:** Votación, “hot” deals, puntos y niveles (Silver/Gold/Platinum), recompensas; moderación y reportes.
@@ -113,12 +113,12 @@
 
 | Opción | Descripción | Viabilidad |
 |--------|-------------|------------|
-| **Competir en volumen** | Mismas reglas que Pepper: más ofertas, más países, más SEO. | Baja con recursos limitados; Pepper ya tiene escala y marca. |
+| **Competir en volumen** | Mismas reglas que grupo internacional de foros de ofertas: más ofertas, más países, más SEO. | Baja con recursos limitados; grupo internacional de foros de ofertas ya tiene escala y marca. |
 | **Competir en nicho** | Un solo mercado (México) y tipos de oferta (vitales, bancarias, tech). Mensaje claro y categorías curadas. | Alta: permite “mejor para MX” y “ofertas que importan”. |
 | **Competir en identidad** | “Cazadores” y reputación como eje; comunidad más pequeña pero más reconocible. | Media: viable cuando haya suficientes cazadores activos (después de tener ofertas). |
-| **Complementar** | No sustituir a Promodescuentos; ser la opción “enfocada en México / vitales / bancarias” para quien quiera eso. | Alta: reduce presión de competencia directa y define un espacio propio. |
+| **Complementar** | No sustituir a foros de ofertas consolidados; ser la opción “enfocada en México / vitales / bancarias” para quien quiera eso. | Alta: reduce presión de competencia directa y define un espacio propio. |
 
-**Recomendación:** No intentar “ser otro Promodescuentos”. **Competir por foco y claridad:** México, vitales + bancarias + tech, mensaje “comunidad de cazadores”, reputación y badges ya implementados. Crecer con Modelo A (ofertas, SEO, retención) y usar Modelo B como narrativa y diferenciación (cazadores, “cazado por”, Top cazadores) hasta tener base de contenido y datos para decidir si invertir más en social (seguir cazadores, feed por cazador).
+**Recomendación:** No intentar “ser otro foros de ofertas consolidados”. **Competir por foco y claridad:** México, vitales + bancarias + tech, mensaje “comunidad de cazadores”, reputación y badges ya implementados. Crecer con Modelo A (ofertas, SEO, retención) y usar Modelo B como narrativa y diferenciación (cazadores, “cazado por”, Top cazadores) hasta tener base de contenido y datos para decidir si invertir más en social (seguir cazadores, feed por cazador).
 
 ---
 
@@ -137,17 +137,17 @@
 - Digest “Top cazadores” y notificaciones al autor (like, aprobación) ya existen; asegurar que se usen y se mencionen.  
 - No construir “seguir cazadores” ni feed por cazador en estos 6 meses; solo reforzar lo que ya hay.
 
-### Prioridad 3: Diferenciación frente a Pepper
+### Prioridad 3: Diferenciación frente a grupo internacional de foros de ofertas
 
 - Mensaje claro: “La comunidad que caza las mejores ofertas por ti” (México, vitales, bancarias, tech).  
 - Categorías y filtros que destaquen ofertas bancarias y vitales (según OBJETIVOS_Y_NECESIDADES).  
-- Posicionar como “la opción enfocada en México” en lugar de “el Promodescuentos de México”.
+- Posicionar como “la opción enfocada en México” en lugar de “el foros de ofertas consolidados de México”.
 
 ### No priorizar en 6 meses
 
 - Páginas producto (`/producto/[slug]`).  
 - Grafo social (seguir cazadores, feed “de un cazador”).  
-- Programa de puntos/recompensas tipo Pepper (P2/P3 según roadmap).
+- Programa de puntos/recompensas tipo grupo internacional de foros (P2/P3 según roadmap).
 
 ---
 
@@ -158,7 +158,7 @@
 | **¿Qué modelo soporta mejor la arquitectura actual?** | Híbrido: A como motor (ofertas, ranking, SEO), B ya presente (perfiles, reputación, badges, ranking con reputación, digest cazadores). |
 | **¿Qué modelo es más viable desde cero usuarios?** | Modelo A: el valor es “encontrar ofertas”; con contenido curado y SEO se puede atraer y retener. Modelo B necesita antes base de ofertas y luego cazadores visibles. |
 | **¿Estrategia recomendada?** | Híbrido con prioridad A: crecer por ofertas, SEO y retención; usar B como narrativa y diferenciación (cazadores, reputación) sin construir grafo social aún. |
-| **¿Cómo competir con Pepper/Promodescuentos?** | Por foco: México, vitales + bancarias + tech, mensaje “cazadores”; no por volumen ni países. Complementar más que reemplazar. |
+| **¿Cómo competir con grupo internacional de foros de ofertas/foros de ofertas consolidados?** | Por foco: México, vitales + bancarias + tech, mensaje “cazadores”; no por volumen ni países. Complementar más que reemplazar. |
 | **¿Enfoque primeros 6 meses?** | Estabilidad, contenido mínimo, retención 48h y CTR (A); reforzar mensaje y uso de badges/reputación/digest (B ligero); posicionar como opción enfocada en México. |
 
 ---

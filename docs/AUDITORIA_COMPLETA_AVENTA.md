@@ -242,11 +242,11 @@
 
 ---
 
-## 4. Comparación con Promodescuentos
+## 4. Comparación con foros de ofertas consolidados
 
-### Componentes principales de Promodescuentos (referente)
+### Componentes principales de foros de ofertas consolidados (referente)
 
-| Área | Promodescuentos | Fuente |
+| Área | foros de ofertas consolidados | Fuente |
 |------|-----------------|--------|
 | **Deal discovery** | Recomendado, Top por período (Hoy/Semana/Mes), Recientes, personalizado | FEEDBACK_Y_ROADMAP, web |
 | **Community interaction** | Votación (grados), comentarios, reportes | Web, docs |
@@ -260,7 +260,7 @@
 
 ### Tabla comparativa
 
-| Feature | Promodescuentos | AVENTA | Gap |
+| Feature | foros de ofertas consolidados | AVENTA | Gap |
 |---------|-----------------|--------|-----|
 | **Deal discovery** | Recomendado, Top (período), Recientes, Para ti | Día a día, Top (Hoy/Semana/Mes), Para ti, Recientes | Bajo; lógica equivalente. |
 | **Community voting** | Votos (grados), Hot a 100 | up×2−down, ranking_blend, score_final | Sin umbral "Hot" explícito; sin badge "Hot"/"Trending". |
@@ -275,7 +275,7 @@
 ### Elementos críticos para crecer como comunidad de ofertas
 
 - **Transparencia y confianza:** Estado claro de "Mis ofertas" (Pendiente/Aprobada/Rechazada/Expirada) y feedback cuando falla la carga → ya abordado en docs y parcialmente en UI (OfferCard con dealStatus); asegurar que /me muestre estado en todas las listas.
-- **Incentivos a contribuir:** En Promodescuentos, puntos y recompensas animan a subir ofertas y comentar. En AVENTA solo reputación y badges; para crecer hace falta algún tipo de gamificación o beneficio tangible (P2/P3).
+- **Incentivos a contribuir:** En foros de ofertas consolidados, puntos y recompensas animan a subir ofertas y comentar. En AVENTA solo reputación y badges; para crecer hace falta algún tipo de gamificación o beneficio tangible (P2/P3).
 - **Descubrimiento y urgencia:** "Hot" o "Trending" aumenta engagement; en AVENTA es P2 (doc).
 - **Engagement en comentarios:** Notificación al autor cuando comentan en su oferta (P1 en doc).
 
@@ -293,7 +293,7 @@
 
 ### Loops faltantes o débiles
 
-- **Incentivo a publicar ofertas:** No hay puntos ni recompensas; solo reputación. Loop "subo oferta → gano estatus" es débil frente a Promodescuentos.
+- **Incentivo a publicar ofertas:** No hay puntos ni recompensas; solo reputación. Loop "subo oferta → gano estatus" es débil frente a foros de ofertas consolidados.
 - **Notificación por comentario:** No hay vuelta al producto cuando alguien comenta en tu oferta.
 - **Hot/Trending:** No hay señal de "esta oferta está subiendo fuerte" → menos urgencia y menos loop de descubrimiento.
 - **Digest por categorías:** Digest global, no por preferencias de categorías → menor relevancia y menor retorno.
@@ -355,7 +355,7 @@
 15. **Páginas producto:** `/producto/[slug]` para agrupar ofertas por producto (requiere modelo de datos).
 16. **Slug legible en ofertas:** Opcional: `/oferta/slug-oferta` con redirect desde UUID.
 17. **Normalización de tienda:** Slug único para evitar colisiones (ej. Amazon vs Amazon MX).
-18. **Gamificación/recompensas:** Puntos o beneficios tangibles por ofertas Hot o comentarios útiles (referencia Promodescuentos).
+18. **Gamificación/recompensas:** Puntos o beneficios tangibles por ofertas Hot o comentarios útiles (referencia foros de ofertas consolidados).
 19. **Virtualización:** Listas muy largas en categoría/tienda si hace falta rendimiento.
 
 ---
