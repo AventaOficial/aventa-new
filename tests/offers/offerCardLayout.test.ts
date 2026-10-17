@@ -30,4 +30,11 @@ describe('OfferCard feed layout', () => {
       /cardAttribution\?\.kind === 'brand' \? \(\s*<AventaFoundLine label=\{cardAttribution\.label\} line=\{cardAttribution\.line\} \/>/,
     );
   });
+
+  it('en mobile el comentario del cazador cae debajo y no comprime el contenido', () => {
+    expect(card).toContain('flex flex-row flex-wrap md:flex-nowrap items-start min-h-0');
+    expect(card).toMatch(
+      /<aside\s+className="flex w-full md:w-\[30%\] md:max-w-\[200px\] md:min-w-\[132px\] shrink-0/,
+    );
+  });
 });
