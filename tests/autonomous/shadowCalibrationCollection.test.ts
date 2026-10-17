@@ -333,7 +333,7 @@ describe('FASE 11.1 calibration data collection', () => {
   });
 
   it('31–33. auth, RLS, idempotency de snapshot', async () => {
-    expect(USERS_LOGS_ROLES).toEqual(['owner', 'admin']);
+    expect(USERS_LOGS_ROLES).toEqual(['owner']);
     expect(src('app/api/admin/hunter-health/route.ts')).toMatch(/requireUsersLogs/);
     expect(src('docs/supabase-migrations/20260912_hunter_shadow_outcomes.sql')).toMatch(/ENABLE ROW LEVEL SECURITY/);
     expect(src('docs/supabase-migrations/20260912_hunter_shadow_outcomes.sql')).not.toMatch(/CREATE POLICY/);

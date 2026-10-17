@@ -88,6 +88,7 @@ export function canAccessStaffDepartment(role: Role | null, department: StaffDep
   return meta.allowedRoles.includes(role);
 }
 
+/** @deprecated Usar `listStaffDepartmentsFromMemberships` (Team OS). */
 export function listStaffDepartmentsForRole(role: Role | null): StaffDepartmentMeta[] {
   if (!role) return [];
   return STAFF_DEPARTMENTS.filter((d) => d.allowedRoles.includes(role));

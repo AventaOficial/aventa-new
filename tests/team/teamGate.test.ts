@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { canAccessAdmin } from '../../lib/admin/roles';
-import { isStaffPathAllowed } from '../../lib/server/middlewareRoleGate';
+import { evaluateStaffPathAccessForLegacyRole } from '../../lib/server/middlewareRoleGate';
 import { decideProtectedNavigation } from '@/lib/server/protectedNavigation';
 import { membershipGrantsAdmin, type TeamMembership } from '../../lib/team';
 import {
@@ -236,24 +236,23 @@ describe('team gate no reabre admin ni moderación legacy', () => {
     expect(canAccessAdmin('admin')).toBe(false);
     expect(canAccessAdmin('moderator')).toBe(false);
     expect(canAccessAdmin('analyst')).toBe(false);
-    expect(isStaffPathAllowed('/admin', 'moderator')).toBe(false);
-    expect(isStaffPathAllowed('/admin', 'admin')).toBe(false);
-    expect(isStaffPathAllowed('/admin/owner', 'owner')).toBe(true);
-    expect(isStaffPathAllowed('/equipo/moderacion', 'moderator')).toBe(true);
+    expect(evaluateStaffPathAccessForLegacyRole('/admin', 'moderator')).toBe(false);
+    expect(evaluateStaffPathAccessForLegacyRole('/admin', 'admin')).toBe(false);
+    expect(evaluateStaffPathAccessForLegacyRole('/admin/owner', 'owner')).toBe(true);
+    expect(evaluateStaffPathAccessForLegacyRole('/equipo/moderacion', 'moderator')).toBe(true);
   });
 
   it('el middleware deja /team fuera de user_roles', () => {
     const middleware = readFileSync('middleware.ts', 'utf8');
     const teamReturn = middleware.indexOf('Team OS no consulta user_roles');
-    const roleLookup = middleware.indexOf('resolveUserStaffRole(');
     expect(teamReturn).toBeGreaterThan(-1);
-    expect(roleLookup).toBeGreaterThan(teamReturn);
+    expect(middleware.indexOf('isTeamPath(pathname)')).toBeGreaterThan(-1);
     expect(decideProtectedNavigation('/team', 'anonymous')).toEqual({
       type: 'redirect',
       pathname: '/team/gate',
       next: '/team',
     });
-    expect(middleware).toContain("redirectWithSession(request, '/equipo/moderacion', pendingCookies)");
+    expect(middleware).toContain('isStaffPathAllowed(pathname, userId, supabase)');
   });
 
   it('las rutas de equipo no consultan user_roles ni localStorage', () => {

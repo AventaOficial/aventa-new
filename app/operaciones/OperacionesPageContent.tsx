@@ -4,6 +4,8 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import { useEquipoContext } from '@/lib/hooks/useEquipoContext';
+import { hasStaffDepartment } from '@/lib/staff/equipoContextTypes';
 import { PRODUCT_CONTROL_AREAS } from '@/lib/operations/productControlRegistry';
 import {
   ClipboardCheck,
@@ -316,7 +318,10 @@ function buildOperationsFullReportText(input: {
 
 export default function OperacionesPageContent() {
   const router = useRouter();
-  const [isOwner, setIsOwner] = useState<boolean | null>(null);
+  const { ctx: equipoCtx, ready: equipoReady } = useEquipoContext();
+  const canAccessPanel =
+    equipoCtx !== null &&
+    (equipoCtx.is_owner || hasStaffDepartment(equipoCtx, 'operaciones'));
   const [integrity, setIntegrity] = useState<IntegrityResult | null>(null);
   const [integrityLoading, setIntegrityLoading] = useState(true);
   const [integrityRunning, setIntegrityRunning] = useState(false);
@@ -359,6 +364,7 @@ export default function OperacionesPageContent() {
   }, [integrity, integrityError, pulse, pulseError, goNoGo, goNoGoError, areaStatuses, showTesterOffers]);
 
   useEffect(() => {
+    if (!canAccessPanel) return;
     const supabase = createClient();
 
     const loadPanel = async (runIntegrityNow = false) => {
@@ -424,33 +430,24 @@ export default function OperacionesPageContent() {
       }
     };
 
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (!user) {
-        router.replace('/');
-        return;
-      }
-      supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', user.id)
-        .eq('role', 'owner')
-        .maybeSingle()
-        .then(({ data }) => {
-          setIsOwner(!!data);
-          if (!data) {
-            router.replace('/admin/moderation');
-            return;
-          }
-          loadPanel(false).catch(() => {});
-        });
-    });
-
+    void loadPanel(false);
     const refreshTimer = window.setInterval(() => {
       loadPanel(false).catch(() => {});
     }, 60_000);
 
     return () => window.clearInterval(refreshTimer);
-  }, [router]);
+  }, [canAccessPanel]);
+
+  useEffect(() => {
+    if (!equipoReady) return;
+    if (!equipoCtx) {
+      router.replace('/');
+      return;
+    }
+    if (!canAccessPanel) {
+      router.replace(equipoCtx.home_path || '/equipo');
+    }
+  }, [equipoReady, equipoCtx, canAccessPanel, router]);
 
   const runIntegrityManual = async () => {
     const supabase = createClient();
@@ -559,15 +556,13 @@ export default function OperacionesPageContent() {
       setTopCarouselSaving,
     );
 
-  if (isOwner === null) {
+  if (!equipoReady || (equipoReady && !canAccessPanel)) {
     return (
       <div className="min-h-[50vh] flex items-center justify-center">
         <p className="text-gray-500 dark:text-gray-400">Cargando…</p>
       </div>
     );
   }
-
-  if (!isOwner) return null;
 
   const healthOk = Boolean(integrity?.ok);
   const alertsOptionalMissing = areaStatuses.alertas === 'warn';

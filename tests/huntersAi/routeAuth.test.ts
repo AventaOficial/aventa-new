@@ -8,18 +8,30 @@ const ITEM_ID = '11111111-1111-4111-8111-111111111111';
 const supa = vi.hoisted(() => ({
   getUser: vi.fn(),
   roles: [] as Array<{ role: string }>,
+  memberships: [] as Array<{ team_id: string; role: string; status: string }>,
   rolesQueried: vi.fn(),
+  membershipsQueried: vi.fn(),
 }));
 
 vi.mock('@/lib/supabase/server', () => ({
   createServerClient: () => ({
     auth: { getUser: supa.getUser },
     from: (table: string) => {
-      supa.rolesQueried(table);
       const chain = {
         select: () => chain,
-        eq: () => chain,
+        eq: () => {
+          if (table === 'team_memberships') supa.membershipsQueried(table);
+          else supa.rolesQueried(table);
+          return chain;
+        },
         in: async () => ({ data: supa.roles, error: null }),
+        then: (resolve: (value: unknown) => void) => {
+          if (table === 'team_memberships') {
+            resolve({ data: supa.memberships, error: null });
+          } else {
+            resolve({ data: supa.roles, error: null });
+          }
+        },
       };
       return chain;
     },
@@ -65,6 +77,7 @@ function expectNoDataTouched() {
 beforeEach(() => {
   vi.clearAllMocks();
   supa.roles = [];
+  supa.memberships = [];
   supa.getUser.mockImplementation(async (token: string) =>
     token === VALID_TOKEN
       ? { data: { user: { id: MODERATOR_ID } }, error: null }
@@ -108,12 +121,12 @@ describe('Hunters IA · credenciales en /api/admin/hunters-ai (validación real 
       expect(res.status).toBe(403);
       expect(await res.json()).toEqual({ error: 'Forbidden' });
     }
-    expect(supa.rolesQueried).toHaveBeenCalledWith('user_roles');
+    expect(supa.membershipsQueried).toHaveBeenCalledWith('team_memberships');
     expectNoDataTouched();
   });
 
   it('token válido de moderador => GET lee la cola y POST decide con el actor autenticado', async () => {
-    supa.roles = [{ role: 'moderator' }];
+    supa.memberships = [{ team_id: 'moderation', role: 'moderator', status: 'ACTIVE' }];
     const headers = { Authorization: `Bearer ${VALID_TOKEN}` };
 
     const list = await GET(getRequest(headers));

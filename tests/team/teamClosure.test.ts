@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { canAccessAdmin } from '@/lib/admin/roles';
-import { isStaffPathAllowed } from '@/lib/server/middlewareRoleGate';
+import { evaluateStaffPathAccessForLegacyRole } from '@/lib/server/middlewareRoleGate';
 import { teamHomePermission } from '../../lib/team/config/catalog';
 import { decideTeamHome } from '../../lib/team/config/navigation';
 import { profileMenuLinks } from '../../lib/team/config/profileMenu';
@@ -122,12 +122,12 @@ describe('cierre de Team OS por rol', () => {
     expect(canAccessAdmin('owner')).toBe(true);
     expect(canAccessAdmin('admin')).toBe(false);
     expect(canAccessAdmin(null)).toBe(false);
-    expect(isStaffPathAllowed('/admin/owner', 'owner')).toBe(true);
-    expect(isStaffPathAllowed('/admin/owner/team-management', 'owner')).toBe(true);
-    expect(isStaffPathAllowed('/admin/team', 'owner')).toBe(true);
-    expect(isStaffPathAllowed('/admin/owner', null)).toBe(false);
-    expect(isStaffPathAllowed('/admin/owner', 'moderator')).toBe(false);
-    expect(isStaffPathAllowed('/admin/owner', 'finance')).toBe(false);
+    expect(evaluateStaffPathAccessForLegacyRole('/admin/owner', 'owner')).toBe(true);
+    expect(evaluateStaffPathAccessForLegacyRole('/admin/owner/team-management', 'owner')).toBe(true);
+    expect(evaluateStaffPathAccessForLegacyRole('/admin/team', 'owner')).toBe(true);
+    expect(evaluateStaffPathAccessForLegacyRole('/admin/owner', null)).toBe(false);
+    expect(evaluateStaffPathAccessForLegacyRole('/admin/owner', 'moderator')).toBe(false);
+    expect(evaluateStaffPathAccessForLegacyRole('/admin/owner', 'finance')).toBe(false);
     expect(resolveTeamNext('/admin/owner')).not.toBe('/admin/owner');
     expect(resolveTeamNext('/admin/owner')).toBe('/team/select');
   });

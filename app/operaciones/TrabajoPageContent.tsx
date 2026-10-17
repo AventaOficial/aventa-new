@@ -16,7 +16,8 @@ import {
   Copy,
   Check,
 } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
+import { useEquipoContext } from '@/lib/hooks/useEquipoContext';
+import { hasStaffDepartment } from '@/lib/staff/equipoContextTypes';
 import AffiliateProgramsPanel from './components/AffiliateProgramsPanel';
 import BotIngestPanel from './components/BotIngestPanel';
 
@@ -127,7 +128,10 @@ function loadJson<T>(key: string, fallback: T): T {
 
 export default function TrabajoPageContent() {
   const router = useRouter();
-  const [isOwner, setIsOwner] = useState<boolean | null>(null);
+  const { ctx: equipoCtx, ready: equipoReady } = useEquipoContext();
+  const canAccessPanel =
+    equipoCtx !== null &&
+    (equipoCtx.is_owner || hasStaffDepartment(equipoCtx, 'operaciones'));
   const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [costs, setCosts] = useState<CostLine[]>([]);
   const [ideas, setIdeas] = useState('');
@@ -139,27 +143,18 @@ export default function TrabajoPageContent() {
   const [copyState, setCopyState] = useState<'cursor' | 'gemini' | null>(null);
 
   useEffect(() => {
-    const supabase = createClient();
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (!user) {
-        router.replace('/');
-        return;
-      }
-      supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', user.id)
-        .eq('role', 'owner')
-        .maybeSingle()
-        .then(({ data }) => {
-          setIsOwner(!!data);
-          if (!data) router.replace('/admin/moderation');
-        });
-    });
-  }, [router]);
+    if (!equipoReady) return;
+    if (!equipoCtx) {
+      router.replace('/');
+      return;
+    }
+    if (!canAccessPanel) {
+      router.replace(equipoCtx.home_path || '/equipo');
+    }
+  }, [equipoReady, equipoCtx, canAccessPanel, router]);
 
   useEffect(() => {
-    if (isOwner !== true) return;
+    if (!canAccessPanel) return;
     const day = todayKey();
     const storedTasks = loadJson<{ items: TaskItem[]; dayKey?: string } | null>(LS_TASKS, null);
     if (storedTasks?.items?.length) {
@@ -191,7 +186,7 @@ export default function TrabajoPageContent() {
     } else {
       setPlanItems(DEFAULT_PLAN_ITEMS);
     }
-  }, [isOwner]);
+  }, [canAccessPanel]);
 
   const persistTasks = useCallback((items: TaskItem[]) => {
     setTasks(items);
@@ -264,15 +259,13 @@ export default function TrabajoPageContent() {
   const totalCosts = costs.reduce((s, c) => s + (Number.isFinite(c.amount) ? c.amount : 0), 0);
   const totalIncome = (Number.isFinite(incomeAffiliate) ? incomeAffiliate : 0) + (Number.isFinite(incomeOther) ? incomeOther : 0);
 
-  if (isOwner === null) {
+  if (!equipoReady || (equipoReady && !canAccessPanel)) {
     return (
       <div className="min-h-[50vh] flex items-center justify-center">
         <p className="text-gray-500 dark:text-gray-400">Cargando…</p>
       </div>
     );
   }
-
-  if (!isOwner) return null;
 
   return (
     <div className="space-y-8">

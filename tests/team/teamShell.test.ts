@@ -12,7 +12,7 @@ import {
   switcherEntries,
 } from '../../lib/team/config/navigation';
 import { membershipGrantsAdmin, type TeamMembership } from '../../lib/team';
-import { isStaffPathAllowed } from '../../lib/server/middlewareRoleGate';
+import { evaluateStaffPathAccessForLegacyRole } from '../../lib/server/middlewareRoleGate';
 
 function active(teamId: TeamMembership['teamId'], role: string): TeamMembership {
   const membership = membershipFromRow('user-1', { teamId, role, status: 'ACTIVE' });
@@ -95,8 +95,8 @@ describe('team area access', () => {
     expect(membershipGrantsAdmin()).toBe(false);
     expect(canAccessAdmin('moderator')).toBe(false);
     expect(canAccessAdmin('owner')).toBe(true);
-    expect(isStaffPathAllowed('/equipo/moderacion', 'moderator')).toBe(true);
-    expect(isStaffPathAllowed('/admin', 'moderator')).toBe(false);
+    expect(evaluateStaffPathAccessForLegacyRole('/equipo/moderacion', 'moderator')).toBe(true);
+    expect(evaluateStaffPathAccessForLegacyRole('/admin', 'moderator')).toBe(false);
   });
 });
 

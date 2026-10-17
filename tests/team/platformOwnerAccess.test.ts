@@ -35,11 +35,13 @@ describe('owner de plataforma en Team OS', () => {
     expect(authorizeTeamPermission({ memberships }, 'moderation', 'moderation.offers.decide').allowed).toBe(true);
   });
 
-  it('la página de equipo autoriza en servidor', () => {
+  it('la página de equipo autoriza en servidor mediante la sesión y membresía Team OS', () => {
     const source = readFileSync('app/equipo/layout.tsx', 'utf8');
     expect(source).toContain('readAuthenticatedUserId');
-    expect(source).toContain('user_roles');
-    expect(source).not.toMatch(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
+    expect(source).toContain('userCanAccessStaffHub');
+    expect(source).toContain('loadActiveMemberships');
+    expect(source).not.toContain('user_roles');
+    expect(source).not.toMatch(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}/i);
   });
 
   it('Founder OS niega en servidor a quien no es owner', () => {
@@ -47,12 +49,12 @@ describe('owner de plataforma en Team OS', () => {
     expect(source).toContain('requireOwnerSession');
     expect(source).toContain('auth.status === 403');
     expect(source).toContain("redirect('/')");
-    expect(source).not.toMatch(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
+    expect(source).not.toMatch(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}/i);
   });
 
   it('el acceso de owner sale de user_roles, no de un email', () => {
     const source = readFileSync('lib/team/authz/platformRole.ts', 'utf8');
     expect(source).toContain("eq('role', 'owner')");
-    expect(source).not.toMatch(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
+    expect(source).not.toMatch(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}/i);
   });
 });

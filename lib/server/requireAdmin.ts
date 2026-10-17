@@ -1,98 +1,86 @@
-import { createServerClient } from '@/lib/supabase/server'
-import type { User } from '@supabase/supabase-js'
-import { pickEffectiveRole, type Role } from '@/lib/admin/roles'
+import type { User } from '@supabase/supabase-js';
+import { type Role } from '@/lib/admin/roles';
+import {
+  requireCollaboratorPermission,
+  requireBearerUser,
+  type CollaboratorAuthOk,
+} from '@/lib/server/collaboratorAuth';
+import { requirePlatformOwnerBearer } from '@/lib/server/platformOwner';
 
-type AuthSuccess = { user: User; role: Role }
-type AuthError = { error: string; status: 401 | 403 }
-type AuthResult = AuthSuccess | AuthError
+type AuthSuccess = { user: User; role: Role };
+type AuthError = { error: string; status: 401 | 403 | 503 };
+type AuthResult = AuthSuccess | AuthError;
 
-/** Roles que pueden moderar ofertas */
-export const MODERATION_ROLES: Role[] = ['owner', 'admin', 'moderator']
-
-/** Roles que pueden ver usuarios y logs (solo owner/admin; moderadores no) */
-export const USERS_LOGS_ROLES: Role[] = ['owner', 'admin']
-
-/** Roles que pueden ver/refrescar métricas */
-export const METRICS_ROLES: Role[] = ['owner', 'admin', 'analyst']
-
-async function requireRole(
-  request: Request,
-  allowedRoles: Role[]
-): Promise<AuthResult> {
-  const authHeader = request.headers.get('authorization')
-  const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7).trim() : null
-
-  if (!token) {
-    return { error: 'Unauthorized', status: 401 }
-  }
-
-  const supabase = createServerClient()
-  const { data: { user }, error: authError } = await supabase.auth.getUser(token)
-
-  if (authError || !user) {
-    return { error: 'Unauthorized', status: 401 }
-  }
-
-  const { data: roles } = await supabase
-    .from('user_roles')
-    .select('role')
-    .eq('user_id', user.id)
-    .in('role', allowedRoles)
-
-  const userRoles = ((roles ?? []) as { role: Role }[]).map((r) => r.role)
-  const role = pickEffectiveRole(userRoles)
-
-  if (!role || !allowedRoles.includes(role)) {
-    return { error: 'Forbidden', status: 403 }
-  }
-
-  return { user, role }
+function asModeratorRole(auth: CollaboratorAuthOk): AuthSuccess {
+  return { user: auth.user, role: auth.via === 'owner' ? 'owner' : 'moderator' };
 }
 
-/** Para moderación (aprobar/rechazar ofertas, increment-approved) */
+/** Compatibilidad de tests y mapas legacy; la autorización real es Team OS. */
+export const MODERATION_ROLES: Role[] = ['owner', 'admin', 'moderator'];
+
 export async function requireModeration(request: Request): Promise<AuthResult> {
-  return requireRole(request, MODERATION_ROLES)
+  const auth = await requireCollaboratorPermission(request, 'moderation.offers.decide');
+  if ('error' in auth) return auth;
+  return asModeratorRole(auth);
 }
 
-/** Zona de trabajo del equipo (owner / admin / moderator) */
 export async function requireTeamBoard(request: Request): Promise<AuthResult> {
-  return requireRole(request, MODERATION_ROLES)
+  return requireModeration(request);
 }
 
-/** Para métricas (refresh-metrics) */
+export const METRICS_ROLES: Role[] = ['owner', 'admin', 'analyst'];
+
 export async function requireMetrics(request: Request): Promise<AuthResult> {
-  return requireRole(request, METRICS_ROLES)
+  const ops = await requireCollaboratorPermission(request, 'operations.overview.read');
+  if (!('error' in ops)) {
+    return { user: ops.user, role: ops.via === 'owner' ? 'owner' : 'analyst' };
+  }
+  const mod = await requireCollaboratorPermission(request, 'moderation.metrics.read');
+  if ('error' in mod) return mod.status === 503 ? mod : { error: 'Forbidden', status: 403 };
+  return { user: mod.user, role: mod.via === 'owner' ? 'owner' : 'analyst' };
 }
 
-/** Para usuarios y logs (solo owner/admin) */
+export const USERS_LOGS_ROLES: Role[] = ['owner'];
+
 export async function requireUsersLogs(request: Request): Promise<AuthResult> {
-  return requireRole(request, USERS_LOGS_ROLES)
+  return requireOwner(request);
 }
 
-/** Solo owner (gestionar equipo / roles) */
-export const OWNER_ROLES: Role[] = ['owner']
+export const OWNER_ROLES: Role[] = ['owner'];
+
 export async function requireOwner(request: Request): Promise<AuthResult> {
-  return requireRole(request, OWNER_ROLES)
+  return requirePlatformOwnerBearer(request);
 }
 
-/** Owner o admin: roles de panel (`user_roles`) en /api/admin/staff-roles */
-export const TEAM_MANAGEMENT_ROLES: Role[] = ['owner', 'admin']
+/** Owner o admin: roles de panel (`user_roles`) en `/api/admin/staff-roles`. */
+export const TEAM_MANAGEMENT_ROLES: Role[] = ['owner', 'admin'];
+
 export async function requireTeamManagement(request: Request): Promise<AuthResult> {
-  return requireRole(request, TEAM_MANAGEMENT_ROLES)
+  return requireOwner(request);
 }
 
-/** Solo owner o contabilidad pueden importar evidencia de afiliados. */
-export const AFFILIATE_IMPORT_ROLES: Role[] = ['owner', 'finance']
+export const AFFILIATE_IMPORT_ROLES: Role[] = ['owner', 'finance'];
+
 export async function requireAffiliateImport(request: Request): Promise<AuthResult> {
-  return requireRole(request, AFFILIATE_IMPORT_ROLES)
+  const owner = await requireOwner(request);
+  if (!('error' in owner)) return owner;
+  if (owner.status === 401) return owner;
+  const fin = await requireCollaboratorPermission(request, 'finance.overview.read');
+  if ('error' in fin) return { error: 'Forbidden', status: 403 };
+  return { user: fin.user, role: 'finance' };
 }
 
-/** Solo owner (gestionar avisos del sitio) */
 export async function requireAnnouncements(request: Request): Promise<AuthResult> {
-  return requireRole(request, OWNER_ROLES)
+  return requireOwner(request);
 }
 
-/** Cualquier rol admin (compatibilidad con código existente) */
 export async function requireAdmin(request: Request): Promise<AuthResult> {
-  return requireRole(request, ['owner', 'admin', 'moderator', 'analyst'])
+  const owner = await requireOwner(request);
+  if (!('error' in owner)) return owner;
+  if (owner.status === 401) return owner;
+  const mod = await requireCollaboratorPermission(request, 'moderation.offers.decide');
+  if (!('error' in mod)) return asModeratorRole(mod);
+  const ops = await requireCollaboratorPermission(request, 'operations.overview.read');
+  if (!('error' in ops)) return { user: ops.user, role: 'analyst' };
+  return { error: 'Forbidden', status: 403 };
 }

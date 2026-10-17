@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/app/providers/AuthProvider';
-import { createClient } from '@/lib/supabase/client';
+import { useEquipoContext } from '@/lib/hooks/useEquipoContext';
 import { offerRequiresAffiliateValidation } from '@/lib/moderation/approveReadiness';
 import { humanizeAffiliateApproveError } from '@/lib/moderation/monetizationReadiness';
 import { evaluateAffiliateReadiness } from '@/lib/moderation/affiliateReadinessContract';
@@ -80,8 +80,9 @@ export function useModerationFocusQueue({
   const [error, setError] = useState<string | null>(null);
   const [needsAffiliateConfirm, setNeedsAffiliateConfirm] = useState(false);
   const [affiliateCheck, setAffiliateCheck] = useState<FocusAffiliateCheck | null>(null);
-  const [isOwner, setIsOwner] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const { ctx: equipoCtx } = useEquipoContext();
+  const isOwner = equipoCtx?.is_owner ?? false;
+  const canAdvanced = equipoCtx?.can_advanced_moderation ?? false;
   const [reviewedCount, setReviewedCount] = useState(0);
   const [oldestCreatedAt, setOldestCreatedAt] = useState<string | null>(null);
   const [lastClaimKind, setLastClaimKind] = useState<ClaimKind | null>(null);
@@ -129,24 +130,6 @@ export function useModerationFocusQueue({
     if (session?.access_token) h.Authorization = `Bearer ${session.access_token}`;
     return h;
   }, [session?.access_token]);
-
-  useEffect(() => {
-    if (!session?.user?.id) {
-      setIsOwner(false);
-      setIsAdmin(false);
-      return;
-    }
-    const supabase = createClient();
-    void supabase
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', session.user.id)
-      .then(({ data }) => {
-        const roles = (data ?? []) as { role: string }[];
-        setIsOwner(roles.some((r) => r.role === 'owner'));
-        setIsAdmin(roles.some((r) => r.role === 'admin'));
-      });
-  }, [session?.user?.id]);
 
   const postLock = useCallback(
     async (offerId: string, action: 'acquire' | 'release' | 'heartbeat') => {
@@ -895,8 +878,7 @@ export function useModerationFocusQueue({
     lastClaimKind,
     needsAffiliateConfirm,
     isOwner,
-    isAdmin,
-    canAdvanced: isOwner || isAdmin,
+    canAdvanced,
     currentUserId: session?.user?.id ?? null,
     approve,
     reject,

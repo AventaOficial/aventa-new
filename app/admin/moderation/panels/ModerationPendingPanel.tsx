@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { usePathname } from 'next/navigation';
-import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/app/providers/AuthProvider';
+import { useEquipoContext } from '@/lib/hooks/useEquipoContext';
 import {
   Search,
   CheckSquare,
@@ -205,8 +205,9 @@ export default function ModerationPendingPanel({
   const [riskHighOnly, setRiskHighOnly] = useState(false);
   const [vitalOnlyFilter, setVitalOnlyFilter] = useState(false);
   const [needsFixFilter, setNeedsFixFilter] = useState(false);
-  const [isOwner, setIsOwner] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const { ctx: equipoCtx } = useEquipoContext();
+  const isOwner = equipoCtx?.is_owner ?? false;
+  const canAdvancedModeration = equipoCtx?.can_advanced_moderation ?? false;
   const [showDeleteBotModal, setShowDeleteBotModal] = useState(false);
   const [deleteBotPhrase, setDeleteBotPhrase] = useState('');
   const [deleteBotAck, setDeleteBotAck] = useState(false);
@@ -232,23 +233,6 @@ export default function ModerationPendingPanel({
   });
   const claimInFlightRef = useRef(false);
   const heldLockIdRef = useRef<string | null>(null);
-
-  useEffect(() => {
-    if (!session?.user?.id) {
-      setIsOwner(false);
-      return;
-    }
-    const supabase = createClient();
-    supabase
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', session.user.id)
-      .then(({ data }) => {
-        const roles = (data ?? []) as { role: string }[];
-        setIsOwner(roles.some((r) => r.role === 'owner'));
-        setIsAdmin(roles.some((r) => r.role === 'admin'));
-      });
-  }, [session?.user?.id]);
 
   const isBotOffer = useCallback(
     (o: ModerationOffer) =>
@@ -952,7 +936,6 @@ export default function ModerationPendingPanel({
   }, [queueView, deskList, selectedId, selectedOffer, selectedReadOnly, affiliateReady, selectedOriginalUrl]);
 
   const storesInList = [...new Set(pending.map((o) => o.store).filter(Boolean))] as string[];
-  const canAdvancedModeration = isOwner || isAdmin;
   const ui = moderationUi(mode);
 
   const tabLocked = queueView !== 'split';

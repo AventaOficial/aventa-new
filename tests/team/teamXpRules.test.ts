@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { canAccessAdmin } from '../../lib/admin/roles';
-import { isStaffPathAllowed } from '../../lib/server/middlewareRoleGate';
+import { evaluateStaffPathAccessForLegacyRole } from '../../lib/server/middlewareRoleGate';
 import { membershipGrantsAdmin } from '../../lib/team/authz/authorize';
 import { decideTeamEntry, membershipFromRow } from '../../lib/team/gate/policy';
 import { composeTeamHero } from '../../lib/team/hero/adapters';
@@ -299,7 +299,7 @@ describe('team xp regressions', () => {
     expect(canAccessAdmin('moderator')).toBe(false);
     expect(canAccessAdmin('owner')).toBe(true);
     expect(decideTeamEntry({ hasSession: false, gateValid: false, activeTeamIds: [], requestedTeam: null })).toBe('login');
-    expect(isStaffPathAllowed('/equipo/moderacion', 'moderator')).toBe(true);
+    expect(evaluateStaffPathAccessForLegacyRole('/equipo/moderacion', 'moderator')).toBe(true);
     expect(roleHasPermission('moderation', 'moderator', 'moderation.offers.decide')).toBe(true);
     expect(readFileSync('app/team/[team]/page.tsx', 'utf8')).toContain('ModerationWorkspace');
     expect(readFileSync('app/api/admin/moderate-offer/route.ts', 'utf8')).toContain('requireModerationActor');

@@ -4,7 +4,7 @@ import { requireStaffHub } from '@/lib/server/requireStaff';
 import { canAccessStaffDepartment } from '@/lib/staff/permissions';
 
 type AuthSuccess = Awaited<ReturnType<typeof requireStaffHub>> & { role: Role };
-type AuthError = { error: string; status: 401 | 403 };
+type AuthError = { error: string; status: 401 | 403 | 503 };
 
 const OPERATIONS_READ_ROLES: Role[] = ['owner', 'admin', 'gerente', 'analyst'];
 

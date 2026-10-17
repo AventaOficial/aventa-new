@@ -6,8 +6,6 @@ import { usePathname, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { ChevronDown, Menu, X } from 'lucide-react';
 import {
-  ROLES,
-  pickEffectiveRole,
   canAccessModeration,
   canAccessMetrics,
   canAccessHealth,
@@ -19,7 +17,6 @@ import {
   canAccessAdmin,
   type Role,
 } from '@/lib/admin/roles';
-import { staffHomePathForRole } from '@/lib/staff/roleRouting';
 import {
   buildAdminNavigation,
   getAdminMobileSectionTitle,
@@ -134,20 +131,26 @@ export default function AdminShell({
         .from('user_roles')
         .select('role')
         .eq('user_id', u.id)
-        .in('role', ROLES)
+        .eq('role', 'owner')
+        .maybeSingle()
         .then(({ data, error }) => {
           if (error) {
-            console.error('Error fetching user roles:', error);
+            console.error('Error fetching owner role:', error);
             setUserRole(null);
             setAuthGateReady(true);
             return;
           }
-          const roles = ((data ?? []) as { role: Role }[]).map((row) => row.role);
-          const r = pickEffectiveRole(roles);
+          const r = data?.role === 'owner' ? ('owner' as Role) : null;
           setUserRole(r);
           setAuthGateReady(true);
-          if (r && !canAccessAdmin(r)) {
-            router.replace(staffHomePathForRole(r));
+          if (!r) {
+            fetch('/api/equipo/context', { credentials: 'include' })
+              .then((res) => (res.ok ? res.json() : null))
+              .then((ctx) => {
+                if (ctx?.home_path) router.replace(ctx.home_path as string);
+                else router.replace('/');
+              })
+              .catch(() => router.replace('/'));
           }
         });
     });

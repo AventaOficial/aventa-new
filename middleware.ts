@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
-import { isStaffPathAllowed, resolveUserStaffRole } from '@/lib/server/middlewareRoleGate';
+import { isStaffPathAllowed } from '@/lib/server/middlewareRoleGate';
 import {
   decideProtectedNavigation,
   sessionObservationFromAuthResult,
@@ -182,15 +182,12 @@ export async function middleware(request: NextRequest) {
     pathname === STAFF_PREFIX || pathname.startsWith(`${STAFF_PREFIX}/`);
 
   if (isAdmin || isStaff) {
-    const role = await withTimeout(resolveUserStaffRole(supabase, userId), ROLE_TIMEOUT_MS);
-    if (role === 'timeout') {
+    const allowed = await withTimeout(isStaffPathAllowed(pathname, userId, supabase), ROLE_TIMEOUT_MS);
+    if (allowed === 'timeout') {
       console.error('[middleware] role timeout on', pathname);
       return sessionUnavailable(pendingCookies);
     }
-    if (!isStaffPathAllowed(pathname, role)) {
-      if (isAdmin && role === 'moderator') {
-        return redirectWithSession(request, '/equipo/moderacion', pendingCookies);
-      }
+    if (!allowed) {
       return redirectWithSession(request, '/', pendingCookies);
     }
   }
