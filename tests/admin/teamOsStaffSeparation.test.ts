@@ -77,4 +77,22 @@ describe('Team OS como único sistema de colaboradores', () => {
     expect(sql).toContain('REVOKE ALL ON FUNCTION public.grant_role(uuid,text,text)');
     expect(sql).toContain('REVOKE ALL ON FUNCTION public.revoke_role(uuid,text)');
   });
+
+  it('staging legacy profile-role policies are cut over without a generic staff bypass', () => {
+    const sql = read('docs/supabase-migrations/STAGING_20261018_profile_role_legacy_cutover.sql');
+    expect(sql).toContain("public.team_os_has_permission('moderation.offers.decide')");
+    expect(sql).toContain("public.team_os_has_permission('finance.overview.read')");
+    expect(sql).toContain("DROP TRIGGER IF EXISTS trg_profiles_no_zero_admin");
+    expect(sql).toContain('legacy_profile_role_management_disabled');
+    expect(sql).toContain("SET role='user'");
+    expect(sql).toContain("DELETE FROM public.user_roles WHERE role IS DISTINCT FROM 'owner'");
+    expect(sql).not.toContain("OR EXISTS (SELECT 1 FROM public.team_memberships m WHERE m.user_id=uid AND m.status='ACTIVE')");
+  });
+
+  it('the former profile-to-user_roles migration cannot resurrect legacy grants', () => {
+    const sql = read('docs/supabase-migrations/20261016_staff_roles_profile_sync.sql');
+    expect(sql).toContain('Intentionally a no-op');
+    expect(sql).toContain('profiles.role -> user_roles sync is disabled');
+    expect(sql).not.toContain('INSERT INTO public.user_roles');
+  });
 });
