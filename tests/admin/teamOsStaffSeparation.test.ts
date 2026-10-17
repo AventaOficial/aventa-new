@@ -95,4 +95,25 @@ describe('Team OS como único sistema de colaboradores', () => {
     expect(sql).toContain('profiles.role -> user_roles sync is disabled');
     expect(sql).not.toContain('INSERT INTO public.user_roles');
   });
+
+  it('las migraciones comunes aplicadas tienen fuente en supabase/migrations', () => {
+    const pairs = [
+      [
+        'docs/supabase-migrations/20261018_team_os_rls_policy_cutover.sql',
+        'supabase/migrations/20261017015706_team_os_rls_policy_cutover_20261018.sql',
+      ],
+      [
+        'docs/supabase-migrations/20261018_team_os_legacy_auth_functions_production.sql',
+        'supabase/migrations/20261017015720_team_os_legacy_auth_functions_20261018.sql',
+      ],
+      [
+        'docs/supabase-migrations/20261018_remove_mapped_legacy_moderators.sql',
+        'supabase/migrations/20261017015822_remove_mapped_legacy_moderators_20261018.sql',
+      ],
+    ] as const;
+
+    for (const [runbook, trackedMigration] of pairs) {
+      expect(read(trackedMigration)).toBe(read(runbook));
+    }
+  });
 });
