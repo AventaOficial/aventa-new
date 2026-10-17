@@ -606,7 +606,7 @@ export default function OfferCard({
         <FeedModerationAction offerId={offerId} onRemoved={() => onModerated?.(offerId)} />
       ) : null}
 
-      <div className="flex flex-row items-start min-h-0">
+      <div className="flex flex-row flex-wrap md:flex-nowrap items-start min-h-0">
         <div className="w-[36%] min-w-[88px] max-[400px]:min-w-[80px] md:w-[200px] md:min-w-[200px] shrink-0">
           <div className="relative">
             <OfferMedia
