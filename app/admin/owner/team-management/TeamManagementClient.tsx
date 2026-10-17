@@ -62,8 +62,6 @@ type ConfirmState = {
 type MutationBody = {
   membership?: Member | null;
   error?: string;
-  temporary_password?: string;
-  message?: string;
 };
 
 const STATUS_LABEL: Record<MembershipStatus, string> = {
@@ -287,12 +285,6 @@ export default function TeamManagementClient() {
         return false;
       }
       if (body?.membership) applyPersisted(body.membership);
-      if (typeof body?.temporary_password === 'string') {
-        setNotice(
-          body.message ??
-            `Contraseña temporal (cópiala ahora): ${body.temporary_password}`,
-        );
-      }
       setAssignOpen(false);
       setConfirm(null);
       await load();

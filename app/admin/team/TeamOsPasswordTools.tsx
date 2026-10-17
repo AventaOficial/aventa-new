@@ -51,12 +51,18 @@ export function TeamOsPasswordTools() {
 
   const handleEquipoPassword = useCallback(
     async (userId: string, action: 'recovery_email' | 'generate_temporary') => {
+      if (action === 'generate_temporary') {
+        const confirmed = window.confirm(
+          'Esto cambiará la contraseña de Supabase Auth de la persona para toda Aventa, no solo Team OS. La persona podría perder acceso con su contraseña actual. La contraseña generada no expira automáticamente ni fuerza un cambio al iniciar sesión; coordina que la cambie inmediatamente. Úsalo únicamente con autorización y compártela por un canal seguro. ¿Continuar?'
+        );
+        if (!confirmed) return;
+      }
       setPasswordBusy(userId);
       setPasswordNote(null);
       try {
         const headers: Record<string, string> = { 'content-type': 'application/json' };
         if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
-        const res = await fetch(`/api/admin/users/${userId}/equipo-password`, {
+        const res = await fetch(`/api/admin/team-os/users/${userId}/access`, {
           method: 'POST',
           headers,
           body: JSON.stringify({ action }),
@@ -64,9 +70,8 @@ export function TeamOsPasswordTools() {
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data?.error ?? 'No se pudo completar');
         if (typeof data.temporary_password === 'string') {
-          setPasswordNote(
-            `Contraseña temporal: ${data.temporary_password} (cópiala ahora; no se vuelve a mostrar).`,
-          );
+          const warning = typeof data.message === 'string' ? data.message : 'La contraseña temporal cambia el acceso global a Aventa.';
+          setPasswordNote(`${warning} Contraseña: ${data.temporary_password} (cópiala ahora).`);
         } else {
           setPasswordNote(typeof data.message === 'string' ? data.message : 'Correo enviado.');
         }
@@ -83,8 +88,7 @@ export function TeamOsPasswordTools() {
     <section className="mt-8 rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-[#141414]">
       <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">Acceso Team OS (contraseña)</h2>
       <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-        Envía recuperación o genera una contraseña temporal para el gate de{' '}
-        <code className="text-xs">/team/gate</code>. No sustituye la membresía en un equipo.
+        Envía un enlace de recuperación o cambia la contraseña global de Supabase Auth. La contraseña no es independiente de Team OS: afecta el inicio de sesión en toda Aventa. Prefiere el enlace de recuperación salvo que la persona haya autorizado una contraseña temporal.
       </p>
       <input
         type="search"
@@ -118,7 +122,7 @@ export function TeamOsPasswordTools() {
                 className="rounded-lg border border-violet-300 px-2.5 py-1 text-xs font-semibold text-violet-700 dark:border-violet-700 dark:text-violet-300 disabled:opacity-50"
                 onClick={() => void handleEquipoPassword(u.user_id, 'generate_temporary')}
               >
-                Temporal
+                Cambiar contraseña
               </button>
             </div>
           </li>

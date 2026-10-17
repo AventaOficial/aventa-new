@@ -50,13 +50,15 @@ Migración de datos original: `docs/supabase-migrations/20261017_staff_roles_to_
 - `lib/staff/equipoTeamAccess.ts`, `membershipNav.ts`, `legacyStaffMapping.ts`.
 - `lib/server/middlewareRoleGate.ts` — middleware y helpers de test.
 - `app/admin/team/page.tsx` — gestión de membresías Team OS.
+- `app/api/admin/owner/team-management/members/route.ts` — asignar una membresía sin cambiar credenciales Supabase Auth.
 - `app/api/admin/team/route.ts` y `app/api/admin/staff-roles/route.ts` — mutaciones legacy retiradas.
 - `app/api/equipo/context/route.ts` y `app/equipo/components/StaffShell.tsx` — contexto del hub Team OS.
 - `app/admin/AdminShell.tsx` — solo owner para `/admin`.
-- `docs/supabase-migrations/20261018_team_os_rls_policy_cutover.sql` — función de permisos y RLS.
-- `docs/supabase-migrations/20261018_team_os_legacy_auth_functions_production.sql` — funciones de producción.
-- `docs/supabase-migrations/STAGING_20261018_team_os_legacy_role_rpc_shutdown.sql` — funciones y RPCs legacy exclusivos de staging.
-- `docs/supabase-migrations/20261018_remove_mapped_legacy_moderators.sql` — retiro idempotente de moderadores ya mapeados.
+- `docs/supabase-migrations/20261018_team_os_rls_policy_cutover.sql` — runbook de la función de permisos y RLS.
+- `docs/supabase-migrations/20261018_team_os_legacy_auth_functions_production.sql` — runbook de funciones SQL comunes.
+- `docs/supabase-migrations/STAGING_20261018_team_os_legacy_role_rpc_shutdown.sql` — funciones y RPCs legacy exclusivos de staging; no ejecutar en producción.
+- `docs/supabase-migrations/20261018_remove_mapped_legacy_moderators.sql` — runbook de retiro idempotente de moderadores ya mapeados.
+- Las tres migraciones comunes también tienen fuente en `supabase/migrations/` con las versiones registradas en producción: `20261017015706`, `20261017015720` y `20261017015822`. Los scripts exclusivos de staging se conservan fuera del flujo compartido.
 - `docs/supabase-migrations/STAGING_20261018_profile_role_legacy_cutover.sql` — reemplaza políticas de `profiles.role`, acota `is_staff` a Owner/moderación y retira la fuente de roles antigua.
 - `docs/supabase-migrations/20261016_staff_roles_profile_sync.sql` — histórico convertido en no-op para evitar reinsertar grants legacy.
 
@@ -89,16 +91,25 @@ La función RLS `team_os_has_permission(text)` permite únicamente permisos incl
 - Staging: el RPC `admin_set_user_admin` ya no puede mutar perfiles y su ejecución está revocada a `PUBLIC`, `anon` y `authenticated`; `current_role()` solo devuelve `owner` o `user`.
 - Producción: las funciones SQL que aún leen `user_roles` lo hacen solo para verificar `owner` (incluyendo el RPC de estado de payout). Los helpers de moderación ya consultan Team OS.
 - Se comprobó que un permiso no permitido por la allowlist (por ejemplo `finance.payout.approve`) no se concede ni al owner a través del helper de Team OS.
+- Matriz SQL sobre membresías activas: producción `moderation/moderator` 3/3 autorizadas para `moderation.offers.decide`; staging 2/2. En ambos entornos `finance.payout.approve` fue concedido 0 veces.
 
 **Limitación de la prueba:** son verificaciones SQL de políticas, membresías y helpers; no equivalen a un smoke test HTTP con JWT real para cada ruta de moderación.
 
-## 7. Pendientes explícitos
+## 7. Endurecimiento final de credenciales
+
+- Asignar, cambiar rol o suspender una membresía Team OS **no debe cambiar la contraseña** de la cuenta Aventa.
+- La rotación de contraseña es una acción explícita aparte, protegida por Owner. La interfaz advierte que cambia la contraseña global de Supabase Auth, no una credencial independiente de Team OS.
+- La ruta de credenciales impide rotar la contraseña del owner desde la ficha de otro usuario. Por defecto, la acción envía un enlace de recuperación; la contraseña temporal requiere seleccionar esa acción y confirmar el cambio.
+- Regresiones añadidas en `tests/team/teamManagementApi.test.ts` y `tests/admin/equipoPasswordRoute.test.ts`.
+
+## 8. Pendientes explícitos
 
 1. **Barrido estático completo de aplicación:** se revalidaron archivos clave (`ModerationPendingPanel`, `useModerationFocusQueue`, `OperacionesPageContent`, `TrabajoPageContent` y `useOperationsPayload`), pero no afirmo que un escaneo exhaustivo de cada archivo del repositorio haya quedado probado en este paso.
 2. **Smoke tests autenticados:** las comprobaciones de SQL/RLS/helpers no sustituyen requests HTTP con JWT real para cada ruta de moderación y operaciones.
 3. **Sesiones activas:** la suspensión de una membresía bloquea la siguiente petición autorizada por Team OS; no hay step-up adicional en ese gate.
+4. **RPC payout legacy:** producción no tiene `public.payouts` ni `public.moderation_log`. La función `admin_mark_payout_status` no tiene dependencias SQL ni llamadas desde otras funciones; en producción se revocó `EXECUTE` a `PUBLIC`, `anon`, `authenticated` y `service_role` con la migración `20261017050149_disable_legacy_payout_status_rpc_production_20261018.sql`. Se verificó que los cuatro roles no pueden ejecutarla. Staging conserva su función histórica, ya que su tabla `public.payouts` existe allí. Mantener `MONEY_PATH_FROZEN` activo y validar solo el flujo canónico actual antes de una futura activación monetaria.
 
-## 8. Criterio de cierre operativo
+## 9. Criterio de cierre operativo
 
 - [x] No hay UI para agregar roles staff legacy.
 - [x] APIs de staff legacy retiradas (410 Gone).
@@ -110,7 +121,7 @@ La función RLS `team_os_has_permission(text)` permite únicamente permisos incl
 - [x] Staging: `user_roles` conserva únicamente `owner`; perfiles antiguos ya no conservan `admin` en `profiles.role`.
 - [ ] Completar un barrido estático de todo el repositorio y smoke tests autenticados por ruta.
 
-## 9. Usos permitidos de `user_roles` tras el corte
+## 10. Usos permitidos de `user_roles` tras el corte
 
 - `lib/server/platformOwner.ts`, `requireOwnerSession.ts`, `lib/team/authz/platformRole.ts`.
 - Seeds y MCP únicamente para comprobaciones de owner.
