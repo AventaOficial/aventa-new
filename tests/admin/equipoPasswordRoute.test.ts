@@ -74,6 +74,18 @@ describe('Team OS credential route', () => {
     expect(loadAuthUserForEquipoPassword).not.toHaveBeenCalled();
   });
 
+
+  it('the compatibility credential URL also blocks rotating the current owner password', async () => {
+    const { POST } = await import('../../app/api/admin/users/[userId]/equipo-password/route');
+    const response = await POST(
+      request(OWNER, { action: 'generate_temporary' }),
+      { params: Promise.resolve({ userId: OWNER }) },
+    );
+
+    expect(response.status).toBe(400);
+    expect(setTemporaryEquipoPassword).not.toHaveBeenCalled();
+  });
+
   it('rotates another account password only after an explicit action', async () => {
     const { POST } = await import('../../app/api/admin/team-os/users/[userId]/access/route');
     const response = await POST(
