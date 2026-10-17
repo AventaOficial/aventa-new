@@ -512,7 +512,7 @@ describe('FASE 11 shadow calibration', () => {
     expect(MIGRATION).toMatch(/UNIQUE \(offer_id\)/);
     expect(MIGRATION).toMatch(/GROUP BY/);
     expect(MIGRATION).toMatch(/hunter_shadow_calibration_summary/);
-    expect(USERS_LOGS_ROLES).toEqual(['owner', 'admin']);
+    expect(USERS_LOGS_ROLES).toEqual(['owner']);
     expect(src('app/api/admin/hunter-health/route.ts')).toMatch(/requireUsersLogs/);
     expect(src('app/api/admin/hunter-health/route.ts')).toMatch(/getShadowCalibration/);
   });
