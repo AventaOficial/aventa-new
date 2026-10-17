@@ -91,6 +91,7 @@ La función RLS `team_os_has_permission(text)` permite únicamente permisos incl
 - Staging: el RPC `admin_set_user_admin` ya no puede mutar perfiles y su ejecución está revocada a `PUBLIC`, `anon` y `authenticated`; `current_role()` solo devuelve `owner` o `user`.
 - Producción: las funciones SQL que aún leen `user_roles` lo hacen solo para verificar `owner` (incluyendo el RPC de estado de payout). Los helpers de moderación ya consultan Team OS.
 - Se comprobó que un permiso no permitido por la allowlist (por ejemplo `finance.payout.approve`) no se concede ni al owner a través del helper de Team OS.
+- Matriz SQL sobre membresías activas: producción `moderation/moderator` 3/3 autorizadas para `moderation.offers.decide`; staging 2/2. En ambos entornos `finance.payout.approve` fue concedido 0 veces.
 
 **Limitación de la prueba:** son verificaciones SQL de políticas, membresías y helpers; no equivalen a un smoke test HTTP con JWT real para cada ruta de moderación.
 
@@ -106,6 +107,7 @@ La función RLS `team_os_has_permission(text)` permite únicamente permisos incl
 1. **Barrido estático completo de aplicación:** se revalidaron archivos clave (`ModerationPendingPanel`, `useModerationFocusQueue`, `OperacionesPageContent`, `TrabajoPageContent` y `useOperationsPayload`), pero no afirmo que un escaneo exhaustivo de cada archivo del repositorio haya quedado probado en este paso.
 2. **Smoke tests autenticados:** las comprobaciones de SQL/RLS/helpers no sustituyen requests HTTP con JWT real para cada ruta de moderación y operaciones.
 3. **Sesiones activas:** la suspensión de una membresía bloquea la siguiente petición autorizada por Team OS; no hay step-up adicional en ese gate.
+4. **RPC payout legacy:** producción no tiene `public.payouts` ni `public.moderation_log`, aunque conserva `admin_mark_payout_status`. Esa función falla de forma fail-closed con `payouts_table_unavailable`; no tratarla como flujo de pago funcional. Mantener `MONEY_PATH_FROZEN` activo y validar solamente el flujo canónico actual antes de una futura activación monetaria.
 
 ## 9. Criterio de cierre operativo
 
