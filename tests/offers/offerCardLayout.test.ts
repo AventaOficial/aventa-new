@@ -5,7 +5,7 @@ describe('OfferCard feed layout', () => {
   const card = readFileSync('app/components/OfferCard.tsx', 'utf8');
 
   it('no reserva espacio vertical artificial entre contenido y acciones', () => {
-    expect(card).toContain('flex flex-row items-start');
+    expect(card).toContain('flex flex-row flex-wrap md:flex-nowrap items-start min-h-0');
     expect(card).not.toContain('flex-1 min-h-[6px]');
     expect(card).not.toMatch(/min-w-0 flex-1 flex flex-col gap-1/);
     expect(card).not.toMatch(/-m[tblrxy]?-\d/);
