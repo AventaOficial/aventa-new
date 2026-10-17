@@ -47,4 +47,34 @@ describe('Team OS como único sistema de colaboradores', () => {
     expect(route).toContain('requireOwner');
     expect(route).not.toContain('user_roles');
   });
+
+  it('la migración RLS usa permisos allowlisted y membresías ACTIVE', () => {
+    const rls = read('docs/supabase-migrations/20261018_team_os_rls_policy_cutover.sql');
+    expect(rls).toContain('public.team_os_has_permission');
+    expect(rls).toContain("m.status='ACTIVE'");
+    expect(rls).toContain('REVOKE ALL ON FUNCTION public.team_os_user_has_permission(text,uuid) FROM PUBLIC, anon, authenticated');
+    expect(rls).toContain("'moderation.offers.decide'");
+    expect(rls).toContain("'finance.overview.read'");
+  });
+
+  it('solo borra moderators legacy cuando hay una membresía ACTIVE equivalente', () => {
+    const cleanup = read('docs/supabase-migrations/20261018_remove_mapped_legacy_moderators.sql');
+    expect(cleanup).toContain("ur.role = 'moderator'");
+    expect(cleanup).toContain("m.team_id = 'moderation'");
+    expect(cleanup).toContain("m.status = 'ACTIVE'");
+    expect(cleanup).not.toContain("DELETE FROM public.user_roles WHERE role <> 'owner'");
+  });
+
+  it('la mutación de payout continúa siendo owner-only', () => {
+    const sql = read('docs/supabase-migrations/20261018_team_os_legacy_auth_functions_production.sql');
+    expect(sql).toContain("ur.role='owner'");
+    expect(sql).not.toContain("ur.role IN ('owner','admin')");
+  });
+
+  it('los RPCs antiguos de staff quedan revocados en staging', () => {
+    const sql = read('docs/supabase-migrations/STAGING_20261018_team_os_legacy_role_rpc_shutdown.sql');
+    expect(sql).toContain('legacy_staff_role_management_disabled');
+    expect(sql).toContain('REVOKE ALL ON FUNCTION public.grant_role(uuid,text,text)');
+    expect(sql).toContain('REVOKE ALL ON FUNCTION public.revoke_role(uuid,text)');
+  });
 });
