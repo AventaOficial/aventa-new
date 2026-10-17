@@ -1,23 +1,13 @@
--- Idempotent: staff rows in profiles.role → user_roles (canonical authorization).
--- Safe to re-run. Skips when production profiles has no role column (staff only in user_roles).
-DO $migration$
+-- DEPRECATED on 2026-10-18. Do not run this historical staff-role sync again.
+-- This seed previously copied staff labels from profiles.role into user_roles.
+-- The Team OS cutover now uses ACTIVE team_memberships for collaborators and reserves
+-- user_roles exclusively for the global owner. See:
+--   STAGING_20261018_profile_role_legacy_cutover.sql
+--   20261018_team_os_rls_policy_cutover.sql
+--
+-- Intentionally a no-op so a manual re-run cannot resurrect legacy admin/moderator grants.
+DO $deprecated$
 BEGIN
-  IF EXISTS (
-    SELECT 1
-    FROM information_schema.columns
-    WHERE table_schema = 'public'
-      AND table_name = 'profiles'
-      AND column_name = 'role'
-  ) THEN
-    INSERT INTO public.user_roles (user_id, role)
-    SELECT p.id, p.role
-    FROM public.profiles p
-    WHERE p.role = ANY (ARRAY['owner'::text, 'admin'::text, 'moderator'::text, 'analyst'::text, 'finance'::text])
-      AND NOT EXISTS (
-        SELECT 1
-        FROM public.user_roles ur
-        WHERE ur.user_id = p.id AND ur.role = p.role
-      );
-  END IF;
+  RAISE NOTICE 'Deprecated: profiles.role -> user_roles sync is disabled; use Team OS memberships.';
 END
-$migration$;
+$deprecated$;
