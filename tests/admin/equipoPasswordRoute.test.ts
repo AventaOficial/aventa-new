@@ -31,7 +31,7 @@ const OWNER = '11111111-1111-4111-8111-111111111111';
 const TARGET = '22222222-2222-4222-8222-222222222222';
 
 function request(userId: string, body?: unknown) {
-  return new Request(`http://localhost/api/admin/users/${userId}/equipo-password`, {
+  return new Request(`http://localhost/api/admin/team-os/users/${userId}/access`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(body ?? {}),
@@ -63,7 +63,7 @@ describe('Team OS credential route', () => {
   });
 
   it('cannot rotate the current owner password through a collaborator row', async () => {
-    const { POST } = await import('../../app/api/admin/users/[userId]/equipo-password/route');
+    const { POST } = await import('../../app/api/admin/team-os/users/[userId]/access/route');
     const response = await POST(
       request(OWNER, { action: 'generate_temporary' }),
       { params: Promise.resolve({ userId: OWNER }) },
@@ -75,7 +75,7 @@ describe('Team OS credential route', () => {
   });
 
   it('rotates another account password only after an explicit action', async () => {
-    const { POST } = await import('../../app/api/admin/users/[userId]/equipo-password/route');
+    const { POST } = await import('../../app/api/admin/team-os/users/[userId]/access/route');
     const response = await POST(
       request(TARGET, { action: 'generate_temporary' }),
       { params: Promise.resolve({ userId: TARGET }) },
@@ -90,7 +90,7 @@ describe('Team OS credential route', () => {
   });
 
   it('sends a recovery link by default and does not rotate the password', async () => {
-    const { POST } = await import('../../app/api/admin/users/[userId]/equipo-password/route');
+    const { POST } = await import('../../app/api/admin/team-os/users/[userId]/access/route');
     const response = await POST(
       request(TARGET),
       { params: Promise.resolve({ userId: TARGET }) },
