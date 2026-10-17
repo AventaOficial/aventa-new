@@ -56,7 +56,9 @@ Migración de datos original: `docs/supabase-migrations/20261017_staff_roles_to_
 - `docs/supabase-migrations/20261018_team_os_rls_policy_cutover.sql` — función de permisos y RLS.
 - `docs/supabase-migrations/20261018_team_os_legacy_auth_functions_production.sql` — funciones de producción.
 - `docs/supabase-migrations/STAGING_20261018_team_os_legacy_role_rpc_shutdown.sql` — funciones y RPCs legacy exclusivos de staging.
-- `docs/supabase-migrations/20261018_remove_mapped_legacy_moderators.sql` — retiro idempotente de moderadores ya mapeados.\n- `docs/supabase-migrations/STAGING_20261018_profile_role_legacy_cutover.sql` — reemplaza políticas de `profiles.role`, acota `is_staff` a Owner/moderación y retira la fuente de roles antigua.\n- `docs/supabase-migrations/20261016_staff_roles_profile_sync.sql` — histórico convertido en no-op para evitar reinsertar grants legacy.
+- `docs/supabase-migrations/20261018_remove_mapped_legacy_moderators.sql` — retiro idempotente de moderadores ya mapeados.
+- `docs/supabase-migrations/STAGING_20261018_profile_role_legacy_cutover.sql` — reemplaza políticas de `profiles.role`, acota `is_staff` a Owner/moderación y retira la fuente de roles antigua.
+- `docs/supabase-migrations/20261016_staff_roles_profile_sync.sql` — histórico convertido en no-op para evitar reinsertar grants legacy.
 
 ## 5. Contrato de permisos DB
 
@@ -79,7 +81,12 @@ La función RLS `team_os_has_permission(text)` permite únicamente permisos incl
 - Producción: **0** políticas RLS con referencias directas a `user_roles`.
 - Staging: las dos cuentas con rol legacy `moderator` tenían membresía ACTIVE equivalente y ambas siguen autorizadas por Team OS; después se retiraron las dos filas legacy.
 - Producción: las dos cuentas con rol legacy `moderator` tenían membresía ACTIVE equivalente y ambas siguen autorizadas por Team OS; después se retiraron las dos filas legacy.
-- Producción: `user_roles` conserva solo una fila `owner`.\n- Staging: `user_roles` conserva solo dos filas `owner`; el resto de los roles globales legacy se eliminó tras migrar RLS.\n- Staging: `profiles.role` contiene únicamente `user` (25 perfiles); se retiró el trigger que obligaba a conservar un perfil `admin`.\n- Staging: **0** políticas RLS detectadas que dependan de `profiles.role`, `es_admin`, `es_mod_a`, `es_mod_b`, `es_lider` o el helper genérico `is_staff`.\n- Staging: `is_staff(uid)` autoriza solo Owner o permiso `moderation.offers.decide`; se verificó que miembros activos de otros equipos no pasan ese control.\n- Staging: el RPC `admin_set_user_admin` ya no puede mutar perfiles y su ejecución está revocada a `PUBLIC`, `anon` y `authenticated`; `current_role()` solo devuelve `owner` o `user`.
+- Producción: `user_roles` conserva solo una fila `owner`.
+- Staging: `user_roles` conserva solo dos filas `owner`; el resto de los roles globales legacy se eliminó tras migrar RLS.
+- Staging: `profiles.role` contiene únicamente `user` (25 perfiles); se retiró el trigger que obligaba a conservar un perfil `admin`.
+- Staging: **0** políticas RLS detectadas que dependan de `profiles.role`, `es_admin`, `es_mod_a`, `es_mod_b`, `es_lider` o el helper genérico `is_staff`.
+- Staging: `is_staff(uid)` autoriza solo Owner o permiso `moderation.offers.decide`; se verificó que miembros activos de otros equipos no pasan ese control.
+- Staging: el RPC `admin_set_user_admin` ya no puede mutar perfiles y su ejecución está revocada a `PUBLIC`, `anon` y `authenticated`; `current_role()` solo devuelve `owner` o `user`.
 - Producción: las funciones SQL que aún leen `user_roles` lo hacen solo para verificar `owner` (incluyendo el RPC de estado de payout). Los helpers de moderación ya consultan Team OS.
 - Se comprobó que un permiso no permitido por la allowlist (por ejemplo `finance.payout.approve`) no se concede ni al owner a través del helper de Team OS.
 
@@ -87,8 +94,8 @@ La función RLS `team_os_has_permission(text)` permite únicamente permisos incl
 
 ## 7. Pendientes explícitos
 
-1. **Staging — dos filas `admin`:** siguen presentes porque el mapa legacy documentado las deja fuera por diseño. Una cuenta tiene alguna membresía ACTIVE, la otra no tiene ninguna. No he inventado a qué equipo deben pertenecer ni he eliminado esas filas sin esa decisión. Sus accesos DB staff ya no se conceden por las políticas RLS migradas; se debe asignar la membresía específica o confirmar su baja.
-2. **Barrido de referencias de aplicación:** los archivos citados en la auditoría anterior (`ModerationPendingPanel`, `useModerationFocusQueue`, `OperacionesPageContent`, `TrabajoPageContent` y `useOperationsPayload`) fueron revalidados en master y no contienen consultas directas a `user_roles`. No afirmo que un barrido estático completo de cada fichero del repositorio haya quedado probado en este paso.
+1. **Barrido estático completo de aplicación:** se revalidaron archivos clave (`ModerationPendingPanel`, `useModerationFocusQueue`, `OperacionesPageContent`, `TrabajoPageContent` y `useOperationsPayload`), pero no afirmo que un escaneo exhaustivo de cada archivo del repositorio haya quedado probado en este paso.
+2. **Smoke tests autenticados:** las comprobaciones de SQL/RLS/helpers no sustituyen requests HTTP con JWT real para cada ruta de moderación y operaciones.
 3. **Sesiones activas:** la suspensión de una membresía bloquea la siguiente petición autorizada por Team OS; no hay step-up adicional en ese gate.
 
 ## 8. Criterio de cierre operativo
@@ -100,7 +107,7 @@ La función RLS `team_os_has_permission(text)` permite únicamente permisos incl
 - [x] Funciones legacy de moderación migradas; payout status sigue siendo solo owner.
 - [x] Filas `moderator` retiradas tras verificar membresías ACTIVE equivalentes.
 - [x] Producción: `user_roles` solo conserva `owner`.
-- [ ] Staging: resolver las dos filas legacy `admin` mediante asignación Team OS explícita o baja confirmada.
+- [x] Staging: `user_roles` conserva únicamente `owner`; perfiles antiguos ya no conservan `admin` en `profiles.role`.
 - [ ] Completar un barrido estático de todo el repositorio y smoke tests autenticados por ruta.
 
 ## 9. Usos permitidos de `user_roles` tras el corte
