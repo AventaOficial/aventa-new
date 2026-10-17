@@ -267,14 +267,6 @@ export const ADMIN_SCREEN_REGISTRY: Omit<AdminNavItem, 'icon'>[] = [
     visibility: 'submenu',
   },
   {
-    href: '/admin/staff-roles',
-    label: 'Acceso al panel',
-    domain: 'personas',
-    frequency: 'mensual',
-    audiences: ['founder', 'admin'],
-    visibility: 'submenu',
-  },
-  {
     href: '/admin/moderation/bans',
     label: 'Baneos',
     domain: 'personas',

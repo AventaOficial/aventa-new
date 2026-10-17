@@ -1,5 +1,5 @@
 /**
- * Alias temporal: los roles de panel viven en `/api/admin/staff-roles`.
- * `/admin/team` en la UI es solo Team OS (`team_memberships`).
+ * Legacy API alias retired with the duplicate staff system.
+ * Team OS membership management lives under /api/admin/owner/team-management.
  */
-export { GET, POST, PATCH } from '../staff-roles/route';
+export { GET, POST, PATCH, DELETE } from '../staff-roles/route';
