@@ -89,7 +89,7 @@ export async function POST(request: Request, context: { params: Promise<{ userId
       action,
       temporary_password: set.temporaryPassword,
       message:
-        'Contraseña temporal (Supabase Auth). Cópiala ahora: no se guarda en texto plano ni se puede recuperar después.',
+        'Esto cambia la contraseña global de Supabase Auth para toda Aventa, no una credencial independiente de Team OS. Compártela por un canal seguro y coordina su rotación con la persona.',
     });
   }
 
