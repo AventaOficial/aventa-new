@@ -2,10 +2,11 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { requireOwner, rpc, from } = vi.hoisted(() => ({
+const { requireOwner, rpc, from, setTemporaryEquipoPassword } = vi.hoisted(() => ({
   requireOwner: vi.fn(),
   rpc: vi.fn(),
   from: vi.fn(),
+  setTemporaryEquipoPassword: vi.fn(),
 }));
 
 vi.mock('@/lib/server/requireAdmin', () => ({
@@ -15,6 +16,8 @@ vi.mock('@/lib/server/requireAdmin', () => ({
 vi.mock('@/lib/supabase/server', () => ({
   createServerClient: () => ({ rpc, from }),
 }));
+
+vi.mock('@/lib/admin/equipoPassword', () => ({ setTemporaryEquipoPassword }));
 
 const OWNER = '11111111-1111-4111-8111-111111111111';
 const TARGET = '22222222-2222-4222-8222-222222222222';
@@ -41,6 +44,7 @@ describe('owner team management API', () => {
     requireOwner.mockReset();
     rpc.mockReset();
     from.mockReset();
+    setTemporaryEquipoPassword.mockReset();
     rpc.mockResolvedValue({ data: { ok: true }, error: null });
   });
 
@@ -80,6 +84,7 @@ describe('owner team management API', () => {
     const args = rpc.mock.calls[0]?.[1] as { p_actor_id: string; p_request_id: string };
     expect(args.p_actor_id).not.toBe(TARGET);
     expect(args.p_request_id).toMatch(/^[0-9a-f-]{36}$/i);
+    expect(setTemporaryEquipoPassword).not.toHaveBeenCalled();
   });
 
   it('el owner no puede asignarse a sí mismo', async () => {
