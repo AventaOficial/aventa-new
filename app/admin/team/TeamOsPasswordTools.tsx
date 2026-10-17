@@ -53,7 +53,7 @@ export function TeamOsPasswordTools() {
     async (userId: string, action: 'recovery_email' | 'generate_temporary') => {
       if (action === 'generate_temporary') {
         const confirmed = window.confirm(
-          'Esto cambiará la contraseña de Supabase Auth de la persona para toda Aventa, no solo Team OS. La persona podría perder acceso con su contraseña actual. Úsalo únicamente con autorización y compártele la nueva contraseña por un canal seguro. ¿Continuar?'
+          'Esto cambiará la contraseña de Supabase Auth de la persona para toda Aventa, no solo Team OS. La persona podría perder acceso con su contraseña actual. La contraseña generada no expira automáticamente ni fuerza un cambio al iniciar sesión; coordina que la cambie inmediatamente. Úsalo únicamente con autorización y compártela por un canal seguro. ¿Continuar?'
         );
         if (!confirmed) return;
       }
