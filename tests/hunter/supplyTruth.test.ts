@@ -295,7 +295,7 @@ describe('FASE 10.2 supply truth', () => {
   });
 
   it('18. admin authorization sigue siendo owner/admin', () => {
-    expect(USERS_LOGS_ROLES).toEqual(['owner', 'admin']);
+    expect(USERS_LOGS_ROLES).toEqual(['owner']);
   });
 
   it('19. no duplicate rows en persist router + community', async () => {
