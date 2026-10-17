@@ -31,10 +31,18 @@ describe('OfferCard feed layout', () => {
     );
   });
 
-  it('en mobile el comentario del cazador cae debajo y no comprime el contenido', () => {
+  it('el comentario del cazador se separa por breakpoint sin comprimir precios en móvil', () => {
     expect(card).toContain('flex flex-row flex-wrap md:flex-nowrap items-start min-h-0');
-    expect(card).toMatch(
-      /<aside\s+className="flex w-full md:w-\[30%\] md:max-w-\[200px\] md:min-w-\[132px\] shrink-0/,
+    expect(card).toContain('className="hidden md:flex w-[30%] max-w-[200px] min-w-[132px]');
+    expect(card).toContain('className="md:hidden flex flex-col gap-1 border-l-2');
+    const desktopAsideIdx = card.indexOf('className="hidden md:flex w-[30%]');
+    const mobileAsideIdx = card.indexOf('className="md:hidden flex flex-col gap-1 border-l-2');
+    const footerIdx = card.indexOf(
+      '<div className="pt-2 border-t border-gray-100/80 dark:border-gray-800/60 flex items-center gap-2',
     );
+    expect(desktopAsideIdx).toBeGreaterThan(-1);
+    expect(mobileAsideIdx).toBeGreaterThan(desktopAsideIdx);
+    expect(footerIdx).toBeGreaterThan(mobileAsideIdx);
+    expect(card).not.toContain('className="flex w-full md:w-[30%] md:max-w-[200px]');
   });
 });
