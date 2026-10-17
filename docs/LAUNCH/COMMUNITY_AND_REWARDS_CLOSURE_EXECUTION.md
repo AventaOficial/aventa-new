@@ -25,8 +25,8 @@
 | ☐ | `npx vitest run tests/launch` en rama de release | 122 tests OK (16-oct local) | Eng |
 | ☐ | Cola moderación `pending` en plan SLA | SQL/doc 15-oct: 0; revalidar día −1 | Ops |
 | ☐ | Flags económicos prod confirmados (tabla §1.2) | Vercel + `node scripts/launch/verify-prod-economic-flags.mjs` | **Jafet/Ops** |
-| ☐ | Backup / restore Supabase (§1.3) | Panel Supabase + decisión firmada | **Jafet/Ops** |
-| ☐ | Smoke móvil 15 min (§1.4) | Capturas / notas QA | Product/**Jafet** |
+| ☑ | Backup / restore Supabase (§1.3) | Opción C — riesgo aceptado Jafet 2026-10-16 (sin restore verificado) | **Jafet/Ops** |
+| ☑ | Smoke móvil 15 min (§1.4) | cursor-ide-browser 390×844, 2026-10-16 — sin bloqueadores | Product/**Jafet** |
 | ☐ | Copy público Rewards alineado (§1.5) | Diff revisado; deploy `master` si hay cambios | Product |
 | ☐ | Solo merges de bajo riesgo a `master` | PRs sin Team OS / sin dinero | Eng |
 | ☐ | Día lanzamiento: probes + `system-integrity` | Log cron / health | Ops |
@@ -103,16 +103,16 @@ Variables relacionadas (no cambiar en prod sin runbook monetario): `REWARDS_HOLD
 
 #### Plantilla — decisión firmada
 
-> Yo, **Jafet** (pendiente firma), en calidad de owner de AVENTA, el día **16/10/2026**, declaro que el proyecto Supabase `mkgsrpsuvedwwlzmzmzh` está en plan **UNKNOWN vía MCP** (doc histórico: org `AventaOficial`, tier **Free** en `AVENTA_FINAL_CLOSURE_MATRIX.md`) con backup **no verificado por agente** (frecuencia: **UNKNOWN**) y restore verificado el **N/A** (proyecto de prueba: **N/A**), **o bien** acepto lanzar el soft launch comunitario sin restore verificable asumiendo el riesgo de pérdida de datos hasta RPO no acotado. Firma: **___________ (pendiente owner)**.
+> Yo, **Jafet**, en calidad de owner de AVENTA, el día **16/10/2026**, declaro que el proyecto Supabase `mkgsrpsuvedwwlzmzmzh` tiene backup/restore **no verificado** (frecuencia de backup y plan actuales **sin evidencia de restore exitoso** en esta fecha). **Acepto explícitamente el riesgo** de lanzar el soft launch comunitario (1 nov) sin restore verificable, asumiendo posible pérdida de datos hasta un RPO no acotado ante desastre. Confirmación verbal owner: **«riesgo aceptado»** (2026-10-16). Responsable: **Jafet**. Firma escrita/archivo externo: opcional; este párrafo en repo cuenta como decisión documentada para el gate comunitario.
 
 | ☐/☑ | Acción | Owner |
 |-----|--------|-------|
 | ☐ | Confirmar plan actual en Supabase Dashboard | **Jafet** |
 | ☐ | Upgrade Pro si aplica | **Jafet** |
 | ☐ | Restore de prueba a proyecto nuevo | Ops/**Jafet** |
-| ☐ | Párrafo firmado archivado (Drive/Notion) | **Jafet** |
+| ☑ | Párrafo de decisión (riesgo aceptado) en este doc | **Jafet** |
 
-**Evidencia 2026-10-16:** Supabase MCP — proyecto prod `mkgsrpsuvedwwlzmzmzh` (`Aventa Cazadores de ofertas`) **ACTIVE_HEALTHY**; `get_project` no expone tier/plan; advisors de seguridad sin ítem de backup/PITR. **Riesgo aceptado documentado** pendiente firma owner (no bloquea copy/flags; sí condición formal en matriz de cierre).
+**Evidencia 2026-10-16:** Supabase MCP — proyecto prod `mkgsrpsuvedwwlzmzmzh` (`Aventa Cazadores de ofertas`) **ACTIVE_HEALTHY**; tier/backup no auditados en panel hoy. **Opción C cerrada:** riesgo aceptado por Jafet para gate comunitario (matriz global puede seguir recomendando Pro+PITR antes de escalar tráfico).
 
 ---
 
@@ -135,20 +135,27 @@ Ejecutar en **teléfono real** (iOS o Android), Safari/Chrome, usuario de prueba
 
 **Evidencia sugerida:** 3–5 capturas (home, ficha, recompensas, comisiones) + modelo de dispositivo y fecha.
 
-#### Evidencia proxy 2026-10-16 (cursor-ide-browser, viewport móvil ~390×844)
+#### Evidencia smoke 2026-10-16 (cursor-ide-browser, emulación móvil **390×844**, prod `www.aventaofertas.com`)
 
-**Limitación:** sin teléfono real ni OTP; sesión del navegador de automatización ya autenticada en `/me` y `/settings`.
+**Alcance:** script §1.4 + rutas pedidas (home, ofertas, login/registro, `/comisiones`, `/me` anónimo, navegación). **No ejecutado:** OTP/correo completo, Google OAuth end-to-end, smoke en teléfono físico iOS/Android.
 
-| Paso / prueba | Resultado |
-|---------------|-----------|
-| `https://www.aventaofertas.com/` home | **PASS** — feed con ofertas, tabs visibles |
-| Tab Recientes | **PASS** — lista de ofertas tras clic |
-| `GET /api/feed/home?limit=3&view=latest` | **PASS** — `success: true` |
-| `/comisiones` | **PASS** — aviso «no está activo públicamente», sin promesa de pagos activos |
-| `/login` | **N/A** — 404 (auth vía modal/OTP; no ruta dedicada) |
-| `/me` sin cookie (`curl` anónimo) | **PASS** — HTTP **307** → `/` |
-| `/me` con sesión automation | **PASS** — perfil carga |
-| §1.4 pasos 3–8 (ficha, subir, plaza, recompensas) | **NO ejecutados** en esta pasada — pendiente smoke 15 min en dispositivo real (**Jafet**) |
+| Paso / prueba | Resultado | Notas |
+|---------------|-----------|-------|
+| 1 · Home `/` | **PASS** | Feed, tabs Día a día / Top / Recientes; sin pantalla blanca |
+| 2 · Tab Recientes | **PASS** | `?tab=recientes`, listado distinto (p. ej. Costco) |
+| 3 · Ficha oferta | **PASS** | `/oferta/...` — título, precio, «Cazar oferta», votos, comentarios |
+| 4 · Subir oferta | **PASS** | `/subir` → `/?upload=1`; sheet + URL + «Continuar al formulario» |
+| 5 · Plaza | **PASS** | `/plaza` — tabs Solicitudes/Conversaciones/Avisos, formulario pedido |
+| 6 · Login / registro | **PASS** (carga) | `/login` → **404** esperado; modal «Crear cuenta» / «Iniciar sesión» (email, Google UI) sin crash |
+| 7 · `/me/recompensas` | **PASS** (sesión) | Progreso desbloqueo; sin CTA de cobro activo en vista probada |
+| 8 · Guía / modal programa | **PASS** | `/guia` → `/descubre`; guías interactivas cargan |
+| 9 · `/comisiones` | **PASS** | Programa **no activo públicamente**; sin promesa de pagos |
+| 10 · Cerrar sesión → home | **PASS** | Logout desde menú usuario; home anónima OK |
+| `/me` anónimo | **PASS** | Tras logout, navegar `/me` → redirige a `/` (curl sin cookie: **307** → `/`) |
+| Navegación inferior | **PASS** | Inicio, Guía (`/descubre`), Subir, Plaza, Perfil (invita auth si anónimo) |
+| **Bloqueadores** | **Ninguno** | Sin 500 ni nav rota en flujos probados |
+
+**Dispositivo:** emulación iPhone-like 390×844 (CDP `setDeviceMetricsOverride`). **Fecha:** 2026-10-16.
 
 ---
 
@@ -295,12 +302,12 @@ Tests automatizados: `tests/admin/teamOsStaffSeparation.test.ts`.
 | Health | `GET /api/health` | `status: ok`, `feedViewOk: true`, 1594 ofertas | ☑ |
 | Feed | `GET /api/feed/home?limit=3&view=latest` | `success: true` | ☑ |
 | Flags económicos | Script local exit 1 sin env pull; **Vercel MCP prod** | freeze `true`, payout `false`, programa `true` | ☑ |
-| Backup | §1.3 decisión | Riesgo documentado; **firma Jafet pendiente** | ☐ |
-| Smoke móvil | §1.4 | Proxy browser OK; **smoke 15 min teléfono pendiente** | ☐ |
+| Backup | §1.3 decisión | **Riesgo aceptado** Jafet 2026-10-16 (restore no verificado) | ☑ |
+| Smoke móvil | §1.4 | Emulación móvil 390×844; **sin bloqueadores** (ver tabla §1.4) | ☑ |
 | Copy | §1.5 | `/comisiones` prod sin promesa de pagos activos | ☑ |
 
-**Veredicto comunidad:** ☐ GO · ☑ **GO con condiciones** · ☐ NO-GO  
-**Condiciones:** (1) Jafet firma §1.3 (Pro+restore o riesgo aceptado). (2) Smoke §1.4 completo en teléfono real antes del 1 nov. (3) Opcional: `vercel env pull` + script exit 0 para repetibilidad local.
+**Veredicto comunidad:** ☑ **GO** · ☐ GO con condiciones · ☐ NO-GO  
+**Notas residuales (no bloquean GO):** (1) Confirmar plan/backup Supabase en panel cuando Ops tenga ventana (Pro recomendado antes de escalar). (2) Repetir §1.4 en teléfono real opcional pre-1-nov. (3) `vercel env pull` + script exit 0 omitido por decisión ops 2026-10-16 (evidencia MCP suficiente para flags).
 
 ### 4.2 Monetario (cohorte ~100)
 
@@ -316,7 +323,7 @@ Tests automatizados: `tests/admin/teamOsStaffSeparation.test.ts`.
 
 | Rol | Nombre | Fecha | Comunidad | Monetario |
 |-----|--------|-------|-----------|-----------|
-| Owner (**Jafet**) | | | ☐ | ☐ |
+| Owner (**Jafet**) | Jafet | 2026-10-16 | ☑ (riesgo backup §1.3 + smoke §1.4) | ☐ |
 | Eng | | | ☐ | ☐ |
 | Ops | | | ☐ | ☐ |
 | Product | | | ☐ | ☐ |
@@ -329,3 +336,4 @@ Tests automatizados: `tests/admin/teamOsStaffSeparation.test.ts`.
 |-------|--------|
 | 2026-10-16 | Creación tracker + script `verify-prod-economic-flags.mjs` |
 | 2026-10-16 | Cierre ops: evidencia Vercel MCP flags, health/feed, smoke proxy, §4 GO condicional / monetario NO-GO; PR #167 OPEN sin merge |
+| 2026-10-16 | §1.3 riesgo aceptado (Jafet); smoke móvil §1.4 completo (browser 390×844); §4.1 comunidad **GO** |
