@@ -796,7 +796,7 @@ export default function OfferCard({
               aria-hidden
             />
             <aside
-              className="flex w-full md:w-[30%] md:max-w-[200px] md:min-w-[132px] shrink-0 flex-col gap-1.5 self-start pt-0.5 max-md:border-l-2 max-md:border-violet-500/35 max-md:pl-3"
+              className="hidden md:flex w-[30%] max-w-[200px] min-w-[132px] shrink-0 flex-col gap-1.5 self-start pt-0.5"
               aria-label="Comentario del cazador"
             >
               <div className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-violet-600 dark:text-violet-400">
@@ -811,6 +811,23 @@ export default function OfferCard({
           </>
         ) : null}
       </div>
+
+      {shortHunterComment ? (
+        <aside
+          className="md:hidden flex flex-col gap-1 border-l-2 border-violet-500/35 pl-3"
+          aria-label="Comentario del cazador"
+        >
+          <div className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-violet-600 dark:text-violet-400">
+            <MessageCircle className="h-3 w-3 shrink-0" aria-hidden />
+            Comentario del cazador
+          </div>
+          <p className="text-xs leading-snug text-gray-500 dark:text-gray-400 line-clamp-3 wrap-anywhere">
+            {shortHunterComment}
+            {hunterCommentOverflow ? '…' : ''}
+          </p>
+        </aside>
+      ) : null}
+
       <div className="pt-2 border-t border-gray-100/80 dark:border-gray-800/60 flex items-center gap-2 max-[400px]:gap-1.5 min-w-0">
         <div className="shrink-0">
           <VotesBlock />
