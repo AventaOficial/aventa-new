@@ -1,98 +1,110 @@
 # Eliminación del modelo staff y consolidación en Team OS
 
-**Fecha:** 2026-10-17  
-**Estado:** Implementación en código (pendiente aplicar SQL en staging/prod y retirar filas staff legacy en `user_roles` tras verificación).
+**Fecha de revalidación:** 2026-10-18  
+**Estado:** Corte DB aplicado en staging y producción. Producción ya conserva solo `owner` en `user_roles`. Staging aún conserva dos filas legacy `admin` que requieren decisión del owner porque no tienen equivalencia automática y una cuenta no tiene ninguna membresía Team OS activa.
 
 ## 1. Objetivo
 
-- **Team OS** (`team_memberships` + catálogo de permisos en `lib/team/permissions`) es la única fuente de verdad para **colaboradores**.
-- **`user_roles`** se conserva solo para **`owner`** (autoridad global del fundador).
+- **Team OS** (`team_memberships` + catálogo de permisos en `lib/team/permissions`) es la única fuente de verdad para colaboradores.
+- **`user_roles`** se conserva para la autoridad global `owner`.
 - No se elimina físicamente la tabla `user_roles` en esta fase.
 
 ## 2. Mapa de dependencias (clasificación A / B / C)
 
-| Área | Antes | Clase | Después |
-|------|--------|-------|---------|
-| `requireAdmin` / moderación API | `user_roles` moderator/admin | **C** | `requireCollaboratorPermission` + permisos Team OS |
-| `requireOwner` / Founder OS | `user_roles.owner` | **B** | Sin cambio (owner) |
-| `/api/admin/team` POST/PATCH staff | `user_roles` CRUD | **A** | **410** — usar `/admin/team` TeamManagementClient |
-| `TeamRolesPanel` | UI staff | **A** | Eliminado |
-| Middleware `/admin` | rol staff | **C** | Solo `isPlatformOwner` |
-| Middleware `/equipo` | rol staff | **C** | `team_memberships` + `equipoTeamAccess` |
-| `app/equipo` StaffShell | `user_roles` cliente | **C** | `GET /api/equipo/context` |
-| `requireStaff` / `/api/staff/*` | `user_roles` | **C** | Membresías + leads para gerencia |
-| RLS / SQL migraciones históricas | `user_roles` en policies | **C** | Documentado; revisar en fase DB (no auto-cambiado) |
-| `profiles.role` sync | seed legacy | **A** | No usar para auth nueva (`PR143_CONSUMER_MAP`) |
-| Moderación UI filtros moderadores | `user_roles` lectura cliente | **C** | **Residual** — migrar a API de membresías moderation |
-| `operaciones/*`, hooks moderación | lectura `user_roles` | **C** | **Residual** — mismo criterio |
-| MCP / machine clients | lectura owner | **B** | Owner en `user_roles` |
+| Área | Antes | Clase | Estado actual |
+|------|-------|-------|---------------|
+| `requireAdmin` / moderación API | roles staff legacy | C | permisos Team OS en código |
+| `requireOwner` / Founder OS | `user_roles.owner` | B | sin cambio: owner global |
+| `/api/admin/team` y `/api/admin/staff-roles` | CRUD de `user_roles` | A | retiradas con 410 Gone |
+| `TeamRolesPanel` | UI staff duplicada | A | eliminada |
+| Middleware `/admin` | rol staff | C | solo `isPlatformOwner` |
+| Middleware `/equipo` | rol staff | C | `team_memberships` + `equipoTeamAccess` |
+| `app/equipo` StaffShell | lectura client-side de roles | C | usa `GET /api/equipo/context` |
+| `requireStaff` / `/api/staff/*` | roles staff | C | membresías + leads donde corresponde |
+| RLS staff policies | `user_roles` con moderator/admin/analyst | C | migradas a `team_os_has_permission(...)` en ambos entornos |
+| Funciones SQL de moderación | `user_roles` con moderator/admin | C | usan membresías activas Team OS |
+| RPCs legacy para modificar roles | CRUD staff | A | deshabilitadas en staging; endpoints de app retirados |
+| `profiles.role` sync | seed legacy | A | no usar para autorización nueva |
+| MCP / machine clients | checks de owner | B | se conserva la verificación de `owner` |
 
-## 3. Correspondencia de roles (migración de datos)
+## 3. Correspondencia de roles
 
-| Rol staff (`user_roles`) | Team OS | Notas |
-|--------------------------|---------|--------|
-| `moderator` | `moderation` / `moderator` | Automático en SQL idempotente |
-| `marketing` | `growth` / `growth_member` | Automático |
-| `finance` | `finance` / `finance_viewer` | Automático |
-| `analyst` | `operations` / `operations_member` | Automático |
-| `admin` | — | **SKIP** — demasiado amplio; asignar leads por equipo manualmente |
-| `gerente` | — | **SKIP** — usar `*_lead` en equipos relevantes o decisión owner |
-| `owner` | Proyección `withPlatformOwner` | Permanece en `user_roles` |
+| Rol legacy | Team OS | Tratamiento |
+|------------|---------|-------------|
+| `moderator` | `moderation / moderator` | membresía ACTIVE verificada y fila legacy retirada en staging/prod |
+| `marketing` | `growth / growth_member` | mapeo idempotente disponible; no había filas a retirar en el corte verificado |
+| `finance` | `finance / finance_viewer` | mapeo idempotente disponible; no había filas a retirar en el corte verificado |
+| `analyst` | `operations / operations_member` | mapeo idempotente disponible; no había filas a retirar en el corte verificado |
+| `admin` | — | no se asigna automáticamente: permiso demasiado amplio. Dos filas aún existen en staging y requieren decisión del owner |
+| `gerente` | — | no se asigna automáticamente; no se observó ninguna fila de este rol al verificar staging/prod |
+| `owner` | proyección `withPlatformOwner` | permanece en `user_roles` |
 
-Script: `docs/supabase-migrations/20261017_staff_roles_to_team_memberships.sql`
+Migración de datos original: `docs/supabase-migrations/20261017_staff_roles_to_team_memberships.sql`.
 
-## 4. Cambios realizados en código
+## 4. Cambios de código y DB
 
-- `lib/server/platformOwner.ts` — owner bearer.
+- `lib/server/platformOwner.ts` — autoridad global owner.
 - `lib/server/collaboratorAuth.ts` — permisos por membresía ACTIVE.
-- `lib/server/requireAdmin.ts` — moderación/métricas/finanzas vía Team OS; sensibles solo owner.
-- `lib/team/moderation/access.ts` — sin bypass `user_roles` primero.
+- `lib/server/requireAdmin.ts` — moderación/métricas/finanzas vía Team OS; operaciones sensibles solo owner.
+- `lib/team/moderation/access.ts` — sin bypass de roles staff legacy.
 - `lib/staff/equipoTeamAccess.ts`, `membershipNav.ts`, `legacyStaffMapping.ts`.
-- `lib/server/middlewareRoleGate.ts` — async middleware + helpers de test.
-- `app/admin/team/page.tsx` — solo Team OS + herramientas contraseña gate.
-- `app/api/admin/team/route.ts` — mutaciones staff **410**.
-- `app/api/equipo/context/route.ts` — navegación hub `/equipo`.
-- `app/equipo/components/StaffShell.tsx` — sin `user_roles` en cliente.
-- `app/admin/AdminShell.tsx` — solo `owner` en `/admin`.
-- Tests: `tests/server/collaboratorAuth.test.ts`, `middlewareRoleGate.test.ts` actualizados.
+- `lib/server/middlewareRoleGate.ts` — middleware y helpers de test.
+- `app/admin/team/page.tsx` — gestión de membresías Team OS.
+- `app/api/admin/team/route.ts` y `app/api/admin/staff-roles/route.ts` — mutaciones legacy retiradas.
+- `app/api/equipo/context/route.ts` y `app/equipo/components/StaffShell.tsx` — contexto del hub Team OS.
+- `app/admin/AdminShell.tsx` — solo owner para `/admin`.
+- `docs/supabase-migrations/20261018_team_os_rls_policy_cutover.sql` — función de permisos y RLS.
+- `docs/supabase-migrations/20261018_team_os_legacy_auth_functions_production.sql` — funciones de producción.
+- `docs/supabase-migrations/STAGING_20261018_team_os_legacy_role_rpc_shutdown.sql` — funciones y RPCs legacy exclusivos de staging.
+- `docs/supabase-migrations/20261018_remove_mapped_legacy_moderators.sql` — retiro idempotente de filas ya migradas.
 
-## 5. Permisos funcionales (referencia)
+## 5. Contrato de permisos DB
 
 | Capacidad | Permiso Team OS |
 |-----------|-----------------|
-| Decidir ofertas (cola) | `moderation.offers.decide` |
-| Métricas moderación | `moderation.metrics.read` |
+| Leer cola de ofertas | `moderation.offers.read` |
+| Decidir ofertas / control de calidad | `moderation.offers.decide` |
+| Reportes de ofertas | `moderation.reports.read` |
+| Métricas de moderación | `moderation.metrics.read` |
 | Operaciones / analista | `operations.overview.read` |
-| Marketing hub | `growth.overview.read` |
-| Finanzas lectura | `finance.overview.read` |
-| `/admin` completo | Solo `user_roles.owner` (no membresía) |
+| Marketing / distribución | `growth.overview.read` |
+| Finanzas de solo lectura | `finance.overview.read` |
+| `/admin` y cambio de estado de pagos | Solo `user_roles.owner` |
 
-## 6. Pruebas ejecutadas
+La función RLS `team_os_has_permission(text)` permite únicamente permisos incluidos en la allowlist y membresías con estado `ACTIVE`. La función interna que acepta un user id tiene ejecución revocada a `PUBLIC`, `anon` y `authenticated`; las políticas llaman a la función sin parámetro de identidad, basada en `auth.uid()`.
 
-```bash
-npx vitest run tests/server/collaboratorAuth.test.ts tests/server/middlewareRoleGate.test.ts tests/team/teamModeration.test.ts tests/team/teamGate.test.ts tests/team/teamClosure.test.ts tests/team/teamShell.test.ts
-```
+## 6. Verificaciones de DB completadas (2026-10-18)
 
-**Resultado (local):** 6 archivos, 81 tests passed.
+- Staging: **0** políticas RLS con referencias directas a `user_roles`.
+- Producción: **0** políticas RLS con referencias directas a `user_roles`.
+- Staging: las dos cuentas con rol legacy `moderator` tenían membresía ACTIVE equivalente y ambas siguen autorizadas por Team OS; después se retiraron las dos filas legacy.
+- Producción: las dos cuentas con rol legacy `moderator` tenían membresía ACTIVE equivalente y ambas siguen autorizadas por Team OS; después se retiraron las dos filas legacy.
+- Producción: `user_roles` conserva solo una fila `owner`.
+- Producción: las funciones SQL que aún leen `user_roles` lo hacen solo para verificar `owner` (incluyendo el RPC de estado de payout). Los helpers de moderación ya consultan Team OS.
+- Se comprobó que un permiso no permitido por la allowlist (por ejemplo `finance.payout.approve`) no se concede ni al owner a través del helper de Team OS.
 
-## 7. Riesgos y pendientes
+**Limitación de la prueba:** son verificaciones SQL de políticas, membresías y helpers; no equivalen a un smoke test HTTP con JWT real para cada ruta de moderación.
 
-1. **Aplicar migración SQL** en staging y validar que cada colaborador tiene membresía antes de borrar filas staff en `user_roles`.
-2. **admin / gerente** sin equivalencia automática — decisión owner.
-3. **RLS** en tablas que aún mencionan `user_roles` (moderator/admin) — alinear en migración DB separada.
-4. **Residual cliente:** `ModerationPendingPanel`, `useModerationFocusQueue`, `operaciones/*` aún pueden leer `user_roles` para listados; no conceden permisos de escritura pero deben migrarse a consulta de `team_memberships`.
-5. **Sesiones activas:** suspender membresía deja de autorizar en la siguiente petición API (no hay step-up en gate).
+## 7. Pendientes explícitos
+
+1. **Staging — dos filas `admin`:** siguen presentes porque el mapa legacy documentado las deja fuera por diseño. Una cuenta tiene alguna membresía ACTIVE, la otra no tiene ninguna. No he inventado a qué equipo deben pertenecer ni he eliminado esas filas sin esa decisión. Sus accesos DB staff ya no se conceden por las políticas RLS migradas; se debe asignar la membresía específica o confirmar su baja.
+2. **Barrido de referencias de aplicación:** los archivos citados en la auditoría anterior (`ModerationPendingPanel`, `useModerationFocusQueue`, `OperacionesPageContent`, `TrabajoPageContent` y `useOperationsPayload`) fueron revalidados en master y no contienen consultas directas a `user_roles`. No afirmo que un barrido estático completo de cada fichero del repositorio haya quedado probado en este paso.
+3. **Sesiones activas:** la suspensión de una membresía bloquea la siguiente petición autorizada por Team OS; no hay step-up adicional en ese gate.
 
 ## 8. Criterio de cierre operativo
 
-- [x] No hay UI para “agregar rol staff”.
-- [x] APIs de moderación principales usan Team OS.
-- [x] `/admin/team` solo Team OS.
-- [ ] Producción: SQL aplicado + filas staff no-owner retiradas de `user_roles` tras checklist.
-- [ ] Cero lecturas funcionales de `user_roles` excepto owner (residuales UI listadas arriba).
+- [x] No hay UI para agregar roles staff legacy.
+- [x] APIs de staff legacy retiradas (410 Gone).
+- [x] Gestión de colaboradores por Team OS.
+- [x] Políticas RLS staff migradas en staging y producción.
+- [x] Funciones legacy de moderación migradas; payout status sigue siendo solo owner.
+- [x] Filas `moderator` retiradas tras verificar membresías ACTIVE equivalentes.
+- [x] Producción: `user_roles` solo conserva `owner`.
+- [ ] Staging: resolver las dos filas legacy `admin` mediante asignación Team OS explícita o baja confirmada.
+- [ ] Completar un barrido estático de todo el repositorio y smoke tests autenticados por ruta.
 
-## 9. `user_roles` — usos permitidos tras migración
+## 9. Usos permitidos de `user_roles` tras el corte
 
-- `lib/server/platformOwner.ts`, `requireOwnerSession.ts`, `lib/team/authz/platformRole.ts`
-- Seeds / MCP owner checks
-- Políticas SQL legacy hasta actualización explícita
+- `lib/server/platformOwner.ts`, `requireOwnerSession.ts`, `lib/team/authz/platformRole.ts`.
+- Seeds y MCP únicamente para comprobaciones de owner.
+- Las políticas RLS y funciones de negocio no deben conceder permisos por `admin`, `moderator`, `analyst`, `marketing`, `finance` o `gerente`.
