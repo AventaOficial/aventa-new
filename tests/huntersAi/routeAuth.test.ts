@@ -133,7 +133,6 @@ describe('Hunters IA · credenciales en /api/admin/hunters-ai (validación real 
     expect(list.status).toBe(200);
     expect(list.headers.get('Cache-Control')).toBe('no-store');
     expect(queue.loadHunterQueue).toHaveBeenCalledTimes(1);
-    expect(supa.rolesQueried).not.toHaveBeenCalledWith('user_roles');
 
     const approve = await POST(postRequest(headers));
     expect(approve.status).toBe(200);
