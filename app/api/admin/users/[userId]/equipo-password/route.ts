@@ -30,6 +30,12 @@ export async function POST(request: Request, context: { params: Promise<{ userId
   if (!targetId) {
     return NextResponse.json({ error: 'userId requerido' }, { status: 400 });
   }
+  if (targetId === auth.user.id) {
+    return NextResponse.json(
+      { error: 'No puedes cambiar tu propia contraseña desde la ficha de otro usuario.' },
+      { status: 400 },
+    );
+  }
 
   let body: unknown;
   try {
@@ -50,10 +56,6 @@ export async function POST(request: Request, context: { params: Promise<{ userId
   }
 
   if (action === 'generate_temporary') {
-    const owner = await requireOwner(request);
-    if ('error' in owner) {
-      return NextResponse.json({ error: owner.error }, { status: owner.status });
-    }
     const set = await setTemporaryEquipoPassword(supabase, targetId);
     if (!set.ok) {
       return NextResponse.json({ error: set.message }, { status: 500 });
@@ -63,7 +65,7 @@ export async function POST(request: Request, context: { params: Promise<{ userId
       action,
       has_email_password: true,
       temporary_password: set.temporaryPassword,
-      message: 'Contraseña temporal creada. Compártela por un canal seguro; el moderador debe cambiarla tras entrar a Team OS.',
+      message: 'Esto cambia la contraseña global de Supabase Auth para toda Aventa, no una credencial independiente de Team OS. Compártela por un canal seguro y coordina su rotación con la persona.'
     });
   }
 
