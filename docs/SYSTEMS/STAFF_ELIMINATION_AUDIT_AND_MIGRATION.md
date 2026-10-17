@@ -107,7 +107,7 @@ La función RLS `team_os_has_permission(text)` permite únicamente permisos incl
 1. **Barrido estático completo de aplicación:** se revalidaron archivos clave (`ModerationPendingPanel`, `useModerationFocusQueue`, `OperacionesPageContent`, `TrabajoPageContent` y `useOperationsPayload`), pero no afirmo que un escaneo exhaustivo de cada archivo del repositorio haya quedado probado en este paso.
 2. **Smoke tests autenticados:** las comprobaciones de SQL/RLS/helpers no sustituyen requests HTTP con JWT real para cada ruta de moderación y operaciones.
 3. **Sesiones activas:** la suspensión de una membresía bloquea la siguiente petición autorizada por Team OS; no hay step-up adicional en ese gate.
-4. **RPC payout legacy:** producción no tiene `public.payouts` ni `public.moderation_log`, aunque conserva `admin_mark_payout_status`. Esa función falla de forma fail-closed con `payouts_table_unavailable`; no tratarla como flujo de pago funcional. Mantener `MONEY_PATH_FROZEN` activo y validar solamente el flujo canónico actual antes de una futura activación monetaria.
+4. **RPC payout legacy:** producción no tiene `public.payouts` ni `public.moderation_log`. La función `admin_mark_payout_status` no tiene dependencias SQL ni llamadas desde otras funciones; en producción se revocó `EXECUTE` a `PUBLIC`, `anon`, `authenticated` y `service_role` con la migración `20261017050149_disable_legacy_payout_status_rpc_production_20261018.sql`. Se verificó que los cuatro roles no pueden ejecutarla. Staging conserva su función histórica, ya que su tabla `public.payouts` existe allí. Mantener `MONEY_PATH_FROZEN` activo y validar solo el flujo canónico actual antes de una futura activación monetaria.
 
 ## 9. Criterio de cierre operativo
 
