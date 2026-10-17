@@ -116,4 +116,12 @@ describe('Team OS como único sistema de colaboradores', () => {
       expect(read(trackedMigration)).toBe(read(runbook));
     }
   });
+
+  it('la RPC legacy de payout no puede ejecutarse en producción', () => {
+    const sql = read('supabase/migrations/20261017050149_disable_legacy_payout_status_rpc_production_20261018.sql');
+    expect(sql).toContain('REVOKE ALL ON FUNCTION public.admin_mark_payout_status');
+    expect(sql).toContain('FROM PUBLIC, anon, authenticated, service_role');
+    expect(sql).toContain("public.payouts");
+    expect(sql).not.toContain('MONEY_PATH_FROZEN=false');
+  });
 });
