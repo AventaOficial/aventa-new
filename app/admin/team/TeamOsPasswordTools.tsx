@@ -62,7 +62,7 @@ export function TeamOsPasswordTools() {
       try {
         const headers: Record<string, string> = { 'content-type': 'application/json' };
         if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
-        const res = await fetch(`/api/admin/users/${userId}/equipo-password`, {
+        const res = await fetch(`/api/admin/team-os/users/${userId}/access`, {
           method: 'POST',
           headers,
           body: JSON.stringify({ action }),
@@ -70,9 +70,8 @@ export function TeamOsPasswordTools() {
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data?.error ?? 'No se pudo completar');
         if (typeof data.temporary_password === 'string') {
-          setPasswordNote(
-            `Contraseña temporal: ${data.temporary_password} (cópiala ahora; no se vuelve a mostrar).`,
-          );
+          const warning = typeof data.message === 'string' ? data.message : 'La contraseña temporal cambia el acceso global a Aventa.';
+          setPasswordNote(`${warning} Contraseña: ${data.temporary_password} (cópiala ahora).`);
         } else {
           setPasswordNote(typeof data.message === 'string' ? data.message : 'Correo enviado.');
         }
